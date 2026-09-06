@@ -37,6 +37,44 @@ def _avg_positive(values: Iterable[float]) -> float:
     return sum(positives) / len(positives) if positives else 0.0
 
 
+def _metric_availability(context, invocations, metrics, costs) -> Dict[str, str]:
+    """Expose coverage without changing legacy numeric summary defaults."""
+    calls = {invocation.call_id for invocation in invocations}
+
+    def observed(metric, field):
+        return field in metric.fields.get("observed_fields", metric.fields) and metric.fields.get(field) is not None
+
+    def coverage(fields, *, positive=False, provider_only=False):
+        covered = {metric.invocation_call_id for metric in metrics
+                   if (not provider_only or metric.source != "runtime")
+                   and any(observed(metric, field) and (not positive or _num(metric.fields[field]) > 0) for field in fields)}
+        return status(len(calls & covered), len(calls))
+
+    def status(count, total):
+        return "available" if total and count == total else "partial" if count else "unavailable"
+
+    availability = {
+        "run_user_e2e_ms": "available" if context.start_time and context.end_time else "unavailable",
+        "avg_memory_usage_mb": coverage(("memory_usage_mb",), positive=True),
+        "cold_start_total": coverage(("is_cold_start",)),
+        "total_compute_time_ms": coverage(("tool_exec_ms", "duration_ms")),
+        "total_initialize_time_ms": coverage(("init_duration_ms", "is_cold_start")),
+    }
+    for field in ("state_sync_overhead_ms", "framework_overhead_ms", "network_time_ms", "tool_exec_ms", "app_e2e_ms"):
+        availability[f"total_{field}"] = coverage((field,))
+    availability["total_platform_time_ms"] = coverage(("platform_time_ms", "app_e2e_ms"))
+    availability["idle_ratio"] = availability["total_compute_time_ms"]
+    availability["total_price"] = coverage(("billed_duration_ms", "duration_ms", "invoker_function_ms"), provider_only=True) if costs else "unavailable"
+    if context.provider == "aws_agentcore":
+        sessions = {invocation.provider_session_id for invocation in invocations if invocation.provider_session_id}
+        covered = {str(metric.fields.get("session_id")) for metric in metrics
+                   if metric.source == "agentcore_usage" and _num(metric.fields.get("log_entries")) > 0}
+        availability["total_price"] = status(len(sessions & covered), len(sessions)) if costs else "unavailable"
+        if any(not invocation.provider_session_id for invocation in invocations) and availability["total_price"] == "available":
+            availability["total_price"] = "partial"
+    return availability
+
+
 class ReportAggregator:
     def aggregate(
         self,
@@ -186,6 +224,9 @@ class ReportAggregator:
             (summary["total_idle_time_ms"] / total_node_time) if total_node_time else 0.0,
             6,
         )
+        summary["invocation_count"] = len(invocations)
+        summary["failed_invocation_count"] = sum(invocation.status != "ok" for invocation in invocations)
+        summary["metric_availability"] = _metric_availability(context, invocations, metrics, costs)
 
         report = AnalysisReport(
             schema_version=SCHEMA_VERSION,

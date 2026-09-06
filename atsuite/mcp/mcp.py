@@ -43,12 +43,12 @@ def _extract_mcp_tool_error_message(response_payload: Optional[dict]) -> Optiona
     return str(result)
 
 
-def _log_mcp_tool_error(
+def _raise_mcp_tool_error(
     response_payload: Optional[dict], *, client_name: str, tool_name: str
 ) -> None:
     error_message = _extract_mcp_tool_error_message(response_payload)
     if error_message:
-        print(f"[{client_name}] Tool returned isError for {tool_name}: {error_message}")
+        raise RuntimeError(f"[{client_name}] Tool returned isError for {tool_name}: {error_message}")
 
 
 class MCPClient:
@@ -120,7 +120,7 @@ class MCPClient:
 
         response_payload = self._read_streamable_response(resp)
         self._raise_if_mcp_error(response_payload)
-        _log_mcp_tool_error(
+        _raise_mcp_tool_error(
             response_payload,
             client_name=self.__class__.__name__,
             tool_name=tool_name,
@@ -281,7 +281,7 @@ class LocalMCPClient(MCPClient):
             resp.raise_for_status()
             response_payload = self._read_streamable_response(resp)
             MCPClient._raise_if_mcp_error(response_payload)
-            _log_mcp_tool_error(
+            _raise_mcp_tool_error(
                 response_payload,
                 client_name=self.__class__.__name__,
                 tool_name=tool_name,
@@ -567,7 +567,7 @@ class AgentCoreMCPClient:
                 self.session_id = response.headers.get("Mcp-Session-Id")
                 response_payload = self._read_streamable_response(response)
                 self._raise_if_mcp_error(response_payload)
-                _log_mcp_tool_error(
+                _raise_mcp_tool_error(
                     response_payload,
                     client_name=self.__class__.__name__,
                     tool_name=tool_name,
@@ -588,7 +588,7 @@ class AgentCoreMCPClient:
 
         response_payload = self._read_response_payload(response)
         self._raise_if_mcp_error(response_payload)
-        _log_mcp_tool_error(
+        _raise_mcp_tool_error(
             response_payload,
             client_name=self.__class__.__name__,
             tool_name=tool_name,

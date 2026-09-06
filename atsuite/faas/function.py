@@ -90,7 +90,7 @@ class FunctionClient:
                 except json.JSONDecodeError:
                     pass
         if isinstance(result, dict) and result.get("isError"):
-            print(result)
+            raise RuntimeError(f"Tool {tool_name} returned isError: {result}")
 
         # Ali Cloud: X-Fc-Request-Id
         # AWS Lambda: x-amzn-requestid

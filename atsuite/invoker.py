@@ -409,6 +409,7 @@ def run_trace(
     skip_analyzer: bool = False,
     skip_scaling_config: bool = False,
     analyzer: Optional[Any] = None,
+    output_dir: str | Path = "results",
 ) -> Dict[str, Any]:
     if is_sandbox_config(config_path):
         raise SystemExit("Sandbox configs are no longer supported; use an external MCP-Gateway target instead")
@@ -428,8 +429,8 @@ def run_trace(
     if url_map.get("provider") and url_map["provider"] != provider:
         raise SystemExit(f"URL map provider {url_map['provider']} does not match CLI provider {provider}")
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = Path("results") / provider / resolved.bench_name
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    log_dir = Path(output_dir) / provider / resolved.bench_name
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"{ts}.log"
     _log_file = open(log_path, "w", encoding="utf-8")
@@ -439,35 +440,10 @@ def run_trace(
     toclean: set[str] = set()
     stateful_tool_num = [0]
     node_by_id = {n.node_id: n for n in resolved.trace.nodes}
-    toclean.update(
-        seed_lambda_state_snapshot_for_uid(
-            provider=provider,
-            uid=uid,
-            state_snapshot_bundle=state_snapshot_bundle,
-        )
-    )
-
-    if resolved.family == "session" and provider == "ali_agentrun" and not skip_scaling_config:
-        for target in resolved.targets.values():
-            _create_scaling_configs(provider, f"{target.name}-mcp")
-        time.sleep(30)
-
-    runtime = create_runtime_adapter(resolved.provider.name, resolved.family)
-    runtime.connect(url_map)
-    runtime_targets = _runtime_targets(resolved, url_map)
-
-    if analyzer is None and not skip_analyzer:
-        analyzer = _create_analyzer(
-            config_path,
-            resolved,
-            trace_name=Path(str(selected_trace_file)).stem,
-            endpoint_map=url_map,
-            runtime=runtime,
-        )
-    if analyzer:
-        analyzer.start(uid=uid)
-
-    trace_start_time = time.time()
+    runtime = None
+    analyzer_started = False
+    scaling_targets = []
+    trace_start_time = 0.0
     trace_end_time = 0.0
     analyzer_report = None
     result: Dict[str, Any] = {
@@ -485,6 +461,29 @@ def run_trace(
     }
 
     try:
+        toclean.update(
+            seed_lambda_state_snapshot_for_uid(
+                provider=provider, uid=uid, state_snapshot_bundle=state_snapshot_bundle,
+            )
+        )
+        if resolved.family == "session" and provider == "ali_agentrun" and not skip_scaling_config:
+            for target in resolved.targets.values():
+                _create_scaling_configs(provider, f"{target.name}-mcp")
+                scaling_targets.append(target.name)
+            time.sleep(30)
+
+        runtime = create_runtime_adapter(resolved.provider.name, resolved.family)
+        runtime.connect(url_map)
+        runtime_targets = _runtime_targets(resolved, url_map)
+        if analyzer is None and not skip_analyzer:
+            analyzer = _create_analyzer(
+                config_path, resolved, trace_name=Path(str(selected_trace_file)).stem,
+                endpoint_map=url_map, runtime=runtime,
+            )
+        if analyzer:
+            analyzer.start(uid=uid)
+            analyzer_started = True
+        trace_start_time = time.time()
         run_node(
             0,
             {},
@@ -514,9 +513,10 @@ def run_trace(
                 url_map=url_map,
                 bench_name=resolved.bench_name,
             )
-            runtime.cleanup_run(uid)
+            if runtime is not None:
+                runtime.cleanup_run(uid)
 
-            if analyzer:
+            if analyzer_started:
                 analyzer.record_state_cleanup(
                     provider=resolved.provider.storage_provider,
                     services=toclean,
@@ -527,33 +527,30 @@ def run_trace(
                     metadata={"bucket": BUCKET_NAME},
                 )
 
-            if resolved.family == "session" and provider == "ali_agentrun" and not skip_scaling_config:
-                for target in resolved.targets.values():
-                    _cleanup_scaling_configs(provider, f"{target.name}-mcp")
-
-            if analyzer:
-                analyzer_report = analyzer.end(
-                    end_time=trace_end_time or time.time(),
-                    wait_for_ingestion=True,
-                    timestamp=ts,
-                )
-                analyzer.print_stats()
-                result["run"] = analyzer_report.run
-                result["summary"] = analyzer_report.summary
-                result["report_path"] = analyzer_report.report_path
-                result["evidence_path"] = analyzer_report.evidence_path
-                result["trace_path"] = analyzer_report.trace_path
-                result["events_path"] = analyzer.events_path
-            else:
-                result["summary"].setdefault(
-                    "run_user_e2e_ms",
-                    ((trace_end_time or time.time()) - trace_start_time) * 1000,
-                )
-                result["summary"].setdefault("total_compute_time_ms", 0.0)
-                result["summary"].setdefault("total_idle_time_ms", 0.0)
-                result["summary"].setdefault("total_price", 0.0)
+            for target_name in scaling_targets:
+                _cleanup_scaling_configs(provider, f"{target_name}-mcp")
         finally:
-            sys.stdout = _original_stdout
-            _log_file.close()
-            print(f"[export] Log: {log_path}")
+            try:
+                # Keep evidence even if invocation or state cleanup failed.
+                if analyzer_started:
+                    analyzer_report = analyzer.end(
+                        end_time=trace_end_time or time.time(),
+                        wait_for_ingestion=True, timestamp=ts,
+                    )
+                    analyzer.print_stats()
+                    result["run"] = analyzer_report.run
+                    result["summary"] = analyzer_report.summary
+                    result["report_path"] = analyzer_report.report_path
+                    result["evidence_path"] = analyzer_report.evidence_path
+                    result["trace_path"] = analyzer_report.trace_path
+                    result["events_path"] = analyzer.events_path
+                elif trace_start_time:
+                    result["summary"].setdefault("run_user_e2e_ms", ((trace_end_time or time.time()) - trace_start_time) * 1000)
+                    result["summary"].setdefault("total_compute_time_ms", 0.0)
+                    result["summary"].setdefault("total_idle_time_ms", 0.0)
+                    result["summary"].setdefault("total_price", 0.0)
+            finally:
+                sys.stdout = _original_stdout
+                _log_file.close()
+                print(f"[export] Log: {log_path}")
     return result

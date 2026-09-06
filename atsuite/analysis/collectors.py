@@ -247,6 +247,9 @@ def _metric_from_invocation(
         "confidence": "client_only",
     }
     merged.update(dict(fields or {}))
+    # Preserve which fields were actually supplied by the collector. Defaults
+    # above remain compatible with replay reports, but are not measurements.
+    merged["observed_fields"] = sorted(key for key, value in (fields or {}).items() if value is not None)
     if "duration_ms" in merged and "elapsed_time_ms" not in merged:
         merged["elapsed_time_ms"] = merged["duration_ms"]
     return ProviderMetric(
@@ -1012,7 +1015,6 @@ class AWSCloudWatchCollector:
                 "client_e2e_ms": invocation.client_elapsed_ms,
                 "duration_ms": invocation.client_elapsed_ms,
                 "elapsed_time_ms": invocation.client_elapsed_ms,
-                "is_cold_start": "false",
             }
             if session_id:
                 fields["session_id"] = session_id
@@ -1266,7 +1268,7 @@ class GCPCloudLoggingCollector:
             fields = {
                 "client_e2e_ms": invocation.client_elapsed_ms,
                 "elapsed_time_ms": meta.get("latency_ms", invocation.client_elapsed_ms),
-                "duration_ms": meta.get("latency_ms", invocation.client_elapsed_ms),
+                "duration_ms": meta.get("latency_ms"),
                 "status": meta.get("status", invocation.status),
                 "service_name": meta.get("service_name", ""),
                 **{
