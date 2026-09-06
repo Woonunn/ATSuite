@@ -27,6 +27,7 @@ atsuite-build = "atsuite.cli.build_docker_images:main"
 atsuite-deploy = "atsuite.cli.deploy:main"
 atsuite-replay = "atsuite.cli.invoker:main"
 atsuite-concurrency = "atsuite.cli.concurrency:main"
+atsuite-recommend = "atsuite.cli.recommend:main"
 atsuite-trace-viewer = "atsuite.cli.trace_viewer_server:main"
 
 [build-system]
