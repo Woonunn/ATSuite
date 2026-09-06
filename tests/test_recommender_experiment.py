@@ -36,6 +36,23 @@ class FakeLifecycle:
 
 
 class ExperimentTests(unittest.TestCase):
+    def test_cleanup_unsupported_and_failed_are_reported(self):
+        for failure in (False, True):
+            class Lifecycle(FakeLifecycle):
+                def cleanup(self):
+                    if failure:
+                        raise RuntimeError("delete failed")
+                    return "unsupported"
+            with tempfile.TemporaryDirectory() as tmp:
+                config = make_config(Path(tmp))
+                candidate = generate_candidates(config, ["aws_lambda"])[0]
+                progress = []
+                runner = ExperimentRunner(output_dir=Path(tmp) / "out", lifecycle_factory=Lifecycle, progress=progress.append)
+                measurement = runner.run_candidate(candidate, runs=3, warmup_runs=0, uid_prefix="u")
+                self.assertEqual(measurement.cleanup_status, "failed" if failure else "unsupported")
+                self.assertEqual(measurement.successful_runs, 2)
+                self.assertTrue(any("WARNING" in message for message in progress))
+
     def test_repetitions_uid_isolation_failure_and_finally(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

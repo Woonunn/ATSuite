@@ -197,6 +197,8 @@ class FunctionRuntimeAdapter(_BaseRuntimeAdapter):
         client = self._client(target)
         start = time.time()
         try:
+            if request.timeout is not None:
+                client.timeout = request.timeout
             provider_request_id, is_stateful = client.invoke(
                 request.tool_name,
                 request.args,
@@ -248,6 +250,8 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
             from atsuite.mcp.mcp import MCPClient
 
             client = MCPClient(target.endpoint, uid)
+        if target.resources.get("timeout") is not None:
+            client.timeout = target.resources["timeout"]
         self._clients[key] = client
         return client
 
@@ -268,6 +272,8 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
         client = self._client(target, request.uid)
         start = time.time()
         try:
+            if request.timeout is not None:
+                client.timeout = request.timeout
             provider_request_id = client.invoke(
                 request.tool_name,
                 request.args,

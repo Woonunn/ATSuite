@@ -1013,7 +1013,6 @@ class AWSCloudWatchCollector:
             )
             fields: Dict[str, Any] = {
                 "client_e2e_ms": invocation.client_elapsed_ms,
-                "duration_ms": invocation.client_elapsed_ms,
                 "elapsed_time_ms": invocation.client_elapsed_ms,
             }
             if session_id:

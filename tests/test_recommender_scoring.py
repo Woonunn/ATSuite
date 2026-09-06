@@ -25,7 +25,8 @@ class ScoringTests(unittest.TestCase):
         a = score_candidate("A")
         a.metrics["memory"] = MetricValue()
         score_candidates([a], {"latency": .5, "cost": .3, "memory": .2})
-        self.assertEqual(a.effective_weights, {"latency": .625, "cost": .37499999999999994})
+        self.assertAlmostEqual(a.effective_weights["latency"], .625)
+        self.assertAlmostEqual(a.effective_weights["cost"], .375)
         b = score_candidate("B", cost=None)
         self.assertEqual(score_candidates([b], {"cost": 1}, required_metrics={"cost"}), [])
         self.assertIn("required metric cost", b.exclusion_reasons[0])
@@ -41,4 +42,33 @@ class ScoringTests(unittest.TestCase):
         a.measurement.successful_runs = 3
         self.assertEqual(assess_confidence(rows, {"latency": 1})[0], "MEDIUM")
         a.measurement.successful_runs = 1
+        self.assertEqual(assess_confidence(rows, {"latency": 1})[0], "LOW")
+
+    def test_tie_break_order_failure_latency_cost_id(self):
+        for a, b, expected in (
+            (score_candidate("A", 1, 1, .1), score_candidate("B", 10, 10, 0), "B"),
+            (score_candidate("A", 20, 1), score_candidate("B", 10, 10), "B"),
+            (score_candidate("A", 10, 20), score_candidate("B", 10, 10), "B"),
+            (score_candidate("A"), score_candidate("B"), "A"),
+        ):
+            self.assertEqual(score_candidates([b, a], {"memory": 1})[0].candidate.id, expected)
+
+    def test_partial_metric_is_never_scored(self):
+        a = score_candidate("A")
+        a.metrics["cost"] = MetricValue(0, "partial")
+        score_candidates([a], {"latency": .5, "cost": .5})
+        self.assertEqual(a.effective_weights, {"latency": 1})
+        self.assertEqual(score_candidates([a], {"cost": 1}, required_metrics={"cost"}), [])
+
+    def test_confidence_variance_missing_metrics_diagnostics_and_margin(self):
+        for change, expected in (
+            (lambda a: setattr(a.measurement.latency_ms, "cv", .2), "MEDIUM"),
+            (lambda a: setattr(a.measurement.latency_ms, "cv", .3), "LOW"),
+            (lambda a: a.measurement.diagnostics.append({"kind": "collector_error"}), "LOW"),
+        ):
+            rows = score_candidates([score_candidate("A", 100), score_candidate("B", 200)], {"latency": 1})
+            change(rows[0])
+            self.assertEqual(assess_confidence(rows, {"latency": 1})[0], expected)
+        rows = score_candidates([score_candidate("A", 100), score_candidate("B", 200)], {"latency": 1})
+        rows[0].score = rows[1].score + .006
         self.assertEqual(assess_confidence(rows, {"latency": 1})[0], "LOW")

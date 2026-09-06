@@ -31,3 +31,10 @@ class ConstraintTests(unittest.TestCase):
         ))
         self.assertEqual(len(reasons), 3)
         self.assertIn("cannot verify", reasons[-1])
+
+    def test_p50_scoring_does_not_change_p95_constraint(self):
+        candidate = score_candidate()
+        candidate.measurement.latency_ms = metric_stats([1, 1, 1, 1, 5000])
+        candidate.metrics = comparison_metrics(candidate.measurement, "p50")
+        self.assertEqual(candidate.metrics["latency"].value, 1)
+        self.assertEqual(len(constraint_violations(candidate, RecommendationConstraints(max_p95_latency_ms=2000))), 1)

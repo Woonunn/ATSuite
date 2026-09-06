@@ -95,7 +95,8 @@ class EngineTests(unittest.TestCase):
             def run_candidate(self, candidate, **kwargs):
                 result = super().run_candidate(candidate, **kwargs)
                 if candidate.family == "session":
-                    result.cost_usd = result.cost_usd.__class__(**{**vars(result.cost_usd), "median": .0001})
+                    from atsuite.recommender.metrics import metric_stats
+                    result.cost_usd = metric_stats([.0001] * kwargs["runs"])
                 return result
         with tempfile.TemporaryDirectory() as tmp:
             config = make_config(Path(tmp))
@@ -103,3 +104,38 @@ class EngineTests(unittest.TestCase):
             self.assertEqual(result.pareto_frontier, ["aws_agentcore"])
             self.assertEqual(result.winner.candidate.id, "aws_agentcore")
             self.assertEqual(len(result.rankings), 2)
+
+    def test_raw_run_evidence_recomputes_entire_ranking(self):
+        from atsuite.recommender.metrics import comparison_metrics
+        from atsuite.recommender.model import CandidateScore, DeploymentCandidate
+        from atsuite.recommender.scoring import score_candidates
+        with tempfile.TemporaryDirectory() as tmp:
+            config = make_config(Path(tmp))
+            result = RecommendationEngine(FakeExperimentRunner(), output_dir=Path(tmp) / "out").recommend(config)
+            payload = json.loads(Path(result.report_path).read_text())
+            rows = []
+            for item in payload["candidates"]:
+                candidate = DeploymentCandidate(item["id"], item["provider"], item["cloud"], item["family"], Path(item["config_path"]))
+                measurement = aggregate_runs(candidate, item["run_records"], CurrencyNormalizer(payload["pricing"]["fx_rates"]))
+                rows.append(CandidateScore(measurement, comparison_metrics(measurement, payload["experiment"]["latency_stat"])))
+            ranked = score_candidates(rows, payload["objective"]["weights"])
+            self.assertEqual([row.candidate.id for row in ranked], payload["rankings"])
+            self.assertEqual(ranked[0].score, payload["recommendation"]["score"])
+
+    def test_minimum_successes_excludes_unreliable_candidate(self):
+        class Unreliable(FakeExperimentRunner):
+            def run_candidate(self, candidate, **kwargs):
+                result = super().run_candidate(candidate, **kwargs)
+                if candidate.provider == "aws_lambda":
+                    for record in result.run_records[2:]:
+                        record["status"] = "failed"
+                    result = aggregate_runs(candidate, result.run_records, CurrencyNormalizer())
+                return result
+        with tempfile.TemporaryDirectory() as tmp:
+            config = make_config(Path(tmp))
+            result = RecommendationEngine(Unreliable(), output_dir=Path(tmp) / "out").recommend(config)
+            bad = next(row for row in result.candidates if row.candidate.id == "aws_lambda")
+            self.assertEqual(bad.measurement.failure_rate, .6)
+            self.assertIsNone(bad.score)
+            self.assertTrue(any("minimum" in reason for reason in bad.exclusion_reasons))
+            self.assertIsNotNone(result.winner)

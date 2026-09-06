@@ -1,6 +1,8 @@
 import contextlib
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +15,19 @@ from tests.test_recommender_engine import FakeExperimentRunner
 
 
 class CliTests(unittest.TestCase):
+    def test_subprocess_stdout_is_redirected(self):
+        program = """from atsuite.cli.recommend import execution_output_to_stderr
+import os
+with execution_output_to_stderr():
+    print('python progress')
+    os.write(1, b'child progress\\n')
+print('{"ok": true}')
+"""
+        result = subprocess.run([sys.executable, "-c", program], capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(result.stdout), {"ok": True})
+        self.assertIn("child progress", result.stderr)
+        self.assertIn("python progress", result.stderr)
+
     def test_json_stdout_and_full_options(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = make_config(Path(tmp))
@@ -59,3 +74,13 @@ class CliTests(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as exc:
                 recommend.main(["--config", str(config), "--runs", "1"])
             self.assertEqual(exc.exception.code, 2)
+
+    def test_default_providers_include_gateway_only_when_requested(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = make_config(Path(tmp))
+            runner = FakeExperimentRunner()
+            engine = RecommendationEngine(runner, output_dir=Path(tmp) / "out")
+            with mock.patch.object(recommend, "RecommendationEngine", return_value=engine), contextlib.redirect_stdout(io.StringIO()):
+                recommend.main(["--config", str(config), "--include-provider", "mcp_gateway"])
+            self.assertEqual(len(runner.calls), 7)
+            self.assertIn("mcp_gateway", runner.calls)

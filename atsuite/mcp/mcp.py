@@ -59,6 +59,7 @@ class MCPClient:
         self.initialize_request_id = None
         self._initialized = False
         self._init_lock = threading.Lock()
+        self.timeout = _MCP_CLIENT_TIMEOUT_SECONDS
         self._http_client = httpx.Client(
             limits=httpx.Limits(max_connections=500, max_keepalive_connections=500),
             timeout=httpx.Timeout(_MCP_CLIENT_TIMEOUT_SECONDS),
@@ -97,6 +98,7 @@ class MCPClient:
         resp = self._http_client.post(
             f"{self.url}/mcp",
             headers=headers,
+            timeout=self.timeout,
             json={
                 "jsonrpc": "2.0",
                 "id": f"call-{call_time}-{thread_id}",
@@ -186,6 +188,7 @@ class MCPClient:
                     "capabilities": {},
                 },
             },
+            timeout=self.timeout,
         )
         print(
             f"[MCPClient._init] Response status={resp.status_code}, url={self.url}, uid={self.uid}"
@@ -344,6 +347,7 @@ class AgentCoreMCPClient:
         self.initialize_request_id = None
         self.session_id = None  # 添加session_id支持，用于复用session
         self.protocol_version = None
+        self.timeout = _MCP_CLIENT_TIMEOUT_SECONDS
 
         # 初始化 SigV4 凭证
         from botocore.session import Session as BotocoreSession
@@ -459,6 +463,7 @@ class AgentCoreMCPClient:
         return requests.post(
             self.url,
             data=payload,
+            timeout=self.timeout,
             headers={
                 "Content-Type": "application/json",
                 "Accept": accept,
@@ -516,6 +521,7 @@ class AgentCoreMCPClient:
             "POST",
             self.url,
             data=payload,
+            timeout=self.timeout,
             headers={
                 "Content-Type": "application/json",
                 "Accept": accept,

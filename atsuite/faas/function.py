@@ -26,7 +26,7 @@ class FunctionClient:
         self._aws_credentials = None
         self.timeout = 1800
 
-        # Use a plain session: no client-side timeout and no automatic retries.
+        # Use a plain session without automatic retries.
         self.session = requests.Session()
 
     def invoke(self, tool_name: str, args: dict, request_id: Optional[str] = None):
@@ -48,6 +48,7 @@ class FunctionClient:
                 invoke_url,
                 data=body,
                 headers=headers,
+                timeout=self.timeout,
             )
         else:
             headers = {}
@@ -57,6 +58,7 @@ class FunctionClient:
                 invoke_url,
                 json=payload,
                 headers=headers or None,
+                timeout=self.timeout,
             )
 
         try:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -55,8 +56,15 @@ class CandidateLifecycle:
         )
         record = {"uid": uid, "phase": phase, "status": "success", "summary": {}, "diagnostics": []}
         try:
-            run_trace(self.candidate.config_path, self.url_map_path, uid,
-                      provider=self.candidate.provider, analyzer=analyzer, output_dir=run_dir)
+            replay = run_trace(self.candidate.config_path, self.url_map_path, uid,
+                               provider=self.candidate.provider, analyzer=analyzer, output_dir=run_dir, raise_on_error=False)
+            record.update(status=replay["status"], summary=replay["summary"])
+            if replay.get("error"):
+                record["error"] = replay["error"]
+                record["diagnostics"].append({"kind": "run_failed" if phase == "measured" else "warmup_failed", "error": replay["error"]})
+            for kind in ("cleanup", "analysis"):
+                if replay.get(f"{kind}_error"):
+                    record["diagnostics"].append({"kind": f"{kind}_failed", "error": replay[f"{kind}_error"]})
         except (Exception, SystemExit) as exc:
             record["status"] = "failed"
             record["error"] = f"{type(exc).__name__}: {exc}"
@@ -72,6 +80,16 @@ class CandidateLifecycle:
             if any(invocation["status"] != "ok" for invocation in report.invocations):
                 record["status"] = "failed"
                 record["diagnostics"].append({"kind": "run_failed", "reason": "Tool invocation failed"})
+        if any(diagnostic["kind"] == "cleanup_failed" for diagnostic in record["diagnostics"]):
+            availability = record["summary"].setdefault("metric_availability", {})
+            if availability.get("total_price") == "available":
+                availability["total_price"] = "partial"
+        record["events_path"] = analyzer.events_path
+        for key, value in list(record["summary"].items()):
+            if isinstance(value, float) and not math.isfinite(value):
+                record["summary"][key] = None
+                record["summary"].setdefault("metric_availability", {})[key] = "unavailable"
+                record["diagnostics"].append({"kind": "metric_unavailable", "metric": key, "reason": "Non-finite Analyzer value; see raw report"})
         (run_dir / "run.json").write_text(json.dumps(record, indent=2, allow_nan=False) + "\n")
         return record
 

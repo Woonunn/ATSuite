@@ -410,6 +410,7 @@ def run_trace(
     skip_scaling_config: bool = False,
     analyzer: Optional[Any] = None,
     output_dir: str | Path = "results",
+    raise_on_error: bool = True,
 ) -> Dict[str, Any]:
     if is_sandbox_config(config_path):
         raise SystemExit("Sandbox configs are no longer supported; use an external MCP-Gateway target instead")
@@ -429,7 +430,7 @@ def run_trace(
     if url_map.get("provider") and url_map["provider"] != provider:
         raise SystemExit(f"URL map provider {url_map['provider']} does not match CLI provider {provider}")
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_dir = Path(output_dir) / provider / resolved.bench_name
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"{ts}.log"
@@ -447,6 +448,7 @@ def run_trace(
     trace_end_time = 0.0
     analyzer_report = None
     result: Dict[str, Any] = {
+        "status": "success",
         "run": {
             "uid": uid,
             "provider": provider,
@@ -502,19 +504,22 @@ def run_trace(
         )
         trace_end_time = time.time()
         result["summary"]["run_user_e2e_ms"] = (trace_end_time - trace_start_time) * 1000
+    except (Exception, SystemExit) as exc:
+        result["status"] = "failed"
+        result["error"] = f"{type(exc).__name__}: {exc}"
+        if raise_on_error:
+            raise
     finally:
         try:
             cleanup_started_at = time.time()
-            size = cleaner(
-                provider,
-                BUCKET_NAME,
-                toclean,
-                uid,
-                url_map=url_map,
-                bench_name=resolved.bench_name,
-            )
-            if runtime is not None:
-                runtime.cleanup_run(uid)
+            try:
+                size = cleaner(
+                    provider, BUCKET_NAME, toclean, uid,
+                    url_map=url_map, bench_name=resolved.bench_name,
+                ) if toclean else 0.0
+            finally:
+                if runtime is not None:
+                    runtime.cleanup_run(uid)
 
             if analyzer_started:
                 analyzer.record_state_cleanup(
@@ -527,10 +532,14 @@ def run_trace(
                     metadata={"bucket": BUCKET_NAME},
                 )
 
-            for target_name in scaling_targets:
-                _cleanup_scaling_configs(provider, f"{target_name}-mcp")
+        except (Exception, SystemExit) as exc:
+            result["cleanup_error"] = f"{type(exc).__name__}: {exc}"
+            if raise_on_error:
+                raise
         finally:
             try:
+                for target_name in scaling_targets:
+                    _cleanup_scaling_configs(provider, f"{target_name}-mcp")
                 # Keep evidence even if invocation or state cleanup failed.
                 if analyzer_started:
                     analyzer_report = analyzer.end(
@@ -549,6 +558,10 @@ def run_trace(
                     result["summary"].setdefault("total_compute_time_ms", 0.0)
                     result["summary"].setdefault("total_idle_time_ms", 0.0)
                     result["summary"].setdefault("total_price", 0.0)
+            except (Exception, SystemExit) as exc:
+                result["analysis_error"] = f"{type(exc).__name__}: {exc}"
+                if raise_on_error:
+                    raise
             finally:
                 sys.stdout = _original_stdout
                 _log_file.close()

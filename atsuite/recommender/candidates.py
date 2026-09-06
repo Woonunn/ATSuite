@@ -5,6 +5,7 @@ from atsuite.recommender.model import DeploymentCandidate
 
 
 def generate_candidates(config_path: Path, requested_providers: list[str] | None = None) -> list[DeploymentCandidate]:
+    resolve_benchmark.cache_clear()
     providers = requested_providers if requested_providers is not None else [
         name for name in PROVIDERS if name != "mcp_gateway"
     ]

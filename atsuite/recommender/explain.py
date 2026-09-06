@@ -52,3 +52,5 @@ def explain(recommendation: Recommendation) -> None:
     if omitted:
         recommendation.explanation.append(f"Winner weights were renormalized without unavailable/partial metrics: {', '.join(omitted)}.")
     recommendation.explanation.append(f"Ranked by measured evidence under the {recommendation.objective} objective and recorded effective weights.")
+    if recommendation.workload.get("stateful_invocation_ratio"):
+        recommendation.explanation.append(f"{100 * recommendation.workload['stateful_invocation_ratio']:.1f}% of trace tool invocations access persistent state; this profile is descriptive and has no scoring weight.")
