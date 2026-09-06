@@ -1,0 +1,7 @@
+{
+  "base_currency": "USD",
+  "rates": {
+    "USD": 1.0,
+    "CNY": 0.14
+  }
+}

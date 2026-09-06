@@ -158,6 +158,21 @@ web/trace_viewer/     Browser-based trace viewer
 benchmarks/legacy/    Unsupported(still in progress) legacy workloads, including sandbox-only traces
 ```
 
+## Automatic Deployment Recommendation
+
+Compare the configured FaaS and Session-MCP deployments across Alibaba Cloud, AWS and GCP with repeated real benchmarks:
+
+```bash
+uv run atsuite-recommend \
+  --config benchmarks/TravelPlanner/config/faas7_mcp2_min.json \
+  --runs 5 --objective balanced \
+  --fx-config docs/recommender_fx.example.json
+```
+
+The recommender applies hard constraints, Pareto filtering and deterministic scoring to measured latency, normalized cost, failures, cold starts, memory and state overhead. It exports complete evidence, rankings, confidence and best candidates by runtime family. The FX file contains example rates; choose fixed rates for your experiment. This command creates cloud deployments; V1 reports unsupported resource cleanup explicitly.
+
+See the [English guide](docs/recommender.md) or [中文指南](docs/recommender.zh.md) for setup, scoring, constraints, resource topology caveats and JSON output.
+
 ## Benchmarks Included
 
 The repository includes several benchmark workloads, including:
