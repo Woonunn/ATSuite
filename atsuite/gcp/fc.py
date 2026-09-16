@@ -47,11 +47,12 @@ class GCPFC(FunctionBase):
         project_id: str,
         region: str,
         typ: str = "function",
-        cpu: int = 1,
+        cpu: float = 1.0,
         memory_size: int = 1024,
         timeout: int = 60,
         session_affinity: Optional[bool] = None,
         min_instances: Optional[int] = None,
+        image_ref: Optional[str] = None,
         **kwargs: Any,
     ):
         self.function_name = function_name
@@ -65,15 +66,15 @@ class GCPFC(FunctionBase):
         self.timeout = timeout
         self.session_affinity = session_affinity
         self.min_instances = min_instances
+        self.image_ref = image_ref
 
     def deploy(self) -> str:
         # tag local image to image uri and push to registry
-        image_uri = _image_uri(self.project_id, self.tag)
-        local_ref = f"{self.tag}:latest"
-
-        # tag local image to image uri and push to registry
-        run(["docker", "tag", local_ref, image_uri])
-        run(["docker", "push", image_uri])
+        image_uri = self.image_ref or _image_uri(self.project_id, self.tag)
+        if not self.image_ref:
+            local_ref = f"{self.tag}:latest"
+            run(["docker", "tag", local_ref, image_uri])
+            run(["docker", "push", image_uri])
 
         # deploy function or mcp on GCP Cloud Run
         service_name = _cloud_run_service_name(self.function_name)
@@ -82,7 +83,7 @@ class GCPFC(FunctionBase):
         gcp_storage_bucket = os.environ.get("GCP_BUCKET", os.environ.get("GOOGLE_CLOUD_PROJECT", self.project_id))
         env_vars = f"{base},PROVIDER=gcp,PROJECT={gcp_storage_bucket},GOOGLE_CLOUD_PROJECT={self.project_id}"
         # Cloud Run request timeout is currently capped at 3600 seconds.
-        effective_timeout = _CLOUD_RUN_MAX_TIMEOUT_SECONDS
+        effective_timeout = min(max(int(self.timeout), 1), _CLOUD_RUN_MAX_TIMEOUT_SECONDS)
         deploy_cmd = [
             "gcloud", "run", "deploy", service_name,
             "--image", image_uri,

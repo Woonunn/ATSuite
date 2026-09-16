@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atsuite.local/schemas/recommender/experiment.schema.json",
+  "title": "ATSuite ExperimentSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "benchmark",
+    "providers"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "string",
+          "minLength": 1
+        },
+        "correctness_policy": {
+          "enum": [
+            "require_declared_oracle",
+            "allow_declared_comparator",
+            "none"
+          ]
+        }
+      }
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "ali_fc",
+          "ali_agentrun",
+          "aws_lambda",
+          "aws_agentcore",
+          "gcp_faas",
+          "gcp_mcp",
+          "mcp_gateway"
+        ]
+      }
+    },
+    "provider_profiles": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "objective": {
+      "type": "object"
+    },
+    "search": {
+      "type": "object"
+    },
+    "protocol": {
+      "type": "object"
+    },
+    "market_data": {
+      "type": "object"
+    },
+    "prediction": {
+      "type": "object"
+    },
+    "advisor": {
+      "type": "object"
+    },
+    "execution": {
+      "type": "object"
+    },
+    "budget": {
+      "type": "object"
+    },
+    "authorization": {
+      "enum": [
+        "plan_only",
+        "approved_execution",
+        "production_apply"
+      ]
+    },
+    "regions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

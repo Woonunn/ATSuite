@@ -51,6 +51,29 @@ def _raise_mcp_tool_error(
         raise RuntimeError(f"[{client_name}] Tool returned isError for {tool_name}: {error_message}")
 
 
+def _extract_mcp_tool_result(response_payload: Optional[dict]):
+    if not isinstance(response_payload, dict):
+        return None
+    result = response_payload.get("result")
+    if not isinstance(result, dict):
+        return result
+    if "structuredContent" in result:
+        return result["structuredContent"]
+    content = result.get("content")
+    if not isinstance(content, list):
+        return result
+    values = []
+    for item in content:
+        value = item.get("text") if isinstance(item, dict) and "text" in item else item
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                pass
+        values.append(value)
+    return values[0] if len(values) == 1 else values
+
+
 class MCPClient:
     def __init__(self, url: str, uid: str = ""):
         self.url = url.rstrip("/")
@@ -133,7 +156,7 @@ class MCPClient:
             or resp.headers.get("x-amzn-requestid")
             or request_id
         )
-        return request_id
+        return request_id, _extract_mcp_tool_result(response_payload)
 
     def _read_streamable_response(self, response) -> Optional[dict]:
         content_type = response.headers.get("Content-Type", "").lower()
@@ -294,7 +317,7 @@ class LocalMCPClient(MCPClient):
                 or resp.headers.get("x-amzn-requestid")
                 or request_id
             )
-        return request_id
+        return request_id, _extract_mcp_tool_result(response_payload)
 
     def initialize(self, request_id: Optional[str] = None):
         with httpx.stream(
@@ -578,7 +601,7 @@ class AgentCoreMCPClient:
                     client_name=self.__class__.__name__,
                     tool_name=tool_name,
                 )
-                return request_id
+                return request_id, _extract_mcp_tool_result(response_payload)
 
         response = self._post_signed_request(
             payload,
@@ -600,7 +623,7 @@ class AgentCoreMCPClient:
             tool_name=tool_name,
         )
 
-        return request_id
+        return request_id, _extract_mcp_tool_result(response_payload)
 
 
 class AWSAgentCoreMCPDeployer:
@@ -613,7 +636,7 @@ class AWSAgentCoreMCPDeployer:
         self.aws = AWS()
 
     def deploy_target(
-        self, target_name: str, runtime_config: RuntimeConfig
+        self, target_name: str, runtime_config: RuntimeConfig, image_ref: str | None = None
     ) -> Optional[str]:
         service_name = normalize_node_name(target_name)
         print(f"[MCP] Using AgentCore mode for '{service_name}'")
@@ -622,6 +645,7 @@ class AWSAgentCoreMCPDeployer:
         agentcore = self.aws.deploy_agentcore(
             node_name=service_name,
             tag=tag,
+            image_ref=image_ref,
             cpu=runtime_config.cpu,
             memory=runtime_config.memory,
             timeout=runtime_config.timeout,
@@ -647,7 +671,7 @@ class AliMCPDeployer:
         self.ali = Ali()
 
     def deploy_target(
-        self, target_name: str, runtime_config: RuntimeConfig
+        self, target_name: str, runtime_config: RuntimeConfig, image_ref: str | None = None
     ) -> Optional[str]:
         service_name = normalize_node_name(target_name)
         tag = f"atsuite-mcp-{self.bench_name.lower()}-{service_name.lower()}"
@@ -655,6 +679,7 @@ class AliMCPDeployer:
             function_name=service_name,
             entrypoint=["python", "-m", "atsuite_sdk.mcp_server"],
             tag=tag,
+            image_ref=image_ref,
             runtime="custom-container",
             cpu=runtime_config.cpu,
             memory_size=runtime_config.memory,
@@ -679,9 +704,10 @@ class GCPMCPDeployer:
 
         self.bench_name = bench_name
         self.gcp = GCP()
+        self._targets = {}
 
     def deploy_target(
-        self, target_name: str, runtime_config: RuntimeConfig
+        self, target_name: str, runtime_config: RuntimeConfig, image_ref: str | None = None
     ) -> Optional[str]:
         service_name = normalize_node_name(target_name)
         tag = f"atsuite-mcp-{self.bench_name.lower()}-{service_name.lower()}"
@@ -689,13 +715,43 @@ class GCPMCPDeployer:
             function_name=service_name,
             entrypoint=["python", "-m", "atsuite_sdk.mcp_server"],
             tag=tag,
+            image_ref=image_ref,
             runtime="custom-container",
             cpu=runtime_config.cpu,
             memory_size=runtime_config.memory,
             disk_size=runtime_config.disk,
             timeout=runtime_config.timeout,
         )
-        return fn.deploy()
+        endpoint = fn.deploy()
+        self._targets[service_name] = fn
+        return endpoint
+
+    def readback_target(self, target_name: str) -> dict:
+        import json
+        import subprocess
+        fn = self._targets[normalize_node_name(target_name)]
+        service_name = fn.function_name.replace("_", "-").lower()
+        response = subprocess.run([
+            "gcloud", "run", "services", "describe", service_name,
+            "--region", fn.region, "--format", "json",
+        ], capture_output=True, text=True, check=True)
+        payload = json.loads(response.stdout)
+        template = ((payload.get("spec") or {}).get("template") or {})
+        pod = template.get("spec") or {}
+        containers = pod.get("containers") or []
+        limits = ((containers[0] if containers else {}).get("resources") or {}).get("limits") or {}
+        effective = {}
+        if limits.get("cpu") is not None:
+            value = str(limits["cpu"])
+            effective["cpu"] = float(value[:-1]) / 1000 if value.endswith("m") else float(value)
+        if limits.get("memory") is not None:
+            value = str(limits["memory"])
+            effective["memory"] = int(value[:-2]) if value.endswith("Mi") else int(value)
+        timeout = pod.get("timeoutSeconds") or template.get("timeoutSeconds")
+        if timeout is not None:
+            effective["timeout"] = int(timeout)
+        return {"effective_resources": effective, "configuration_readback": "partial",
+                "physical_resource_id": str((payload.get("metadata") or {}).get("uid") or service_name)}
 
     def deploy_node(self, service_name: str, config) -> Optional[str]:
         runtime_config = RuntimeConfig(

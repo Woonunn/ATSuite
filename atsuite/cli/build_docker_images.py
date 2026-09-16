@@ -18,6 +18,7 @@ from atsuite.pipeline import (
     target_image_tag,
 )
 from atsuite.utils import run
+from atsuite.recommender.identity import build_id, file_digest, tree_digest
 
 
 def _repo_root() -> Path:
@@ -222,6 +223,19 @@ def copy_node_source(node_dir: Path, target_dir: Path) -> None:
             shutil.copy2(item, destination)
 
 
+def local_image_digest(image_tag: str) -> str:
+    """Return a registry digest when Docker exposes one; tags alone are not deployment identity."""
+    try:
+        result = subprocess.run(["docker", "image", "inspect", image_tag, "--format", "{{json .RepoDigests}}"], capture_output=True, text=True, check=True)
+        digests = json.loads(result.stdout or "[]")
+        for value in digests if isinstance(digests, list) else []:
+            if "@sha256:" in str(value):
+                return str(value).rsplit("@", 1)[-1]
+    except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+        pass
+    return ""
+
+
 def build_resolved_targets(
     config_path: Path,
     provider: str,
@@ -230,12 +244,19 @@ def build_resolved_targets(
     no_cache: bool = False,
     platform: Optional[str] = None,
     python_version: Optional[str] = None,
-) -> None:
+    experiment_id: Optional[str] = None,
+    candidate_id: Optional[str] = None,
+) -> dict[str, object]:
     overrides = CliOverrides(python_version=python_version)
     resolved = resolve_benchmark(config_path, provider, overrides)
     spec = resolved.provider
     platform = platform or spec.default_platform
     output_root = ROOT_DIR / output / resolved.bench_name
+    if experiment_id:
+        output_root = output_root / experiment_id
+    if candidate_id:
+        output_root = output_root / candidate_id
+    artifacts: dict[str, object] = {}
     output_root.mkdir(parents=True, exist_ok=True)
 
     bench_data_dir = resolved.bench_root / "data"
@@ -282,8 +303,9 @@ def build_resolved_targets(
             normalized_version = normalize_python_version(
                 target.build.python_version, provider
             )
+            image_tag = target_image_tag(resolved.bench_name, target, identity=(candidate_id or experiment_id or ""))
             build_node_image(
-                target_image_tag(resolved.bench_name, target),
+                image_tag,
                 target_dir,
                 dockerfile,
                 python_version=normalized_version,
@@ -347,8 +369,9 @@ def build_resolved_targets(
             normalized_version = normalize_python_version(
                 target.build.python_version, provider
             )
+            image_tag = target_image_tag(resolved.bench_name, target, identity=(candidate_id or experiment_id or ""))
             build_node_image(
-                target_image_tag(resolved.bench_name, target),
+                image_tag,
                 target_dir,
                 dockerfile,
                 python_version=normalized_version,
@@ -363,7 +386,28 @@ def build_resolved_targets(
                 system_packages=sorted(all_system_packages),
             )
 
-        print(f"Built image: {target_image_tag(resolved.bench_name, target)}")
+        image_tag = target_image_tag(resolved.bench_name, target, identity=(candidate_id or experiment_id or ""))
+        source_digest, source_files = tree_digest(target_dir, ignore_names=IGNORE_NAMES | {"build-manifest.json"})
+        dockerfile_digest = file_digest(dockerfile)
+        dependency_lock_digest = file_digest(target_dir / "requirements.txt") if (target_dir / "requirements.txt").is_file() else ""
+        identifier = build_id(source_digest=source_digest, dependency_lock_digest=dependency_lock_digest,
+                              dockerfile_digest=dockerfile_digest, topology=list(target.node_names), platform=platform or "",
+                              build_args={"provider": provider, "python_version": normalized_version})
+        manifest_path = target_dir / "build-manifest.json"
+        print(f"Built image: {image_tag}")
+        image_digest = local_image_digest(image_tag)
+        manifest = {"schema_version": 1, "build_id": identifier, "image": {"repository": image_tag, "digest": image_digest,
+                    "platform": platform or "", "digest_verified": bool(image_digest)}, "target": target.name, "provider": provider,
+                    "source_digest": source_digest, "dockerfile_digest": dockerfile_digest,
+                    "dependency_lock_digest": dependency_lock_digest, "source_files": source_files,
+                    "candidate_ids": [candidate_id] if candidate_id else []}
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        artifacts[target.name] = {"build_id": identifier, "repository": image_tag, "digest": image_digest,
+                                  "platform": platform or "", "source_digest": source_digest,
+                                  "dockerfile_digest": dockerfile_digest, "dependency_lock_digest": dependency_lock_digest,
+                                  "manifest_path": str(manifest_path), "digest_verified": bool(image_digest)}
+
+    return artifacts
 
 
 def main() -> None:

@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 
 from atsuite.recommender.engine import RecommendationEngine
+from atsuite.recommender.api import write_plan
+from atsuite.recommender.contracts import ExperimentSpec
 from atsuite.recommender.export import recommendation_dict
 from atsuite.recommender.model import RecommendationConstraints
 from atsuite.recommender.scoring import OBJECTIVES, validate_weights
@@ -118,7 +120,119 @@ def format_recommendation(result):
     return "\n".join(lines)
 
 
+def _new_cli(argv):
+    command = argv[0]
+    parser = argparse.ArgumentParser(prog=f"atsuite-recommend {command}")
+    if command == "plan":
+        parser.add_argument("--spec", required=True, type=Path)
+        parser.add_argument("--output", required=True, type=Path)
+        args = parser.parse_args(argv[1:])
+        spec = ExperimentSpec.from_dict(json.loads(args.spec.read_text(encoding="utf-8")))
+        write_plan(spec, args.output)
+        print(args.output)
+        return 0
+    if command == "compare":
+        parser.add_argument("--manifest", required=True, type=Path)
+        parser.add_argument("--objective", type=Path)
+        parser.add_argument("--output", type=Path)
+        args = parser.parse_args(argv[1:])
+        payload = json.loads(args.manifest.read_text(encoding="utf-8"))
+        if isinstance(payload, list):
+            reports = [json.loads(Path(item).read_text(encoding="utf-8")) for item in payload]
+            result = {"schema_version": 1, "status": "imported", "reports": reports, "evidence_quality": "imported"}
+        elif isinstance(payload, dict) and isinstance(payload.get("candidates"), list):
+            from atsuite.recommender.contracts import ObjectiveSpec
+            from atsuite.recommender.decision import decide
+            objective_payload = json.loads(args.objective.read_text(encoding="utf-8")) if args.objective else payload.get("objective", {})
+            result = {"schema_version": 1, **decide(payload["candidates"], ObjectiveSpec.from_dict(objective_payload)).to_dict()}
+        else:
+            raise ValueError("comparison manifest must be report paths or an evidence candidate object")
+        output_text = json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False, default=str) + "\n"
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(output_text, encoding="utf-8")
+            print(args.output)
+        else:
+            print(output_text, end="")
+        return 0
+    if command == "reprice":
+        parser.add_argument("--experiment", required=True, type=Path)
+        parser.add_argument("--market-snapshot", required=True, type=Path)
+        parser.add_argument("--output", required=True, type=Path)
+        args = parser.parse_args(argv[1:])
+        original = json.loads(args.experiment.read_text(encoding="utf-8"))
+        market = json.loads(args.market_snapshot.read_text(encoding="utf-8"))
+        from atsuite.recommender.identity import digest
+        from atsuite.market_data.reprice import reprice
+        ledger_ref = original.get("usage_ledger") or original.get("usage_ledger_path")
+        if ledger_ref:
+            ledger_path = Path(str(ledger_ref))
+            if not ledger_path.is_absolute():
+                ledger_path = args.experiment.parent / ledger_path
+        else:
+            ledger_path = args.experiment.with_name("usage_ledger.jsonl")
+        if not ledger_path.is_file():
+            result = {"schema_version": 1, "status": "insufficient_usage_ledger",
+                      "original": str(args.experiment), "original_digest": digest(original, length=32),
+                      "market_snapshot": market, "market_snapshot_digest": digest(market, length=32),
+                      "usage_ledger": str(ledger_path),
+                      "note": "Repricing requires the immutable usage_ledger.jsonl produced by the experiment."}
+        else:
+            result = reprice(original, market, usage_ledger_path=ledger_path,
+                             target_currency=str((original.get("objective") or {}).get("base_currency", "USD")))
+            result["original"] = str(args.experiment)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+        print(args.output)
+        return 0
+    if command == "resume":
+        parser.add_argument("--experiment", required=True)
+        parser.add_argument("--store", type=Path, default=Path("results/recommender/jobs.sqlite"))
+        args = parser.parse_args(argv[1:])
+        from atsuite.execution.store import JobStore
+        from atsuite.recommender.search import SearchOrchestrator
+        store = JobStore(args.store)
+        try:
+            record = store.get(args.experiment)
+            if record.get("plan", {}).get("spec", {}).get("authorization") == "plan_only":
+                parser.error("plan_only experiments cannot be resumed as execution")
+            result = SearchOrchestrator(store).resume(args.experiment)
+        finally:
+            store.close()
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
+    if command == "run":
+        parser.add_argument("--plan", required=True, type=Path)
+        parser.add_argument("--approve-budget", action="store_true")
+        parser.add_argument("--store", type=Path, default=Path("results/recommender/jobs.sqlite"))
+        args = parser.parse_args(argv[1:])
+        if not args.approve_budget:
+            parser.error("run requires --approve-budget")
+        payload = json.loads(args.plan.read_text(encoding="utf-8"))
+        if payload.get("spec", {}).get("authorization") not in {"approved_execution", "production_apply"}:
+            parser.error("plan authorization is not approved_execution")
+        from atsuite.execution.store import JobStore
+        from atsuite.recommender.identity import digest
+        experiment_id = str(payload.get("experiment_id") or "exp-" + digest(payload, length=24))
+        args.store.parent.mkdir(parents=True, exist_ok=True)
+        store = JobStore(args.store)
+        try:
+            try:
+                record = store.create(experiment_id, {"plan": payload, "plan_path": str(args.plan.resolve()), "tenant": "local", "project": "local", "completed_stages": []}, state="APPROVED")
+            except __import__("sqlite3").IntegrityError:
+                record = store.get(experiment_id)
+        finally:
+            store.close()
+        print(json.dumps({"status": "execution_queued", "experiment": experiment_id, "state": record["state"], "store": str(args.store),
+                          "candidates": len(payload.get("candidates", []))}, ensure_ascii=False))
+        return 0
+    parser.error(f"unknown command: {command}")
+
+
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in {"plan", "run", "resume", "compare", "reprice"}:
+        return _new_cli(argv)
     parser = argparse.ArgumentParser(description="Benchmark deployment candidates and recommend a strategy from measured evidence.")
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--providers", type=comma_list, help="Default: all six first-party cloud runtimes")

@@ -21,10 +21,11 @@ class AliFC(FunctionBase):
         client: FC20230330Client,
         typ: str = "function",
         runtime: str = 'custom-container',
-        cpu: int = 1,
+        cpu: float = 1.0,
         memory_size: int = 1024,
         disk_size: int = 512,
         timeout: int = 60,
+        image_ref: str | None = None,
         trigger_type: str = 'http',
         trigger_config: str = '{"authType":"anonymous","disableURLInternet":false,"methods":["GET","POST","PUT","DELETE"]}'        
     ):
@@ -39,11 +40,12 @@ class AliFC(FunctionBase):
         self.memory_size = memory_size
         self.disk_size = disk_size
         self.timeout = timeout
+        self.image_ref = image_ref
         self.trigger_type = trigger_type
         self.trigger_config = trigger_config
 
     def deploy(self) -> str:
-        image_addr = self.push_image(self.tag)
+        image_addr = self.image_ref or self.push_image(self.tag)
         sls = AliSLS(
             project='atsuite',
             location='us-east-1'

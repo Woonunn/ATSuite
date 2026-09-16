@@ -28,6 +28,11 @@ atsuite-deploy = "atsuite.cli.deploy:main"
 atsuite-replay = "atsuite.cli.invoker:main"
 atsuite-concurrency = "atsuite.cli.concurrency:main"
 atsuite-recommend = "atsuite.cli.recommend:main"
+atsuite-serve = "atsuite.cli.serve:main"
+atsuite-worker = "atsuite.cli.worker:main"
+atsuite-market = "atsuite.cli.market:main"
+atsuite-dataset = "atsuite.cli.dataset:main"
+atsuite-predictor = "atsuite.cli.predictor:main"
 atsuite-trace-viewer = "atsuite.cli.trace_viewer_server:main"
 
 [build-system]

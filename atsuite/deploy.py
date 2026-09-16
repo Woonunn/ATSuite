@@ -1,10 +1,66 @@
 import os
+from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from atsuite.pipeline import CliOverrides, is_sandbox_config, resolve_benchmark, target_image_tag
 from atsuite.runtime import GatewayClient
 from atsuite.utils import write_url_map
+
+
+def _artifact_dict(artifact: Any | None) -> dict[str, Any] | None:
+    if artifact is None:
+        return None
+    if is_dataclass(artifact):
+        return asdict(artifact)
+    if isinstance(artifact, dict):
+        return dict(artifact)
+    raise TypeError("deployment artifact must be a BuildArtifact or mapping")
+
+
+def _artifact_image_ref(artifact: Any | None) -> str | None:
+    data = _artifact_dict(artifact)
+    if data is None:
+        return None
+    repository = str(data.get("repository") or "").strip()
+    digest = str(data.get("digest") or "").strip()
+    if not repository or not digest.startswith("sha256:"):
+        raise RuntimeError("Deployment artifact requires repository and verified sha256 digest")
+    repository = repository.split("@", 1)[0]
+    leaf = repository.rsplit("/", 1)[-1]
+    if ":" in leaf:
+        repository = repository.rsplit(":", 1)[0]
+    return f"{repository}@{digest}"
+
+
+def _deployment_result(value: Any, requested: dict[str, Any]) -> tuple[str, dict[str, Any] | None, str]:
+    if isinstance(value, str):
+        return value, None, "unverified"
+    if isinstance(value, dict):
+        endpoint = str(value.get("endpoint") or value.get("url") or "")
+        effective = value.get("effective_resources") or value.get("effective_config")
+        if effective is not None:
+            effective = dict(effective)
+            mismatches = {
+                key: (requested.get(key), value)
+                for key, value in effective.items()
+                if key in requested and requested[key] != value
+            }
+            if mismatches:
+                raise RuntimeError(
+                    f"deployed resource configuration differs from request: "
+                    f"requested={requested}, effective={effective}"
+                )
+            readback = str(value.get("configuration_readback") or "")
+            if readback not in {"verified", "partial", "unverified"}:
+                readback = "verified" if set(effective) == set(requested) else "partial"
+            elif readback == "verified" and set(effective) != set(requested):
+                readback = "partial"
+            return endpoint, effective, readback
+        return endpoint, None, str(value.get("configuration_readback") or "unverified")
+    if value is None:
+        return "", None, "unverified"
+    raise TypeError("deployer result must be an endpoint string or mapping")
 
 
 def deploy(
@@ -12,6 +68,10 @@ def deploy(
     provider: str,
     *,
     runtime: Optional[str] = None,
+    artifacts: Optional[Dict[str, Any]] = None,
+    experiment_id: str = "",
+    candidate_id: str = "",
+    output_dir: Path | None = None,
 ) -> Optional[Path]:
     if is_sandbox_config(config_path):
         raise SystemExit("Sandbox configs are no longer supported; use an external MCP-Gateway target instead")
@@ -24,22 +84,12 @@ def deploy(
         for target in resolved.targets.values():
             print(f"[deploy] Registering gateway target: '{target.name}'")
             manifest = {"allowed_tools": list(_allowed_tools_for_target(resolved.nodes, target))}
-            endpoint = gateway.register_target(
-                name=target.name,
-                image=_gateway_image_ref(resolved.bench_name, target),
-                resources=target.runtime.to_dict(),
-                manifest=manifest,
-            )
-            endpoint_cache[target.name] = _endpoint_entry(endpoint, target, manifest)
-        payload = {
-            "provider": provider,
-            "family": resolved.family,
-            "targets": endpoint_cache,
-        }
-        output_path = write_url_map(config_path, payload)
-        print(f"[deploy] URLs saved to {output_path}")
-        print(f"[deploy] Registered {len(endpoint_cache)} target(s)")
-        return output_path
+            artifact = _artifact_dict((artifacts or {}).get(target.name))
+            image_ref = _artifact_image_ref(artifact) if artifact else _gateway_image_ref(resolved.bench_name, target)
+            result = gateway.register_target(name=target.name, image=image_ref, resources=target.runtime.to_dict(), manifest=manifest)
+            endpoint, effective, readback = _deployment_result(result, target.runtime.to_dict())
+            endpoint_cache[target.name] = _endpoint_entry(endpoint, target, manifest, artifact=artifact, effective=effective, readback=readback)
+        return _write_map(config_path, provider, resolved.family, endpoint_cache, experiment_id, candidate_id, output_dir)
 
     function_deployer = None
     mcp_deployer = None
@@ -69,37 +119,62 @@ def deploy(
             raise SystemExit(f"Unsupported MCP provider: {provider}")
 
     for target in resolved.targets.values():
-        if target.family == "faas":
-            print(f"[deploy] Deploying function target: '{target.name}'")
-            url = function_deployer.deploy_target(target.name, target.runtime)
-        else:
-            print(f"[deploy] Deploying mcp target: '{target.name}'")
-            url = mcp_deployer.deploy_target(target.name, target.runtime)
-        if url is not None:
+        artifact = _artifact_dict((artifacts or {}).get(target.name))
+        image_ref = _artifact_image_ref(artifact) if artifact else None
+        label = "function" if target.family == "faas" else "mcp"
+        print(f"[deploy] Deploying {label} target: '{target.name}'")
+        deployer = function_deployer if target.family == "faas" else mcp_deployer
+        result = deployer.deploy_target(target.name, target.runtime, image_ref=image_ref)
+        requested = target.runtime.to_dict()
+        if isinstance(result, str):
+            result = {"endpoint": result}
+        if hasattr(deployer, "readback_target"):
+            try:
+                details = deployer.readback_target(target.name)
+                if details:
+                    result = {**result, **details}
+            except Exception as exc:
+                result = {**result, "configuration_readback": "unverified",
+                          "readback_error": f"{type(exc).__name__}: {exc}"}
+        endpoint, effective, readback = _deployment_result(result, requested)
+        if endpoint:
             endpoint_cache[target.name] = _endpoint_entry(
-                url.rstrip("/"),
-                target,
+                endpoint.rstrip("/"), target,
                 {"allowed_tools": list(_allowed_tools_for_target(resolved.nodes, target))},
+                artifact=artifact, effective=effective, readback=readback,
+                physical_resource_id=str(result.get("physical_resource_id") or ""),
+                readback_error=str(result.get("readback_error") or ""),
             )
 
-    payload = {
-        "provider": provider,
-        "family": resolved.family,
-        "targets": endpoint_cache,
-    }
-    output_path = write_url_map(config_path, payload)
+    return _write_map(config_path, provider, resolved.family, endpoint_cache, experiment_id, candidate_id, output_dir)
+
+
+def _write_map(config_path: Path, provider: str, family: str, targets: dict[str, Any], experiment_id: str, candidate_id: str, output_dir: Path | None) -> Path:
+    payload = {"provider": provider, "family": family, "targets": targets}
+    output_path = write_url_map(config_path, payload, output_dir=output_dir, experiment_id=experiment_id, candidate_id=candidate_id)
     print(f"[deploy] URLs saved to {output_path}")
-    print(f"[deploy] Deployed {len(endpoint_cache)} target(s)")
+    print(f"[deploy] Deployed {len(targets)} target(s)")
     return output_path
 
 
-def _endpoint_entry(url: str, target, manifest: Dict[str, object]) -> Dict[str, object]:
-    return {
-        "endpoint": url.rstrip("/"),
-        "family": target.family,
-        "resources": target.runtime.to_dict(),
-        "tool_manifest": manifest,
+def _endpoint_entry(url: str, target, manifest: Dict[str, object], artifact: Optional[Dict[str, Any]] = None,
+                    effective: dict[str, Any] | None = None, readback: str = "unverified",
+                    physical_resource_id: str = "", readback_error: str = "") -> Dict[str, object]:
+    requested = target.runtime.to_dict()
+    entry: Dict[str, object] = {
+        "endpoint": url.rstrip("/"), "family": target.family, "resources": requested,
+        "requested_resources": requested, "effective_resources": effective,
+        "configuration_readback": readback, "tool_manifest": manifest,
+        "physical_resource_id": physical_resource_id,
     }
+    if readback_error:
+        entry["readback_error"] = readback_error
+    if artifact:
+        entry["artifact"] = {
+            "build_id": artifact.get("build_id", ""), "repository": artifact.get("repository", ""),
+            "digest": artifact.get("digest", ""), "platform": artifact.get("platform", ""),
+        }
+    return entry
 
 
 def _gateway_image_ref(bench_name: str, target) -> str:
@@ -109,9 +184,7 @@ def _gateway_image_ref(bench_name: str, target) -> str:
         return f"{prefix}/{image}"
     if "/" in image:
         return image
-    raise RuntimeError(
-        "MCP_GATEWAY_IMAGE_PREFIX is required for mcp_gateway deploy so the Gateway can pull the image"
-    )
+    raise RuntimeError("MCP_GATEWAY_IMAGE_PREFIX is required for mcp_gateway deploy so the Gateway can pull the image")
 
 
 def _allowed_tools_for_target(nodes, target) -> tuple[str, ...]:

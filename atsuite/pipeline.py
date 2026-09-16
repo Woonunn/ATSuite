@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import lru_cache
+import math
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
@@ -17,23 +18,31 @@ DEFAULT_RUNTIME_CONFIG = {"cpu": 1, "memory": 1024, "disk": 512, "timeout": 30}
 
 @dataclass(frozen=True)
 class RuntimeConfig:
-    cpu: int = 1
+    cpu: float = 1.0
     memory: int = 1024
     disk: int = 512
     timeout: int = 30
+
+    def __post_init__(self):
+        if isinstance(self.cpu, bool) or not math.isfinite(float(self.cpu)) or self.cpu <= 0:
+            raise ValueError("cpu must be a positive finite number")
+        for name in ("memory", "disk", "timeout"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or int(value) != value or value <= 0:
+                raise ValueError(f"{name} must be a positive integer")
 
     @classmethod
     def from_dict(cls, payload: Optional[Mapping[str, Any]], fallback: Optional["RuntimeConfig"] = None) -> "RuntimeConfig":
         base = fallback or cls()
         data = dict(payload or {})
         return cls(
-            cpu=int(data.get("cpu", base.cpu)),
+            cpu=float(data.get("cpu", base.cpu)),
             memory=int(data.get("memory", base.memory)),
             disk=int(data.get("disk", base.disk)),
             timeout=int(data.get("timeout", base.timeout)),
         )
 
-    def to_dict(self) -> Dict[str, int]:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "cpu": self.cpu,
             "memory": self.memory,
@@ -265,7 +274,7 @@ def provider_cloud_name(provider: str) -> str:
 class CliOverrides:
     trace_file: Optional[str] = None
     python_version: Optional[str] = None
-    cpu: Optional[int] = None
+    cpu: Optional[float] = None
     memory: Optional[int] = None
     disk: Optional[int] = None
     timeout: Optional[int] = None
@@ -277,7 +286,7 @@ class CliOverrides:
 
     def runtime(self, fallback: RuntimeConfig) -> RuntimeConfig:
         return RuntimeConfig(
-            cpu=int(self.cpu if self.cpu is not None else fallback.cpu),
+            cpu=float(self.cpu if self.cpu is not None else fallback.cpu),
             memory=int(self.memory if self.memory is not None else fallback.memory),
             disk=int(self.disk if self.disk is not None else fallback.disk),
             timeout=int(self.timeout if self.timeout is not None else fallback.timeout),
@@ -306,7 +315,7 @@ def _load_function_defaults(node_dir: Path) -> tuple[BuildConfig, Dict[str, Runt
         if not name:
             continue
         defaults[name] = RuntimeConfig(
-            cpu=int(entry.get("cpu", DEFAULT_RUNTIME_CONFIG["cpu"])),
+            cpu=float(entry.get("cpu", DEFAULT_RUNTIME_CONFIG["cpu"])),
             memory=int(entry.get("memory", DEFAULT_RUNTIME_CONFIG["memory"])),
             disk=int(entry.get("disk", DEFAULT_RUNTIME_CONFIG["disk"])),
             timeout=int(entry.get("timeout", DEFAULT_RUNTIME_CONFIG["timeout"])),
@@ -321,7 +330,7 @@ def _load_mcp_defaults(node_dir: Path) -> tuple[BuildConfig, RuntimeConfig]:
     data = load_json(path)
     build = BuildConfig(python_version=str(data.get("python-version", "")).strip())
     runtime = RuntimeConfig(
-        cpu=int(data.get("cpu", DEFAULT_RUNTIME_CONFIG["cpu"])),
+        cpu=float(data.get("cpu", DEFAULT_RUNTIME_CONFIG["cpu"])),
         memory=int(data.get("memory", DEFAULT_RUNTIME_CONFIG["memory"])),
         disk=int(data.get("disk", DEFAULT_RUNTIME_CONFIG["disk"])),
         timeout=int(data.get("timeout", DEFAULT_RUNTIME_CONFIG["timeout"])),
@@ -670,9 +679,11 @@ def _resolve_mcp_targets(
     return targets, routes
 
 
-def target_image_tag(bench_name: str, target: ResolvedTarget) -> str:
+def target_image_tag(bench_name: str, target: ResolvedTarget, identity: str = "") -> str:
     kind = "function" if target.family == "faas" else "mcp"
-    return f"atsuite-{kind}-{bench_name.lower()}-{target.name.lower()}"
+    base = f"atsuite-{kind}-{bench_name.lower()}-{target.name.lower()}"
+    suffix = "".join(ch for ch in str(identity).lower() if ch.isalnum() or ch == "-")[:32]
+    return f"{base}-{suffix}" if suffix else base
 
 
 def read_url_map(path: Path) -> Dict[str, Any]:

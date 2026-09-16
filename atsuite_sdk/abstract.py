@@ -68,18 +68,27 @@ class UnifiedAgentTool:
         runtime = get_state_runtime()
         runtime.reset_sync_metrics()
         uid = call_args.get("uid")
-        if self.stateful and isinstance(snapshot_payload, dict):
-            runtime.prime_snapshot(uid, snapshot_payload)
-        should_sync_tool_state = getattr(runtime, "runtime", None) != "mcp"
-        if should_sync_tool_state:
-            runtime.load_for_tool(self.func.__module__, uid)
-        if not self.stateful or "uid" not in inspect.signature(self.func).parameters:
-            call_args.pop("uid", None)
-        with runtime.uid_context(uid):
-            result = self.func(**call_args)
-        if should_sync_tool_state and self.stateful:
-            runtime.save_after_tool(self.func.__module__, uid)
-        return result
+        should_sync_tool_state = True
+        if not self.stateful:
+            if "uid" not in inspect.signature(self.func).parameters:
+                call_args.pop("uid", None)
+            with runtime.uid_context(uid):
+                return self.func(**call_args)
+        # State objects are process globals in the current SDK. A per-UID
+        # transaction keeps restore/invoke/save atomic without serializing
+        # unrelated sessions.
+        with runtime.transaction(uid):
+            if isinstance(snapshot_payload, dict):
+                runtime.prime_snapshot(uid, snapshot_payload)
+            if should_sync_tool_state:
+                runtime.load_for_tool(self.func.__module__, uid)
+            if "uid" not in inspect.signature(self.func).parameters:
+                call_args.pop("uid", None)
+            with runtime.uid_context(uid):
+                result = self.func(**call_args)
+            if should_sync_tool_state:
+                runtime.save_after_tool(self.func.__module__, uid)
+            return result
 
 # --- 装饰器 ---
 class AgentToolRegistry:

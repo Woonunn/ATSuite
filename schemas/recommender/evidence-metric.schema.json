@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atsuite.local/schemas/recommender/evidence-metric.schema.json",
+  "title": "ATSuite EvidenceMetric",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "value", "unit", "scope", "sample_count", "measurement_kind", "quality", "source", "evidence_refs", "method_version", "ci_lower", "ci_upper", "confidence_level"],
+  "properties": {
+    "name": {"type": "string"},
+    "value": {"type": ["number", "null"], "minimum": 0},
+    "unit": {"type": "string"},
+    "scope": {"type": "string"},
+    "sample_count": {"type": "integer", "minimum": 0},
+    "measurement_kind": {"enum": ["measured", "derived", "predicted"]},
+    "quality": {"enum": ["available", "unsupported", "missing", "estimated", "stale"]},
+    "source": {"type": "string"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "method_version": {"type": "string"},
+    "ci_lower": {"type": ["number", "null"], "minimum": 0},
+    "ci_upper": {"type": ["number", "null"], "minimum": 0},
+    "confidence_level": {"type": ["number", "null"], "exclusiveMinimum": 0, "exclusiveMaximum": 1}
+  }
+}

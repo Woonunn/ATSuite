@@ -39,11 +39,47 @@ class EvidenceTests(unittest.TestCase):
         for adapter in (FunctionRuntimeAdapter("aws_lambda"), MCPRuntimeAdapter("gcp_mcp")):
             adapter.connect({"targets": {"tool": "https://example.test"}})
             client = mock.Mock()
-            client.invoke.return_value = ("request", False) if isinstance(adapter, FunctionRuntimeAdapter) else "request"
+            client.invoke.return_value = (("request", False, {"value": 1})
+                                          if isinstance(adapter, FunctionRuntimeAdapter)
+                                          else ("request", {"value": 1}))
             with mock.patch.object(adapter, "_client", return_value=client):
                 result = adapter.invoke(InvocationRequest("tool", "run", {}, "u", timeout=7))
             self.assertEqual(result.status, "ok")
+            self.assertEqual(result.result, {"value": 1})
             self.assertEqual(client.timeout, 7)
+
+    def test_correctness_hook_uses_captured_business_output(self):
+        from atsuite.recommender.correctness import validate_outputs
+        actual = {"call-1": {"output": {"value": 1, "request_id": "ignored"}}}
+        self.assertEqual(
+            validate_outputs(actual, {"call-1": {"value": 1}})["status"],
+            "passed",
+        )
+        self.assertEqual(
+            validate_outputs(actual, {"call-1": {"value": 2}})["status"],
+            "failed",
+        )
+
+    def test_clients_capture_function_and_mcp_business_results(self):
+        from atsuite.faas.function import FunctionClient
+        from atsuite.mcp.mcp import _extract_mcp_tool_result
+
+        response = mock.Mock()
+        response.json.return_value = {"result": '{"value": 1}'}
+        response.headers = {"x-amzn-requestid": "provider-request", "X-Tool-Stateful": "true"}
+        response.raise_for_status.return_value = None
+        client = FunctionClient("https://example.test")
+        with mock.patch.object(client.session, "post", return_value=response):
+            self.assertEqual(client.invoke("tool", {}), ("provider-request", True, {"value": 1}))
+
+        self.assertEqual(
+            _extract_mcp_tool_result({"result": {"content": [{"type": "text", "text": '{"value": 2}'}]}}),
+            {"value": 2},
+        )
+        self.assertEqual(
+            _extract_mcp_tool_result({"result": {"structuredContent": {"value": 3}}}),
+            {"value": 3},
+        )
 
     def test_build_and_deploy_use_python_apis_and_snapshot_map(self):
         from atsuite.recommender import experiment

@@ -34,10 +34,11 @@ class AWSLambda(FunctionBase):
         region: str,
         iam_client=None,
         runtime: str = 'custom-container',
-        cpu: int = 1,
+        cpu: float = 1.0,
         memory_size: int = 1024,
         timeout: int = 60,
         disk_size: int = 512,
+        image_ref: str | None = None,
     ):
         self.lambda_client = lambda_client
         self.ecr_client = ecr_client
@@ -52,6 +53,7 @@ class AWSLambda(FunctionBase):
         self.memory_size = min(max(memory_size, 128), 10240)  # Lambda 限制
         self.timeout = min(max(timeout, 1), 900)  # Lambda 限制
         self.disk_size = min(max(disk_size, 512), 10240)  # Lambda 限制
+        self.image_ref = image_ref
         
         # 从环境变量获取配置
         self.account_id = os.environ["AWS_ACCOUNT_ID"]
@@ -64,7 +66,7 @@ class AWSLambda(FunctionBase):
 
     def deploy(self) -> str:
         # 推送镜像到 ECR
-        image_uri = self.create_ecr(self.tag)
+        image_uri = self.image_ref or self.create_ecr(self.tag)
         
         #  创建或更新 Lambda 函数
         self.create_or_update_function(image_uri=image_uri)

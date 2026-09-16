@@ -24,9 +24,10 @@ class AWSAgentCore:
         ecr_client,
         agentcore_client,
         region: str,
-        cpu: int = 1,
+        cpu: float = 1.0,
         memory: int = 1024,
         timeout: int = 30,
+        image_ref: str | None = None,
     ):
         self.node_name = node_name
         self.tag = tag
@@ -36,6 +37,7 @@ class AWSAgentCore:
         self.cpu = cpu
         self.memory = memory
         self.timeout = timeout
+        self.image_ref = image_ref
 
         self.account_id = os.environ["AWS_ACCOUNT_ID"]
         self.repository_name = os.environ["ECR_REPOSITORY_NAME"]
@@ -50,7 +52,7 @@ class AWSAgentCore:
         """
         推送镜像到 ECR → 创建 Runtime → 创建 Endpoint → 返回调用 URL。
         """
-        image_uri = self._push_to_ecr()
+        image_uri = self.image_ref or self._push_to_ecr()
         self._create_or_update_runtime(image_uri)
         self._ensure_endpoint()
         self._wait_for_runtime_active()

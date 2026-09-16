@@ -104,7 +104,7 @@ class FunctionClient:
 
         is_stateful = response.headers.get("X-Tool-Stateful", "false").lower() == "true"
 
-        return request_id, is_stateful
+        return request_id, is_stateful, result
 
     @staticmethod
     def _format_response_error(
@@ -214,7 +214,7 @@ class AliFunctionDeployer:
         self.ali = Ali()
 
     def deploy_target(
-        self, target_name: str, runtime_config: RuntimeConfig
+        self, target_name: str, runtime_config: RuntimeConfig, image_ref: str | None = None
     ) -> Optional[str]:
         node_name = normalize_node_name(target_name)
         tag = f"atsuite-function-{self.bench_name.lower()}-{node_name.lower()}"
@@ -222,6 +222,7 @@ class AliFunctionDeployer:
             function_name=node_name,
             entrypoint=["python", "-m", "atsuite_sdk.function"],
             tag=tag,
+            image_ref=image_ref,
             runtime="custom-container",
             cpu=runtime_config.cpu,
             memory_size=runtime_config.memory,
@@ -242,9 +243,10 @@ class GCPFunctionDeployer:
 
         self.bench_name = bench_name
         self.gcp = GCP()
+        self._targets = {}
 
     def deploy_target(
-        self, target_name: str, runtime_config: RuntimeConfig
+        self, target_name: str, runtime_config: RuntimeConfig, image_ref: str | None = None
     ) -> Optional[str]:
         node_name = normalize_node_name(target_name)
         tag = f"atsuite-function-{self.bench_name.lower()}-{node_name.lower()}"
@@ -252,13 +254,42 @@ class GCPFunctionDeployer:
             function_name=node_name,
             entrypoint=["python", "-m", "atsuite_sdk.function"],
             tag=tag,
+            image_ref=image_ref,
             runtime="custom-container",
             cpu=runtime_config.cpu,
             memory_size=runtime_config.memory,
             disk_size=runtime_config.disk,
             timeout=runtime_config.timeout,
         )
-        return fn.deploy()
+        endpoint = fn.deploy()
+        self._targets[node_name] = fn
+        return endpoint
+
+    def readback_target(self, target_name: str) -> dict:
+        import json
+        import subprocess
+        fn = self._targets[target_name]
+        service_name = fn.function_name.replace("_", "-").lower()
+        response = subprocess.run([
+            "gcloud", "run", "services", "describe", service_name,
+            "--region", fn.region, "--format", "json",
+        ], capture_output=True, text=True, check=True)
+        payload = json.loads(response.stdout)
+        template = ((payload.get("spec") or {}).get("template") or {})
+        pod = template.get("spec") or {}
+        containers = pod.get("containers") or []
+        limits = ((containers[0] if containers else {}).get("resources") or {}).get("limits") or {}
+        effective = {}
+        if limits.get("cpu") is not None:
+            effective["cpu"] = float(str(limits["cpu"]).rstrip("m")) / (1000 if str(limits["cpu"]).endswith("m") else 1)
+        if limits.get("memory") is not None:
+            value = str(limits["memory"])
+            effective["memory"] = int(value[:-2]) if value.endswith("Mi") else int(value)
+        timeout = pod.get("timeoutSeconds") or template.get("timeoutSeconds")
+        if timeout is not None:
+            effective["timeout"] = int(timeout)
+        return {"effective_resources": effective, "configuration_readback": "partial",
+                "physical_resource_id": str((payload.get("metadata") or {}).get("uid") or service_name)}
 
     def deploy_node(self, node_name: str, node_dir: Path) -> Optional[str]:
         config_path = function_config_path(node_dir)
@@ -272,9 +303,10 @@ class AWSFunctionDeployer:
         from atsuite.aws.aws import AWS
 
         self.aws = AWS()
+        self._targets = {}
 
     def deploy_target(
-        self, target_name: str, runtime_config: RuntimeConfig
+        self, target_name: str, runtime_config: RuntimeConfig, image_ref: str | None = None
     ) -> Optional[str]:
         node_name = normalize_node_name(target_name)
         tag = f"atsuite-function-{self.bench_name.lower()}-{node_name.lower()}"
@@ -283,13 +315,31 @@ class AWSFunctionDeployer:
             function_name=node_name,
             entrypoint=["python", "-m", "atsuite_sdk.function"],
             tag=tag,
+            image_ref=image_ref,
             runtime="custom-container",
             cpu=runtime_config.cpu,
             memory_size=runtime_config.memory,
             timeout=runtime_config.timeout,
             disk_size=runtime_config.disk,
         )
-        return fn.deploy()
+        endpoint = fn.deploy()
+        self._targets[node_name] = fn
+        return endpoint
+
+    def readback_target(self, target_name: str) -> dict:
+        fn = self._targets[target_name]
+        config = fn.lambda_client.get_function_configuration(FunctionName=fn.function_name)
+        effective = {}
+        if config.get("MemorySize") is not None:
+            effective["memory"] = int(config["MemorySize"])
+        if config.get("Timeout") is not None:
+            effective["timeout"] = int(config["Timeout"])
+        storage = (config.get("EphemeralStorage") or {}).get("Size")
+        if storage is not None:
+            effective["disk"] = int(storage)
+        return {"effective_resources": effective,
+                "configuration_readback": "partial",
+                "physical_resource_id": str(config.get("FunctionArn") or fn.function_name)}
 
     def deploy_node(self, node_name: str, node_dir: Path) -> Optional[str]:
         config_path = function_config_path(node_dir)

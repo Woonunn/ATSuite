@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="ATSuite 跨云 Agent 基础设施实验与推荐控制台">
+  <title>ATSuite / Deployment Lab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip" href="#workspace">跳到内容</a>
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">Agent Infrastructure Observatory</p>
+      <h1>ATSuite <span>Deployment Lab</span></h1>
+    </div>
+    <div class="live-mark"><i aria-hidden="true"></i><span id="connectionLabel">LOCAL CONTROL PLANE</span></div>
+  </header>
+
+  <div class="shell">
+    <nav class="rail" aria-label="实验工作区">
+      <button class="nav-item active" data-view="new" aria-selected="true"><b>01</b><span>新建实验</span></button>
+      <button class="nav-item" data-view="plan" aria-selected="false"><b>02</b><span>方案预览</span></button>
+      <button class="nav-item" data-view="progress" aria-selected="false"><b>03</b><span>实验进度</span></button>
+      <button class="nav-item" data-view="compare" aria-selected="false"><b>04</b><span>比较结果</span></button>
+      <button class="nav-item" data-view="recommend" aria-selected="false"><b>05</b><span>推荐详情</span></button>
+      <button class="nav-item" data-view="sources" aria-selected="false"><b>06</b><span>模型与数据源</span></button>
+      <div class="rail-note"><span>证据状态</span><strong>MEASURED ≠ PREDICTED</strong></div>
+    </nav>
+
+    <main id="workspace" tabindex="-1">
+      <section class="view active" id="view-new" aria-labelledby="title-new">
+        <div class="section-head"><div><p class="section-index">01 / INPUT</p><h2 id="title-new">定义一个可复现实验</h2></div><p>规划是零云写入操作。执行需要固定的计划 hash 与单独授权。</p></div>
+        <div class="grid two">
+          <form id="experimentForm" class="panel form-panel">
+            <label>Benchmark 配置路径<input id="configPath" value="benchmarks/TravelPlanner/config/faas7_mcp2_min.json" required></label>
+            <label>或上传受限 ZIP 包<input id="benchmarkFile" type="file" accept=".zip,application/zip"><small id="uploadStatus">上传代码只解压校验，不在 API 进程加载。</small></label>
+            <fieldset><legend>候选 runtime</legend><div id="providerChecks" class="checks"></div></fieldset>
+            <label>Region 覆盖（provider=region，逗号分隔）<input id="regions" placeholder="aws_lambda=us-east-1,gcp_faas=us-central1"></label>
+            <div class="field-row">
+              <label>目标<select id="objective"><option value="min_cost_under_slo">SLO 内最低成本</option><option value="min_latency">最低延迟</option><option value="min_cost">最低成本</option><option value="balanced">综合权衡</option></select></label>
+              <label>候选上限<input id="candidateLimit" type="number" min="1" max="128" value="24"></label>
+            </div>
+            <div class="field-row">
+              <label>P95 SLO / ms<input id="latencySlo" type="number" min="0" value="2000"></label>
+              <label>最低成功率<input id="successRate" type="number" min="0" max="1" step="0.001" value="0.99"></label>
+            </div>
+            <div class="field-row">
+              <label>预算 / USD<input id="budget" type="number" min="0" step="0.01" value="50"></label>
+              <label>最长时间 / 秒<input id="wallTime" type="number" min="1" value="7200"></label>
+            </div>
+            <div class="toggles"><label><input id="prediction" type="checkbox" checked> 使用 predictor 引导选点</label><label><input id="advisor" type="checkbox" checked> 允许 Advisor 解释</label></div>
+            <label>执行授权<select id="authorization"><option value="plan_only">仅规划，不创建云资源</option><option value="approved_execution">预算已批准，交给 worker</option></select></label>
+            <div class="actions"><button type="submit" class="primary">生成计划</button><button type="button" id="createExperiment">创建持久任务</button></div>
+          </form>
+          <aside class="panel manifest-card">
+            <p class="stamp">EXPERIMENT MANIFEST</p>
+            <h3>比较口径先于排名</h3>
+            <ol><li>固定 workload、场景和能力快照</li><li>覆盖每个合法 provider / family baseline</li><li>探索与确认使用独立试跑</li><li>缺失指标不会被当成零</li></ol>
+            <dl><div><dt>执行授权</dt><dd>PLAN ONLY</dd></div><div><dt>生产变更</dt><dd>DISABLED</dd></div><div><dt>市场快照</dt><dd>FROZEN / EXPERIMENT</dd></div></dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-plan" aria-labelledby="title-plan" hidden>
+        <div class="section-head"><div><p class="section-index">02 / PLAN</p><h2 id="title-plan">候选与拓扑预览</h2></div><div class="actions"><button id="exportPlan">导出 JSON</button></div></div>
+        <div class="summary-strip" id="planSummary"></div>
+        <div class="panel"><div class="table-wrap"><table><thead><tr><th>候选</th><th>Provider</th><th>Family</th><th>Topology</th><th>资源</th><th>证据</th></tr></thead><tbody id="planRows"><tr><td colspan="6" class="empty">先生成计划</td></tr></tbody></table></div></div>
+        <details class="panel exclusion"><summary>排除与受限原因</summary><ul id="excludedRows"><li>暂无数据</li></ul></details>
+      </section>
+
+      <section class="view" id="view-progress" aria-labelledby="title-progress" hidden>
+        <div class="section-head"><div><p class="section-index">03 / RUN</p><h2 id="title-progress">阶段状态与预算</h2></div><div class="actions"><button id="refreshProgress">刷新</button><button id="cancelExperiment" class="danger">取消</button><button id="resumeExperiment">恢复</button></div></div>
+        <div id="stageTrack" class="stage-track"></div>
+        <div class="grid two"><div class="panel"><h3>任务快照</h3><pre id="progressSnapshot">未选择 experiment</pre></div><div class="panel log-panel"><h3>事件日志</h3><ol id="eventLog"><li>等待任务</li></ol></div></div>
+      </section>
+
+      <section class="view" id="view-compare" aria-labelledby="title-compare" hidden>
+        <div class="section-head"><div><p class="section-index">04 / EVIDENCE</p><h2 id="title-compare">同口径比较</h2></div><div class="actions"><button id="loadComparison">读取结果</button><button id="exportComparison">导出 JSON</button></div></div>
+        <div class="legend" aria-label="证据图例"><span class="quality measured">MEASURED</span><span class="quality predicted">PREDICTED</span><span class="quality missing">MISSING</span><span class="quality stale">STALE</span></div>
+        <div class="panel"><div class="table-wrap"><table><thead><tr><th>候选</th><th>P95 延迟</th><th>成本</th><th>失败率</th><th>实际资源</th><th>覆盖率</th></tr></thead><tbody id="comparisonRows"><tr><td colspan="6" class="empty">尚无测量证据</td></tr></tbody></table></div></div>
+      </section>
+
+      <section class="view" id="view-recommend" aria-labelledby="title-recommend" hidden>
+        <div class="section-head"><div><p class="section-index">05 / DECISION</p><h2 id="title-recommend">推荐与适用边界</h2></div><div class="actions"><button id="loadRecommendation">读取推荐</button><button id="exportRecommendation">导出 JSON</button></div></div>
+        <div class="decision-grid"><article class="winner-card" id="winnerCard"><p class="stamp">VERIFIED WINNER</p><h3>等待确认实验</h3><p>预测候选不会显示为 verified winner。</p></article><article class="panel"><h3>理由与证据引用</h3><ul id="reasonList"><li>没有足够的 measured evidence。</li></ul></article></div>
+        <div class="panel advisor"><label for="advisorPrompt">围绕冻结报告追问</label><div class="ask-row"><input id="advisorPrompt" placeholder="例如：如果更重视 P95，哪项证据会改变结论？"><button id="askAdvisor">询问 Advisor</button></div><pre id="advisorOutput">Advisor 不能覆盖确定性 winner。</pre></div>
+      </section>
+
+      <section class="view" id="view-sources" aria-labelledby="title-sources" hidden>
+        <div class="section-head"><div><p class="section-index">06 / PROVENANCE</p><h2 id="title-sources">模型、价格与汇率来源</h2></div><button id="loadCapabilities">刷新能力</button></div>
+        <div class="grid three" id="sourceCards"><article class="panel source"><span>Predictor</span><h3>BASELINE FALLBACK</h3><p>没有已注册模型时继续覆盖式网格搜索。</p></article><article class="panel source"><span>FX</span><h3>ECB / SNAPSHOT</h3><p>观察时间和抓取时间分别保存。</p></article><article class="panel source"><span>Pricing</span><h3>PROVIDER CATALOG</h3><p>SKU 缺失会降低 coverage，不会填充零价格。</p></article></div>
+        <div class="panel settings"><h3>本地访问设置</h3><div class="field-row"><label>API Token<input id="apiToken" type="password" autocomplete="off"></label><label>Tenant<input id="tenant" value="default"></label><label>Project<input id="project" value="default"></label></div><button id="saveSettings">保存到当前浏览器</button></div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

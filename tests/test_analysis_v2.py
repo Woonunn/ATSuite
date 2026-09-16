@@ -976,6 +976,7 @@ class InvokerAnalyzerBoundaryTests(unittest.TestCase):
                 self.seen_call_ids.append(request.call_id)
                 return InvocationResult(
                     provider_request_id="provider-1",
+                    result={"value": 1, "request_id": "provider-only", "timing": {"ms": 12}},
                     client_elapsed_ms=12.0,
                     provider_metadata={"session_id": "session-1"},
                 )
@@ -1060,6 +1061,7 @@ class InvokerAnalyzerBoundaryTests(unittest.TestCase):
                                 skip_sleep=True,
                                 skip_analyzer=True,
                             )
+                            captured_outputs = json.loads(Path(result["outputs_path"]).read_text())
             finally:
                 os.chdir(old_cwd)
                 resolve_benchmark.cache_clear()
@@ -1071,6 +1073,9 @@ class InvokerAnalyzerBoundaryTests(unittest.TestCase):
         self.assertIn("trace_path", result)
         self.assertEqual(len(fake_runtime.seen_call_ids), 1)
         self.assertTrue(fake_runtime.seen_call_ids[0].startswith("u1_1_"))
+        output = captured_outputs[fake_runtime.seen_call_ids[0]]
+        self.assertEqual(output["output"], {"value": 1})
+        self.assertEqual(output["provider_request_id"], "provider-1")
 
 
 if __name__ == "__main__":

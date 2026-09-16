@@ -156,3 +156,10 @@ class Recommendation:
     normalization_bounds: dict[str, dict[str, float]] = field(default_factory=dict)
     workload: dict[str, Any] = field(default_factory=dict)
     report_path: str = ""
+
+# Versioned planner contracts are re-exported here so callers can use the
+# historical model module as the single public import point.
+from atsuite.recommender.contracts import (  # noqa: E402,F401
+    SCHEMA_VERSION, BuildArtifact, CandidateSpec, DeploymentRecord, EvidenceMetric,
+    ExperimentSpec, MarketDataSnapshot, TrialRecord,
+)

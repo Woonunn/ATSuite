@@ -58,7 +58,13 @@ class CandidateLifecycle:
         try:
             replay = run_trace(self.candidate.config_path, self.url_map_path, uid,
                                provider=self.candidate.provider, analyzer=analyzer, output_dir=run_dir, raise_on_error=False)
-            record.update(status=replay["status"], summary=replay["summary"])
+            record.update(
+                status=replay["status"],
+                summary=replay["summary"],
+                outputs_path=replay.get("outputs_path", ""),
+                correctness_path=replay.get("correctness_path", ""),
+                correctness=replay.get("correctness", {}),
+            )
             if replay.get("error"):
                 record["error"] = replay["error"]
                 record["diagnostics"].append({"kind": "run_failed" if phase == "measured" else "warmup_failed", "error": replay["error"]})

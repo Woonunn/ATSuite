@@ -168,9 +168,21 @@ def normalize_provider_storage(provider: str) -> str:
     return key
 
 
-def write_url_map(config_path: Path, payload: Dict[str, Any]) -> Path:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = OUT_DIR / config_path.name
+def write_url_map(
+    config_path: Path,
+    payload: Dict[str, Any],
+    *,
+    output_dir: Optional[Path] = None,
+    experiment_id: str = "",
+    candidate_id: str = "",
+) -> Path:
+    root = Path(output_dir) if output_dir is not None else OUT_DIR
+    if experiment_id:
+        root = root / experiment_id
+    if candidate_id:
+        root = root / candidate_id
+    root.mkdir(parents=True, exist_ok=True)
+    output_path = root / config_path.name
     with output_path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
     return output_path

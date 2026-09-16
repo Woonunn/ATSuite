@@ -245,3 +245,9 @@ Analyzer v2 writes three artifacts under `results/<provider>/<benchmark>/`:
 the normalized `schema_version=2` report, and `*.evidence.jsonl` for full raw
 provider evidence collected from SLS, CloudWatch, Cloud Logging, or Gateway
 observability.
+
+## Automatic deployment recommender
+
+The recommender can generate legal provider/topology/resource plans without creating cloud resources, persist experiments in the FastAPI control plane, and expose the six-view Web console.
+
+See [`docs/userguide/recommender.md`](docs/userguide/recommender.md) for commands and evidence semantics. Implementation and external verification status is recorded in [`docs/developer-guide/recommender/implementation-status.md`](docs/developer-guide/recommender/implementation-status.md).

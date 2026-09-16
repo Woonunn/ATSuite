@@ -5,6 +5,7 @@ import logging
 import sys
 import threading
 import time
+import uuid
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime
@@ -12,7 +13,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional, TextIO
 
 from atsuite.pipeline import CliOverrides, is_sandbox_config, read_url_map, resolve_benchmark
-from atsuite.runtime import InvocationRequest, RuntimeAdapter, RuntimeSession, RuntimeTarget, create_runtime_adapter
+from atsuite.runtime import (
+    InvocationRequest, RuntimeAdapter, RuntimeSession, RuntimeTarget,
+    create_runtime_adapter, normalize_invocation_result,
+)
 from atsuite.scheduler import AccessScheduler, ToolAccess
 from atsuite.state_snapshot import (
     maybe_attach_agentcore_state_snapshot,
@@ -142,7 +146,8 @@ def run_node(
     *,
     max_workers: Optional[int] = None,
     state_snapshot_bundle: Optional[Dict[str, Any]] = None,
-) -> None:
+    outputs: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     if visited:
         return
 
@@ -166,7 +171,9 @@ def run_node(
     analyzer_lock = threading.Lock()
     session_lock = threading.Lock()
     state_lock = threading.Lock()
+    output_lock = threading.Lock()
     print_lock = threading.Lock()
+    captured_outputs = outputs if outputs is not None else {}
     seeded_targets: set[str] = set()
     sessions: Dict[str, RuntimeSession] = {}
     node_access: Dict[int, ToolAccess] = {}
@@ -281,6 +288,20 @@ def run_node(
                 )
             )
             elapsed_ms = result.client_elapsed_ms
+            output_record = {
+                "node_id": current_node_id,
+                "node_name": current_node.name,
+                "target_id": target.name,
+                "tool_name": route.tool_name,
+                "status": result.status,
+                "provider_request_id": result.provider_request_id,
+                "client_elapsed_ms": elapsed_ms,
+                "output": normalize_invocation_result(result.result),
+            }
+            if result.error:
+                output_record["error"] = result.error
+            with output_lock:
+                captured_outputs[call_id] = output_record
             if result.status != "ok":
                 analyzer_call(
                     "record_invocation",
@@ -394,6 +415,8 @@ def run_node(
                         ready_nodes.append(target_id)
             schedule_ready_nodes()
 
+    return captured_outputs
+
 
 def run_trace(
     config_path: Path,
@@ -411,6 +434,8 @@ def run_trace(
     analyzer: Optional[Any] = None,
     output_dir: str | Path = "results",
     raise_on_error: bool = True,
+    expected_outputs: Optional[Dict[str, Any]] = None,
+    output_comparator: Optional[Callable[[Any, Any], bool]] = None,
 ) -> Dict[str, Any]:
     if is_sandbox_config(config_path):
         raise SystemExit("Sandbox configs are no longer supported; use an external MCP-Gateway target instead")
@@ -431,9 +456,13 @@ def run_trace(
         raise SystemExit(f"URL map provider {url_map['provider']} does not match CLI provider {provider}")
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = Path(output_dir) / provider / resolved.bench_name
+    safe_uid = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in str(uid)) or "run"
+    run_id = f"{safe_uid}-{uuid.uuid4().hex[:12]}"
+    log_dir = Path(output_dir) / provider / resolved.bench_name / run_id
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{ts}.log"
+    log_path = log_dir / "run.log"
+    outputs_path = log_dir / "outputs.json"
+    correctness_path = log_dir / "correctness.json"
     _log_file = open(log_path, "w", encoding="utf-8")
     _original_stdout = sys.stdout
     sys.stdout = _TeeWriter(_original_stdout, _log_file)
@@ -446,11 +475,15 @@ def run_trace(
     scaling_targets = []
     trace_start_time = 0.0
     trace_end_time = 0.0
+    trace_perf_start_ns = 0
+    trace_perf_end_ns = 0
     analyzer_report = None
+    call_outputs: Dict[str, Any] = {}
     result: Dict[str, Any] = {
         "status": "success",
         "run": {
             "uid": uid,
+            "run_id": run_id,
             "provider": provider,
             "benchmark": resolved.bench_name,
             "trace": Path(str(selected_trace_file)).stem,
@@ -460,6 +493,8 @@ def run_trace(
         "report_path": "",
         "evidence_path": "",
         "trace_path": "",
+        "outputs_path": str(outputs_path),
+        "correctness_path": str(correctness_path),
     }
 
     try:
@@ -486,6 +521,7 @@ def run_trace(
             analyzer.start(uid=uid)
             analyzer_started = True
         trace_start_time = time.time()
+        trace_perf_start_ns = time.perf_counter_ns()
         run_node(
             0,
             {},
@@ -501,9 +537,11 @@ def run_trace(
             runtime_targets,
             max_workers=max_workers,
             state_snapshot_bundle=state_snapshot_bundle,
+            outputs=call_outputs,
         )
         trace_end_time = time.time()
-        result["summary"]["run_user_e2e_ms"] = (trace_end_time - trace_start_time) * 1000
+        trace_perf_end_ns = time.perf_counter_ns()
+        result["summary"]["run_user_e2e_ms"] = (trace_perf_end_ns - trace_perf_start_ns) / 1_000_000
     except (Exception, SystemExit) as exc:
         result["status"] = "failed"
         result["error"] = f"{type(exc).__name__}: {exc}"
@@ -554,7 +592,7 @@ def run_trace(
                     result["trace_path"] = analyzer_report.trace_path
                     result["events_path"] = analyzer.events_path
                 elif trace_start_time:
-                    result["summary"].setdefault("run_user_e2e_ms", ((trace_end_time or time.time()) - trace_start_time) * 1000)
+                    result["summary"].setdefault("run_user_e2e_ms", ((trace_perf_end_ns or time.perf_counter_ns()) - trace_perf_start_ns) / 1_000_000 if trace_perf_start_ns else ((trace_end_time or time.time()) - trace_start_time) * 1000)
                     result["summary"].setdefault("total_compute_time_ms", 0.0)
                     result["summary"].setdefault("total_idle_time_ms", 0.0)
                     result["summary"].setdefault("total_price", 0.0)
@@ -563,6 +601,28 @@ def run_trace(
                 if raise_on_error:
                     raise
             finally:
+                try:
+                    outputs_path.write_text(
+                        json.dumps(call_outputs, indent=2, ensure_ascii=False, default=str) + "\n",
+                        encoding="utf-8",
+                    )
+                    if expected_outputs is None:
+                        correctness = {"status": "not_configured", "calls": {}}
+                    else:
+                        from atsuite.recommender.correctness import validate_outputs
+                        correctness = validate_outputs(
+                            call_outputs, expected_outputs, comparator=output_comparator
+                        )
+                    correctness_path.write_text(
+                        json.dumps(correctness, indent=2, ensure_ascii=False, default=str) + "\n",
+                        encoding="utf-8",
+                    )
+                    result["correctness"] = correctness
+                    if correctness.get("status") == "failed" and result["status"] == "success":
+                        result["status"] = "failed"
+                        result["error"] = "correctness validation failed"
+                except Exception as exc:
+                    result["output_capture_error"] = f"{type(exc).__name__}: {exc}"
                 sys.stdout = _original_stdout
                 _log_file.close()
                 print(f"[export] Log: {log_path}")

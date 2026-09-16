@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import time
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -37,6 +38,14 @@ class StateRuntime:
             or os.getenv("ATSUITE_MCP_NAME", "").strip()
             or "atsuite-service"
         )
+        # Logical state identity must survive physical service renames.
+        self.logical_state_domain = (
+            os.getenv("ATSUITE_LOGICAL_STATE_DOMAIN", "").strip()
+            or os.getenv("ATSUITE_STATE_DOMAIN", "").strip()
+            or self.service_name
+        )
+        self.tenant = os.getenv("ATSUITE_TENANT", "default").strip() or "default"
+        self.experiment_id = os.getenv("ATSUITE_EXPERIMENT_ID", "default").strip() or "default"
         self.root = Path(os.getenv("ATSUITE_SESSION_ROOT", "/tmp/atsuite_state"))
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -44,6 +53,10 @@ class StateRuntime:
         self._defaults: Dict[str, Dict[str, Any]] = {}
         self._memory_snapshots: Dict[str, Dict[str, Any]] = {}
         self._storage = None
+        # ponytail: registered state objects are process globals, so one lock
+        # protects load -> invoke -> save. Replace with per-session object graphs
+        # only when concurrent stateful calls are required.
+        self._state_lock = threading.RLock()
 
         if self.runtime == "function" and (
             self.provider.startswith("ali")
@@ -79,6 +92,12 @@ class StateRuntime:
         return _safe_uid(uid)
 
     @contextmanager
+    def transaction(self, uid: Optional[str]):
+        """Serialize complete state transactions while objects are process globals."""
+        with self._state_lock:
+            yield
+
+    @contextmanager
     def uid_context(self, uid: Optional[str]):
         token = _CURRENT_UID.set(self._resolve_uid(uid))
         try:
@@ -87,7 +106,7 @@ class StateRuntime:
             _CURRENT_UID.reset(token)
 
     def session_dir(self, uid: Optional[str] = None) -> Path:
-        return self.root / self.service_name / self._resolve_uid(uid)
+        return self.root / self.tenant / self.experiment_id / self.logical_state_domain / self._resolve_uid(uid)
 
     def session_path(self, relpath: str, uid: Optional[str] = None) -> Path:
         rel = Path(relpath)
@@ -156,13 +175,6 @@ class StateRuntime:
                 for name, obj in named.items():
                     target_vars = module_vars.get(name)
                     if target_vars is None:
-                        for other_module, other_vars in all_vars.items():
-                            if other_module != module and isinstance(other_vars, dict):
-                                candidate = other_vars.get(name)
-                                if candidate is not None:
-                                    target_vars = candidate
-                                    break
-                    if target_vars is None:
                         target_vars = module_defaults.get(name, {})
                     self._apply_object_state(obj, target_vars)
         finally:
@@ -191,11 +203,11 @@ class StateRuntime:
                 self._record_sync_timing("save_ms", sync_start_ns)
 
     def _snapshot_key(self, uid: Optional[str]) -> str:
-        return f"{self.service_name}/{_safe_uid(uid)}.json"
+        return f"{self.tenant}/{self.experiment_id}/{self.logical_state_domain}/{_safe_uid(uid)}.json"
 
     def _get_snapshot(self, uid: Optional[str]) -> Dict[str, Any]:
         if self.runtime == "mcp":
-            return self._memory_snapshots.get(_safe_uid(uid), {})
+            return self._memory_snapshots.get(self._snapshot_key(uid), {})
 
         if self._storage is None:
             return {}
@@ -212,7 +224,7 @@ class StateRuntime:
 
     def _set_snapshot(self, uid: Optional[str], snapshot: Dict[str, Any]) -> None:
         if self.runtime == "mcp":
-            self._memory_snapshots[_safe_uid(uid)] = snapshot
+            self._memory_snapshots[self._snapshot_key(uid)] = snapshot
             return
 
         if self._storage is None:

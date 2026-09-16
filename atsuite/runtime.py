@@ -57,6 +57,21 @@ class InvocationResult:
     provider_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
+def normalize_invocation_result(value: Any) -> Any:
+    if isinstance(value, dict):
+        ignored = {"request_id", "provider_request_id", "timing"}
+        return {
+            str(key): normalize_invocation_result(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            if key not in ignored
+        }
+    if isinstance(value, (list, tuple)):
+        return [normalize_invocation_result(item) for item in value]
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
 @dataclass(frozen=True)
 class StateKey:
     service: str
@@ -199,11 +214,13 @@ class FunctionRuntimeAdapter(_BaseRuntimeAdapter):
         try:
             if request.timeout is not None:
                 client.timeout = request.timeout
-            provider_request_id, is_stateful = client.invoke(
+            response = client.invoke(
                 request.tool_name,
                 request.args,
                 request_id=request.call_id or None,
             )
+            provider_request_id, is_stateful = response[:2]
+            tool_result = response[2] if len(response) > 2 else None
         except Exception as exc:
             elapsed_ms = (time.time() - start) * 1000
             return InvocationResult(
@@ -214,6 +231,7 @@ class FunctionRuntimeAdapter(_BaseRuntimeAdapter):
         elapsed_ms = (time.time() - start) * 1000
         return InvocationResult(
             provider_request_id=provider_request_id or "",
+            result=tool_result,
             client_elapsed_ms=elapsed_ms,
             provider_metadata={"is_stateful": bool(is_stateful)},
         )
@@ -274,11 +292,16 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
         try:
             if request.timeout is not None:
                 client.timeout = request.timeout
-            provider_request_id = client.invoke(
+            response = client.invoke(
                 request.tool_name,
                 request.args,
                 request_id=request.call_id or None,
             )
+            if isinstance(response, tuple):
+                provider_request_id = response[0]
+                tool_result = response[1] if len(response) > 1 else None
+            else:
+                provider_request_id, tool_result = response, None
         except Exception as exc:
             elapsed_ms = (time.time() - start) * 1000
             return InvocationResult(
@@ -289,6 +312,7 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
         elapsed_ms = (time.time() - start) * 1000
         return InvocationResult(
             provider_request_id=provider_request_id or "",
+            result=tool_result,
             client_elapsed_ms=elapsed_ms,
             provider_metadata={"session_id": str(getattr(client, "session_id", "") or "")},
         )
