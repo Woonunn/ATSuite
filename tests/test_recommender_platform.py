@@ -109,7 +109,7 @@ class RecommenderPlatformTests(unittest.TestCase):
                 "snapshot_id": "rate-1", "provider": "aws", "category": "duration",
                 "sku": "sku", "region": "us-east-1", "billing_mode": "ondemand",
                 "unit": "s", "currency": "USD", "tiers": [{"up_to": None, "unit_price": "0.1"}],
-                "fetched_at": "2026-09-16", "observed_at": "2026-09-16", "source": "fixture",
+                "fetched_at": "2026-10-08", "observed_at": "2026-10-08", "source": "fixture",
                 "freshness": "fresh"
             }]}
             result = reprice(experiment, snapshot, usage_ledger_path=ledger)
@@ -120,18 +120,18 @@ class RecommenderPlatformTests(unittest.TestCase):
 
     def test_decimal_billing_fx_and_deduplication(self):
         ledger = UsageLedger((
-            UsageEntry("c", "r", "duration", Decimal("7"), "s", "aws", source_ref="same"),
-            UsageEntry("c", "r", "duration", Decimal("7"), "s", "aws", source_ref="same"),
+            UsageEntry("c", "r", "duration", Decimal("7"), "s", "aws", source_ref="same", provider_meter_id="meter-request-1"),
+            UsageEntry("c", "r", "duration", Decimal("7"), "s", "aws", source_ref="same", provider_meter_id="meter-request-1"),
         ))
         card = RateCard("rate-1", "aws", "service", "sku", "region", "ondemand", "s", "CNY",
-                        (PriceTier(None, Decimal("1")),), "fetched", "observed", "fixture")
+                        (PriceTier(None, Decimal("1")),), "2026-10-08T00:00:00Z", "2026-10-08T00:00:00Z", "fixture")
         fx = StaticFxProvider({"CNY": "7"}).fetch("USD")
         estimates = estimate_cost(ledger, {("aws", "duration"): card}, fx=fx, rules={"duration": BillingRule(rounding_seconds=Decimal("1"))})
         self.assertEqual(estimates[0].quantity, Decimal("7"))
         self.assertEqual(estimates[0].amount, Decimal("1"))
         self.assertEqual(estimate_cost(ledger, {("aws", "duration"): card})[0].coverage, "missing")
-        wrong_unit = RateCard("rate-2", "aws", "service", "sku", "region", "ondemand", "ms", "USD",
-                              (PriceTier(None, Decimal("1")),), "fetched", "observed", "fixture")
+        wrong_unit = RateCard("rate-2", "aws", "service", "sku", "region", "ondemand", "bytes", "USD",
+                              (PriceTier(None, Decimal("1")),), "2026-10-08T00:00:00Z", "2026-10-08T00:00:00Z", "fixture")
         self.assertEqual(estimate_cost(ledger, {("aws", "duration"): wrong_unit})[0].coverage, "missing")
         cny = convert_base(fx, "CNY")
         self.assertEqual(cny.rate("USD"), Decimal("1") / Decimal("7"))
@@ -186,7 +186,7 @@ class RecommenderPlatformTests(unittest.TestCase):
                 for thread in threads: thread.join()
                 self.assertEqual(sorted(results), [1, 1])
                 self.assertEqual(tool.execute_from_dict({"uid": "a"}), 2)
-                self.assertIn("tenant/experiment/domain/a.json", runtime._snapshot_key("a"))
+                self.assertIn("tenant/experiment/default/default/domain/a.json", runtime._snapshot_key("a"))
             finally:
                 state_module._RUNTIME = previous
 
@@ -246,12 +246,10 @@ class MarketDecisionAdvisorTests(unittest.TestCase):
         from atsuite.recommender.decision import decide
         from atsuite.recommender.search import select_exploration, select_confirmation, validate_transition
 
+        from tests.recommender_fixtures import verified_candidate
         def measured(name, value):
-            return EvidenceMetric(name, value, "unit", "workflow", 5, "measured", "available", evidence_refs=(f"e:{name}",))
-        rows = [
-            {"candidate_id": "a", "scenario_id": "s", "metrics": {"p95_workflow_ms": measured("lat", 100), "cost": measured("cost", .1), "failure_rate": measured("fail", 0)}},
-            {"candidate_id": "b", "scenario_id": "s", "metrics": {"p95_workflow_ms": measured("lat", 1000), "cost": measured("cost", .4), "failure_rate": measured("fail", .1)}},
-        ]
+            return EvidenceMetric(name, value, 'ms', 'workflow', 0, 'predicted', 'available', evidence_refs=('p',))
+        rows = [verified_candidate('a',.1,duration=100),verified_candidate('b',.4,duration=1000)]
         result = decide(rows, ObjectiveSpec(type="balanced"))
         self.assertEqual((result.status, result.best_verified), ("recommended", "a"))
         rows.append({"candidate_id": "c", "scenario_id": "s", "metrics": {"p95_workflow_ms": EvidenceMetric("lat", 50, "ms", "workflow", 0, "predicted", "available", evidence_refs=("p",)), "cost": measured("cost", .01), "failure_rate": measured("fail", 0)}})
@@ -355,8 +353,10 @@ class PlanExecutionTests(unittest.TestCase):
             plan_path = materialize_plan(plan, root / "plan.json")
             loaded = json.loads(plan_path.read_text())
             generated = json.loads(Path(loaded["candidates"][0]["generated_config"]).read_text())
-            self.assertTrue(Path(generated["trace_file"]).is_absolute())
-            self.assertTrue(all(Path(node["dir"]).is_absolute() for node in generated["nodes"]))
+            bundle = Path(loaded['candidates'][0]['bundle_root'])
+            self.assertTrue((bundle / generated['trace_file']).resolve().is_file())
+            self.assertTrue(all((bundle / node['dir']).resolve().is_dir() for node in generated['nodes']))
+            self.assertNotEqual(bundle, config.parent.parent)
             calls = []
             def builder(config_path, provider, output, **kwargs):
                 calls.append((provider, kwargs["candidate_id"]))
@@ -393,7 +393,7 @@ class PlanExecutionTests(unittest.TestCase):
 
         store.create("cleanup-failed", {"completed_stages": [], "cleanup_required": True}, state="CANCEL_REQUESTED")
         result = ExperimentJob(store, "cleanup-failed", {"CLEANUP": lambda _: (_ for _ in ()).throw(RuntimeError("leaked"))}).run()
-        self.assertEqual(result["state"], "CANCELLED")
+        self.assertEqual(result["state"], "FAILED")
         self.assertEqual(result["cleanup_status"], "failed")
         self.assertIn("leaked", result["cleanup_error"])
 
@@ -414,14 +414,28 @@ class OptionalIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             config = make_config(root)
-            app = create_app(store_path=root / "jobs.sqlite", artifact_root=root / "artifacts", web_root=root / "no-ui")
-            client = TestClient(app)
+            import io, zipfile
+            tokens = {
+                "a" * 32: {"subject": "user", "tenant": "tenant", "project": "project", "role": "editor"},
+                "b" * 32: {"subject": "other", "tenant": "other", "project": "project", "role": "editor"},
+            }
+            app = create_app(store_path=root / "jobs.sqlite", artifact_root=root / "artifacts", web_root=root / "no-ui", identity_tokens=tokens)
+            client = TestClient(app, base_url="http://localhost")
             ui_app = create_app(store_path=root / "ui.sqlite", artifact_root=root / "ui-artifacts")
-            ui = TestClient(ui_app).get("/")
+            ui = TestClient(ui_app, base_url="http://localhost").get("/")
             self.assertEqual(ui.status_code, 200)
             self.assertIn("Deployment Lab", ui.text)
-            headers = {"X-ATSuite-Tenant": "tenant", "X-ATSuite-Project": "project", "X-ATSuite-Role": "admin"}
-            payload = {"schema_version": 1, "benchmark": {"config": str(config)}, "providers": ["gcp_faas"], "authorization": "plan_only"}
+            headers = {"Authorization": "Bearer " + "a" * 32}
+            other_headers = {"Authorization": "Bearer " + "b" * 32}
+            archive = io.BytesIO()
+            with zipfile.ZipFile(archive, "w") as bundle:
+                for path in (root / "nodes", root / "trace", root / "config"):
+                    for file in [path, *path.rglob("*")]:
+                        bundle.write(file, "benchmark/" + str(file.relative_to(root)))
+            uploaded = client.post("/api/v1/benchmarks", headers={**headers, "X-Filename": "fixture.zip"}, content=archive.getvalue())
+            self.assertEqual(uploaded.status_code, 201, uploaded.text)
+            data = uploaded.json()
+            payload = {"schema_version": 1, "benchmark": {"benchmark_id": data["id"], "config_id": data["configs"][0]["config_id"]}, "providers": ["gcp_faas"], "authorization": "plan_only"}
             denied = client.post("/api/v1/experiments/plan", headers={**headers, "Origin": "https://evil.example"}, json=payload)
             self.assertEqual(denied.status_code, 403)
             first = client.post("/api/v1/experiments", headers={**headers, "Idempotency-Key": "same"}, json=payload)
@@ -431,10 +445,10 @@ class OptionalIntegrationTests(unittest.TestCase):
             conflict_payload = {**payload, "providers": ["aws_lambda"]}
             self.assertEqual(client.post("/api/v1/experiments", headers={**headers, "Idempotency-Key": "same"}, json=conflict_payload).status_code, 409)
             experiment_id = first.json()["id"]
-            self.assertEqual(client.get(f"/api/v1/experiments/{experiment_id}", headers={**headers, "X-ATSuite-Tenant": "other"}).status_code, 404)
+            self.assertEqual(client.get(f"/api/v1/experiments/{experiment_id}", headers=other_headers).status_code, 404)
             artifact_id = first.json()["plan_artifact_id"]
             self.assertEqual(client.get(f"/api/v1/artifacts/{artifact_id}", headers=headers).status_code, 200)
-            self.assertEqual(client.get(f"/api/v1/artifacts/{artifact_id}", headers={**headers, "X-ATSuite-Tenant": "other"}).status_code, 404)
+            self.assertEqual(client.get(f"/api/v1/artifacts/{artifact_id}", headers=other_headers).status_code, 404)
             repriced = client.post(f"/api/v1/experiments/{experiment_id}/reprice", headers=headers,
                                    json={"snapshot_id": "market-1", "rate_cards": []})
             self.assertEqual(repriced.status_code, 201)
@@ -452,7 +466,7 @@ class OptionalIntegrationTests(unittest.TestCase):
                 captured.update(kwargs)
                 schema = kwargs["text_format"]
                 parsed = schema(objective_interpretation="measured evidence", candidate_proposals=[], preferred_candidate_id="a",
-                                reason_codes=["winner"], metric_references=["m1"], tradeoffs=[], additional_experiments=[])
+                                reason_codes=["winner"], metric_references=["m1"], metric_claims=[], tradeoffs=[], additional_experiments=[])
                 return SimpleNamespace(output_parsed=parsed, usage={"input_tokens": 10, "output_tokens": 5}, id="resp", status="completed")
         client = SimpleNamespace(responses=Responses())
         result = OpenAIAdvisor(model="configured-model", client=client).recommend({"eligible_candidates": ["a"], "objective_winner": "a",
@@ -468,19 +482,20 @@ class DecisionAndModelEdgeTests(unittest.TestCase):
     def test_decision_statuses_and_fixed_anchor_invariance(self):
         from atsuite.recommender.contracts import EvidenceMetric, ObjectiveSpec
         from atsuite.recommender.decision import decide
-        def metric(name, value, kind="measured", quality="available", refs=("e",)):
-            return EvidenceMetric(name, value, "unit", "workflow", 5, kind, quality, evidence_refs=refs)
-        base = {"candidate_id": "a", "metrics": {"cost": metric("cost", .1), "p95_workflow_ms": metric("lat", 100), "failure_rate": metric("fail", 0)}}
+        from tests.recommender_fixtures import verified_candidate
+        base = verified_candidate('a', .1, duration=100)
         result = decide([base], ObjectiveSpec(type="min_cost_under_slo", max_p95_workflow_ms=50))
         self.assertEqual(result.status, "no_feasible_candidate")
-        missing = {"candidate_id": "m", "metrics": {"cost": metric("cost", .1), "p95_workflow_ms": metric("lat", None, quality="missing"), "failure_rate": metric("fail", 0)}}
+        missing=verified_candidate('m');missing['metrics']['p95_workflow_ms'].update(value=None,quality='missing')
         self.assertEqual(decide([missing], ObjectiveSpec(type="balanced")).status, "insufficient_evidence")
-        close = {"candidate_id": "b", "metrics": {"cost": metric("cost", .1001), "p95_workflow_ms": metric("lat", 101), "failure_rate": metric("fail", 0)}}
-        self.assertEqual(decide([base, close], ObjectiveSpec(type="balanced")).status, "no_clear_winner")
-        first = decide([base, {"candidate_id": "b", "metrics": {"cost": metric("cost", .5), "p95_workflow_ms": metric("lat", 1000), "failure_rate": metric("fail", .2)}}], ObjectiveSpec(type="balanced"))
-        worse = {"candidate_id": "z", "metrics": {"cost": metric("cost", 50), "p95_workflow_ms": metric("lat", 100000), "failure_rate": metric("fail", 1)}}
-        second = decide([base, {"candidate_id": "b", "metrics": {"cost": metric("cost", .5), "p95_workflow_ms": metric("lat", 1000), "failure_rate": metric("fail", .2)}}, worse], ObjectiveSpec(type="balanced"))
-        self.assertEqual(first.rankings[0]["score"], second.rankings[0]["score"])
+        close=verified_candidate('b',.1001,duration=101)
+        self.assertEqual(decide([base,close],ObjectiveSpec(type='balanced')).status,'no_clear_winner')
+        other=verified_candidate('b',.5,duration=1000)
+        first=decide([base,other],ObjectiveSpec(type='balanced'))
+        worse=verified_candidate('z',50,duration=100000)
+        second=decide([base,other,worse],ObjectiveSpec(type='balanced'))
+        self.assertEqual(first.rankings[0]['score'],second.rankings[0]['score'])
+        self.assertEqual(first.best_verified,second.best_verified)
 
     def test_grouped_time_split_and_predictor_ood(self):
         dataset = Dataset([
@@ -509,7 +524,7 @@ class CliWorkflowTests(unittest.TestCase):
             config = make_config(root)
             spec_path = root / "spec.json"
             spec_path.write_text(json.dumps({"schema_version": 1, "benchmark": {"config": str(config)}, "providers": ["gcp_faas"],
-                                             "authorization": "approved_execution"}))
+                                             "authorization": "plan_only", "budget": {"max_estimated_spend": 5, "max_wall_time_seconds": 60}}))
             plan_path = root / "plan.json"
             self.assertEqual(recommend_main(["plan", "--spec", str(spec_path), "--output", str(plan_path)]), 0)
             plan = json.loads(plan_path.read_text())
@@ -518,14 +533,12 @@ class CliWorkflowTests(unittest.TestCase):
             self.assertEqual(recommend_main(["run", "--plan", str(plan_path), "--approve-budget", "--store", str(store_path)]), 0)
             from atsuite.execution.store import JobStore
             store = JobStore(store_path)
-            experiment_id = "exp-" + __import__("atsuite.recommender.identity", fromlist=["digest"]).digest(plan, length=24)
+            experiment_id = store.queued()[0]
             self.assertEqual(store.get(experiment_id)["state"], "APPROVED")
             store.close()
 
-            evidence = {"objective": {"type": "min_cost"}, "candidates": [{"candidate_id": "a", "metrics": {
-                "cost": {"name": "cost", "value": .1, "unit": "USD", "scope": "run", "sample_count": 3, "measurement_kind": "measured", "quality": "available", "evidence_refs": ["e"]},
-                "failure_rate": {"name": "failure", "value": 0, "unit": "ratio", "scope": "run", "sample_count": 3, "measurement_kind": "measured", "quality": "available", "evidence_refs": ["e"]}
-            }}]}
+            from tests.recommender_fixtures import verified_candidate
+            evidence = {'objective':{'type':'min_cost'},'candidates':[verified_candidate('a',.1),verified_candidate('b',.3)]}
             evidence_path = root / "evidence.json"; evidence_path.write_text(json.dumps(evidence))
             comparison = root / "comparison.json"
             self.assertEqual(recommend_main(["compare", "--manifest", str(evidence_path), "--output", str(comparison)]), 0)

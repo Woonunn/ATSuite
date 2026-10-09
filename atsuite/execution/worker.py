@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from atsuite.execution.jobs import ExperimentJob
 from atsuite.execution.store import JobStore
+from atsuite.execution.postgres_store import open_store
 
 
 HandlerFactory = Callable[[JobStore, str], Mapping[str, Callable[[dict[str, Any]], dict[str, Any] | None]]]
@@ -26,7 +27,7 @@ def load_handlers(spec: str, store: JobStore, experiment_id: str) -> dict[str, C
 
 
 def run_once(*, store_path: str | Path, experiment_id: str, handlers: Mapping[str, Callable]) -> dict[str, Any]:
-    store = JobStore(store_path)
+    store = open_store(store_path)
     try:
         return ExperimentJob(store, experiment_id, dict(handlers)).run()
     finally:
