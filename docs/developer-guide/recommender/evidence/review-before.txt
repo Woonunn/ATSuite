@@ -1,0 +1,41 @@
+test_explicit_latency_constraint_requires_latency (tests.test_recommender_review_regressions.ReviewRegressions.test_explicit_latency_constraint_requires_latency) ... FAIL
+test_failed_output_must_not_win (tests.test_recommender_review_regressions.ReviewRegressions.test_failed_output_must_not_win) ... FAIL
+test_mixed_currencies_require_normalization (tests.test_recommender_review_regressions.ReviewRegressions.test_mixed_currencies_require_normalization) ... FAIL
+test_zero_samples_must_not_be_verified (tests.test_recommender_review_regressions.ReviewRegressions.test_zero_samples_must_not_be_verified) ... FAIL
+
+======================================================================
+FAIL: test_explicit_latency_constraint_requires_latency (tests.test_recommender_review_regressions.ReviewRegressions.test_explicit_latency_constraint_requires_latency)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 40, in test_explicit_latency_constraint_requires_latency
+    self.assertNotEqual(result.best_verified, 'missing')
+AssertionError: 'missing' == 'missing'
+
+======================================================================
+FAIL: test_failed_output_must_not_win (tests.test_recommender_review_regressions.ReviewRegressions.test_failed_output_must_not_win)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 35, in test_failed_output_must_not_win
+    self.assertNotEqual(result.best_verified, 'bad')
+AssertionError: 'bad' == 'bad'
+
+======================================================================
+FAIL: test_mixed_currencies_require_normalization (tests.test_recommender_review_regressions.ReviewRegressions.test_mixed_currencies_require_normalization)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 45, in test_mixed_currencies_require_normalization
+    self.assertNotEqual(result.status, 'recommended')
+AssertionError: 'recommended' == 'recommended'
+
+======================================================================
+FAIL: test_zero_samples_must_not_be_verified (tests.test_recommender_review_regressions.ReviewRegressions.test_zero_samples_must_not_be_verified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 30, in test_zero_samples_must_not_be_verified
+    self.assertNotEqual(result.status, 'recommended')
+AssertionError: 'recommended' == 'recommended'
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+FAILED (failures=4)

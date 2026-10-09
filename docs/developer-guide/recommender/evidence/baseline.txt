@@ -1,0 +1,418 @@
+test_analysis_v2 (unittest.loader._FailedTest.test_analysis_v2) ... ERROR
+test_build_cli (unittest.loader._FailedTest.test_build_cli) ... ERROR
+test_recommend_cli (unittest.loader._FailedTest.test_recommend_cli) ... ERROR
+test_recursive_secrets_removed (test_recommender_advisor_workflow.AdvisorRegressions.test_recursive_secrets_removed) ... FAIL
+test_seconds_are_converted (test_recommender_advisor_workflow.AdvisorRegressions.test_seconds_are_converted) ... FAIL
+test_recommender_api_authorization (unittest.loader._FailedTest.test_recommender_api_authorization) ... ERROR
+test_recommender_candidates (unittest.loader._FailedTest.test_recommender_candidates) ... ERROR
+test_each_threshold_and_boundary (test_recommender_constraints.ConstraintTests.test_each_threshold_and_boundary) ... ok
+test_missing_and_multiple_constraints (test_recommender_constraints.ConstraintTests.test_missing_and_multiple_constraints) ... ok
+test_p50_scoring_does_not_change_p95_constraint (test_recommender_constraints.ConstraintTests.test_p50_scoring_does_not_change_p95_constraint) ... ok
+test_recommender_engine (unittest.loader._FailedTest.test_recommender_engine) ... ERROR
+test_recommender_evidence (unittest.loader._FailedTest.test_recommender_evidence) ... ERROR
+test_recommender_experiment (unittest.loader._FailedTest.test_recommender_experiment) ... ERROR
+test_candidates_are_separate (test_recommender_market_accounting.AccountingRegressions.test_candidates_are_separate) ... FAIL
+test_each_attempt_rounds_and_empty_refs_do_not_dedupe (test_recommender_market_accounting.AccountingRegressions.test_each_attempt_rounds_and_empty_refs_do_not_dedupe) ... FAIL
+test_loading_does_not_overwrite_regions (test_recommender_market_accounting.AccountingRegressions.test_loading_does_not_overwrite_regions) ... FAIL
+test_missing_is_not_zero (test_recommender_market_accounting.AccountingRegressions.test_missing_is_not_zero) ... FAIL
+test_monthly_total_requests_and_idle_units (test_recommender_market_accounting.AccountingRegressions.test_monthly_total_requests_and_idle_units) ... FAIL
+test_legacy_zero_is_unknown (test_recommender_metrics.MetricsTests.test_legacy_zero_is_unknown) ... ok
+test_run_failures_warmups_missing_fx_and_partial (test_recommender_metrics.MetricsTests.test_run_failures_warmups_missing_fx_and_partial) ... ok
+test_statistics_and_outliers (test_recommender_metrics.MetricsTests.test_statistics_and_outliers) ... ok
+test_validation (test_recommender_model.ModelTests.test_validation) ... ok
+test_currency (test_recommender_normalize.NormalizeTests.test_currency) ... ok
+test_min_max (test_recommender_normalize.NormalizeTests.test_min_max) ... ok
+test_ties_and_missing_evidence_are_not_dominance (test_recommender_pareto.ParetoTests.test_ties_and_missing_evidence_are_not_dominance) ... ok
+test_tradeoffs_and_dominance (test_recommender_pareto.ParetoTests.test_tradeoffs_and_dominance) ... ok
+test_recommender_platform (unittest.loader._FailedTest.test_recommender_platform) ... ERROR
+test_mapping_candidates_keep_resources (test_recommender_prediction_acquisition.PredictionRegressions.test_mapping_candidates_keep_resources) ... FAIL
+test_provider_features_differ (test_recommender_prediction_acquisition.PredictionRegressions.test_provider_features_differ) ... FAIL
+test_recommender_resource_search (unittest.loader._FailedTest.test_recommender_resource_search) ... ERROR
+test_explicit_latency_constraint_requires_latency (test_recommender_review_regressions.ReviewRegressions.test_explicit_latency_constraint_requires_latency) ... FAIL
+test_failed_output_must_not_win (test_recommender_review_regressions.ReviewRegressions.test_failed_output_must_not_win) ... FAIL
+test_mixed_currencies_require_normalization (test_recommender_review_regressions.ReviewRegressions.test_mixed_currencies_require_normalization) ... FAIL
+test_zero_samples_must_not_be_verified (test_recommender_review_regressions.ReviewRegressions.test_zero_samples_must_not_be_verified) ... FAIL
+test_best_and_tradeoff_weights (test_recommender_scoring.ScoringTests.test_best_and_tradeoff_weights) ... ok
+test_confidence_variance_missing_metrics_diagnostics_and_margin (test_recommender_scoring.ScoringTests.test_confidence_variance_missing_metrics_diagnostics_and_margin) ... ok
+test_deterministic_ties_and_confidence (test_recommender_scoring.ScoringTests.test_deterministic_ties_and_confidence) ... ok
+test_invalid_weights (test_recommender_scoring.ScoringTests.test_invalid_weights) ... ok
+test_optional_missing_reweight_and_required_invalid (test_recommender_scoring.ScoringTests.test_optional_missing_reweight_and_required_invalid) ... ok
+test_partial_metric_is_never_scored (test_recommender_scoring.ScoringTests.test_partial_metric_is_never_scored) ... ok
+test_tie_break_order_failure_latency_cost_id (test_recommender_scoring.ScoringTests.test_tie_break_order_failure_latency_cost_id) ... ok
+test_recommender_topology_validation (unittest.loader._FailedTest.test_recommender_topology_validation) ... ERROR
+test_runtime_refactor (unittest.loader._FailedTest.test_runtime_refactor) ... ERROR
+
+======================================================================
+ERROR: test_analysis_v2 (unittest.loader._FailedTest.test_analysis_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_analysis_v2
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_analysis_v2.py", line 15, in <module>
+    from atsuite import invoker as invoker_module
+  File "/Users/woon/Project/ATSuite/atsuite/invoker.py", line 15, in <module>
+    from atsuite.pipeline import CliOverrides, is_sandbox_config, read_url_map, resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_build_cli (unittest.loader._FailedTest.test_build_cli)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_build_cli
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_build_cli.py", line 11, in <module>
+    from atsuite.cli import build_docker_images as build_cli
+  File "/Users/woon/Project/ATSuite/atsuite/cli/build_docker_images.py", line 13, in <module>
+    from atsuite.pipeline import (
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommend_cli (unittest.loader._FailedTest.test_recommend_cli)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommend_cli
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommend_cli.py", line 11, in <module>
+    from atsuite.cli import recommend
+  File "/Users/woon/Project/ATSuite/atsuite/cli/recommend.py", line 8, in <module>
+    from atsuite.recommender.engine import RecommendationEngine
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/engine.py", line 10, in <module>
+    from atsuite.pipeline import PROVIDERS, provider_cloud_name, resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommender_api_authorization (unittest.loader._FailedTest.test_recommender_api_authorization)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_api_authorization
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_api_authorization.py", line 8, in <module>
+    from fastapi.testclient import TestClient
+ModuleNotFoundError: No module named 'fastapi'
+
+
+======================================================================
+ERROR: test_recommender_candidates (unittest.loader._FailedTest.test_recommender_candidates)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_candidates
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_candidates.py", line 6, in <module>
+    from atsuite.pipeline import PROVIDERS, provider_cloud_name, resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommender_engine (unittest.loader._FailedTest.test_recommender_engine)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_engine
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_engine.py", line 6, in <module>
+    from atsuite.recommender.engine import RecommendationEngine
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/engine.py", line 10, in <module>
+    from atsuite.pipeline import PROVIDERS, provider_cloud_name, resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommender_evidence (unittest.loader._FailedTest.test_recommender_evidence)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_evidence
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_evidence.py", line 10, in <module>
+    from atsuite import invoker
+  File "/Users/woon/Project/ATSuite/atsuite/invoker.py", line 15, in <module>
+    from atsuite.pipeline import CliOverrides, is_sandbox_config, read_url_map, resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommender_experiment (unittest.loader._FailedTest.test_recommender_experiment)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_experiment
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_experiment.py", line 5, in <module>
+    from atsuite.recommender.candidates import generate_candidates
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/candidates.py", line 3, in <module>
+    from atsuite.pipeline import PROVIDERS, provider_cloud_name, resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommender_platform (unittest.loader._FailedTest.test_recommender_platform)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_platform
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_platform.py", line 10, in <module>
+    from atsuite.execution.store import JobStore
+  File "/Users/woon/Project/ATSuite/atsuite/execution/__init__.py", line 3, in <module>
+    from .build import build_candidates
+  File "/Users/woon/Project/ATSuite/atsuite/execution/build.py", line 6, in <module>
+    from atsuite.cli.build_docker_images import build_resolved_targets
+  File "/Users/woon/Project/ATSuite/atsuite/cli/build_docker_images.py", line 13, in <module>
+    from atsuite.pipeline import (
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommender_resource_search (unittest.loader._FailedTest.test_recommender_resource_search)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_resource_search
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_resource_search.py", line 6, in <module>
+    from atsuite.pipeline import resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_recommender_topology_validation (unittest.loader._FailedTest.test_recommender_topology_validation)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_recommender_topology_validation
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_topology_validation.py", line 6, in <module>
+    from atsuite.pipeline import resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+ERROR: test_runtime_refactor (unittest.loader._FailedTest.test_runtime_refactor)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_runtime_refactor
+Traceback (most recent call last):
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/.local/share/uv/python/cpython-3.12.12-macos-x86_64-none/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/Users/woon/Project/ATSuite/tests/test_runtime_refactor.py", line 9, in <module>
+    from atsuite.pipeline import CliOverrides, get_provider_spec, resolve_benchmark
+  File "/Users/woon/Project/ATSuite/atsuite/pipeline.py", line 9, in <module>
+    from atsuite_sdk.workflow import Trace
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/__init__.py", line 1, in <module>
+    from atsuite_sdk.abstract import UnifiedAgentTool, registry
+  File "/Users/woon/Project/ATSuite/atsuite_sdk/abstract.py", line 3, in <module>
+    from pydantic import BaseModel, create_model
+ModuleNotFoundError: No module named 'pydantic'
+
+
+======================================================================
+FAIL: test_recursive_secrets_removed (test_recommender_advisor_workflow.AdvisorRegressions.test_recursive_secrets_removed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_advisor_workflow.py", line 9, in test_recursive_secrets_removed
+    self.assertNotIn('secret', str(clean))
+AssertionError: 'secret' unexpectedly found in "{'metrics': {'x': {'value': 1, 'metadata': {'api_key': 'secret'}}}}"
+
+======================================================================
+FAIL: test_seconds_are_converted (test_recommender_advisor_workflow.AdvisorRegressions.test_seconds_are_converted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_advisor_workflow.py", line 6, in test_seconds_are_converted
+    self.assertEqual(parse_intent('cheapest p95 less than 2 seconds').max_p95_latency_ms,2000)
+AssertionError: 2.0 != 2000
+
+======================================================================
+FAIL: test_candidates_are_separate (test_recommender_market_accounting.AccountingRegressions.test_candidates_are_separate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_market_accounting.py", line 21, in test_candidates_are_separate
+    self.assertEqual(len(costs), 2)
+AssertionError: 1 != 2
+
+======================================================================
+FAIL: test_each_attempt_rounds_and_empty_refs_do_not_dedupe (test_recommender_market_accounting.AccountingRegressions.test_each_attempt_rounds_and_empty_refs_do_not_dedupe)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_market_accounting.py", line 16, in test_each_attempt_rounds_and_empty_refs_do_not_dedupe
+    self.assertEqual(sum(c.amount for c in cost), Decimal('.2'))
+AssertionError: Decimal('0.1') != Decimal('0.2')
+
+======================================================================
+FAIL: test_loading_does_not_overwrite_regions (test_recommender_market_accounting.AccountingRegressions.test_loading_does_not_overwrite_regions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_market_accounting.py", line 31, in test_loading_does_not_overwrite_regions
+    self.assertEqual(len(load_rate_cards({'rate_cards':[asdict(a),asdict(b)]})), 2)
+AssertionError: 1 != 2
+
+======================================================================
+FAIL: test_missing_is_not_zero (test_recommender_market_accounting.AccountingRegressions.test_missing_is_not_zero)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_market_accounting.py", line 26, in test_missing_is_not_zero
+    self.assertIsNone(cost.amount)
+AssertionError: Decimal('0') is not None
+
+======================================================================
+FAIL: test_monthly_total_requests_and_idle_units (test_recommender_market_accounting.AccountingRegressions.test_monthly_total_requests_and_idle_units)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_market_accounting.py", line 34, in test_monthly_total_requests_and_idle_units
+    self.assertEqual(projected_monthly_cost(Decimal('2'), 10, concurrency=3), Decimal('20'))
+AssertionError: Decimal('60') != Decimal('20')
+
+======================================================================
+FAIL: test_mapping_candidates_keep_resources (test_recommender_prediction_acquisition.PredictionRegressions.test_mapping_candidates_keep_resources)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_prediction_acquisition.py", line 5, in test_mapping_candidates_keep_resources
+    self.assertEqual(candidate_features({'resources_by_target': {'x': {'cpu':2}}})['total_cpu'],2)
+AssertionError: 0 != 2
+
+======================================================================
+FAIL: test_provider_features_differ (test_recommender_prediction_acquisition.PredictionRegressions.test_provider_features_differ)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_prediction_acquisition.py", line 7, in test_provider_features_differ
+    self.assertNotEqual(candidate_features({'provider':'aws_lambda'}), candidate_features({'provider':'ali_fc'}))
+AssertionError: {'target_count': 0.0, 'total_cpu': 0, 'total_memory_mb': 0, 'total_disk_mb': 0, 'family_session': 0.0, 'arch_arm64': 0.0} == {'target_count': 0.0, 'total_cpu': 0, 'total_memory_mb': 0, 'total_disk_mb': 0, 'family_session': 0.0, 'arch_arm64': 0.0}
+
+======================================================================
+FAIL: test_explicit_latency_constraint_requires_latency (test_recommender_review_regressions.ReviewRegressions.test_explicit_latency_constraint_requires_latency)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 40, in test_explicit_latency_constraint_requires_latency
+    self.assertNotEqual(result.best_verified, 'missing')
+AssertionError: 'missing' == 'missing'
+
+======================================================================
+FAIL: test_failed_output_must_not_win (test_recommender_review_regressions.ReviewRegressions.test_failed_output_must_not_win)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 35, in test_failed_output_must_not_win
+    self.assertNotEqual(result.best_verified, 'bad')
+AssertionError: 'bad' == 'bad'
+
+======================================================================
+FAIL: test_mixed_currencies_require_normalization (test_recommender_review_regressions.ReviewRegressions.test_mixed_currencies_require_normalization)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 45, in test_mixed_currencies_require_normalization
+    self.assertNotEqual(result.status, 'recommended')
+AssertionError: 'recommended' == 'recommended'
+
+======================================================================
+FAIL: test_zero_samples_must_not_be_verified (test_recommender_review_regressions.ReviewRegressions.test_zero_samples_must_not_be_verified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_review_regressions.py", line 30, in test_zero_samples_must_not_be_verified
+    self.assertNotEqual(result.status, 'recommended')
+AssertionError: 'recommended' == 'recommended'
+
+----------------------------------------------------------------------
+Ran 43 tests in 0.019s
+
+FAILED (failures=13, errors=12)
