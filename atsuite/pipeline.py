@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import lru_cache
 import math
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
@@ -22,6 +21,15 @@ class RuntimeConfig:
     memory: int = 1024
     disk: int = 512
     timeout: int = 30
+    region: str = ""
+    architecture: str = ""
+    concurrency: int | None = None
+    billing_mode: str = ""
+    execution_environment: str = ""
+    min_instances: int | None = None
+    session_affinity: bool | None = None
+    session_idle_timeout_s: int | None = None
+    session_ttl_s: int | None = None
 
     def __post_init__(self):
         if isinstance(self.cpu, bool) or not math.isfinite(float(self.cpu)) or self.cpu <= 0:
@@ -30,6 +38,8 @@ class RuntimeConfig:
             value = getattr(self, name)
             if isinstance(value, bool) or int(value) != value or value <= 0:
                 raise ValueError(f"{name} must be a positive integer")
+        if self.concurrency is not None and (isinstance(self.concurrency, bool) or not isinstance(self.concurrency, int) or self.concurrency < 1):
+            raise ValueError("concurrency must be a positive integer")
 
     @classmethod
     def from_dict(cls, payload: Optional[Mapping[str, Any]], fallback: Optional["RuntimeConfig"] = None) -> "RuntimeConfig":
@@ -40,15 +50,29 @@ class RuntimeConfig:
             memory=int(data.get("memory", base.memory)),
             disk=int(data.get("disk", base.disk)),
             timeout=int(data.get("timeout", base.timeout)),
+            region=str(data.get("region", base.region)),
+            architecture=str(data.get("architecture", base.architecture)),
+            concurrency=data.get("concurrency", base.concurrency),
+            billing_mode=str(data.get("billing_mode", base.billing_mode)),
+            execution_environment=str(data.get("execution_environment", base.execution_environment)),
+            min_instances=data.get("min_instances", base.min_instances),
+            session_affinity=data.get("session_affinity", base.session_affinity),
+            session_idle_timeout_s=data.get("session_idle_timeout_s", base.session_idle_timeout_s),
+            session_ttl_s=data.get("session_ttl_s", base.session_ttl_s),
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "cpu": self.cpu,
             "memory": self.memory,
             "disk": self.disk,
             "timeout": self.timeout,
         }
+        for name in ("region", "architecture", "concurrency", "billing_mode", "execution_environment", "min_instances",
+                     "session_affinity", "session_idle_timeout_s", "session_ttl_s"):
+            if getattr(self, name) not in (None, ""):
+                result[name] = getattr(self, name)
+        return result
 
 
 @dataclass(frozen=True)
@@ -290,6 +314,15 @@ class CliOverrides:
             memory=int(self.memory if self.memory is not None else fallback.memory),
             disk=int(self.disk if self.disk is not None else fallback.disk),
             timeout=int(self.timeout if self.timeout is not None else fallback.timeout),
+            region=fallback.region,
+            architecture=fallback.architecture,
+            concurrency=fallback.concurrency,
+            billing_mode=fallback.billing_mode,
+            execution_environment=fallback.execution_environment,
+            min_instances=fallback.min_instances,
+            session_affinity=fallback.session_affinity,
+            session_idle_timeout_s=fallback.session_idle_timeout_s,
+            session_ttl_s=fallback.session_ttl_s,
         )
 
 
@@ -364,11 +397,19 @@ def _nodes_from_tools(config_file: Path, bench_root: Path, tools: Any) -> List[D
                 "trace_names": [],
             },
         )
+        for key in ("state", "state_backend", "shareable_state", "topology", "must_colocate", "must_separate", "dependencies",
+                    "system_dependencies", "side_effects", "required_permissions", "isolation_class", "parallel_safe",
+                    "preferred_resource_class", "build"):
+            if key in raw:
+                if key in entry and entry[key] != raw[key]:
+                    raise SystemExit(f"Conflicting {key} metadata for node '{node_name}'")
+                entry[key] = raw[key]
         trace_entry = {
             "name": trace_name,
             "tool": tool_name,
             "domain": str(raw.get("domain", "")).strip(),
             "access": str(raw.get("access", STATELESS_ACCESS)).strip().lower(),
+            "state_semantics_declared": "access" in raw or "stateful" in raw,
         }
         if "stateful" in raw and "access" not in raw:
             trace_entry["stateful"] = bool(raw.get("stateful", False))
@@ -377,7 +418,6 @@ def _nodes_from_tools(config_file: Path, bench_root: Path, tools: Any) -> List[D
     return list(grouped.values())
 
 
-@lru_cache(maxsize=None)
 def resolve_benchmark(config_path: str | Path, provider: str, overrides: Optional[CliOverrides] = None) -> ResolvedBenchmark:
     config_file = Path(config_path).resolve()
     spec = get_provider_spec(provider)
@@ -446,6 +486,8 @@ def resolve_benchmark(config_path: str | Path, provider: str, overrides: Optiona
                 raise SystemExit(f"Invalid trace name binding for node '{node_name}' in {config_file}: {item}")
             if not trace_name:
                 raise SystemExit(f"Empty trace name binding for node '{node_name}' in {config_file}")
+            if trace_name in trace_bindings:
+                raise SystemExit(f"Duplicate trace name binding '{trace_name}' in node '{node_name}'")
             trace_bindings[trace_name] = tool_name
             trace_access[trace_name] = access_info
         normalized_trace_names = tuple(trace_bindings.keys())
@@ -619,6 +661,8 @@ def _resolve_mcp_targets(
         node_names = tuple(str(item).strip() for item in raw.get("nodes") or [] if str(item).strip())
         if not target_name or not node_names:
             raise SystemExit(f"Invalid MCP server in {config_path}: {raw}")
+        if len(node_names) != len(set(node_names)):
+            raise SystemExit(f"Duplicate node route in MCP server '{target_name}'")
         if target_name in targets:
             raise SystemExit(f"Duplicate MCP server '{target_name}' in {config_path}")
         trace_names: List[str] = []
@@ -695,3 +739,19 @@ def read_url_map(path: Path) -> Dict[str, Any]:
 
 def tool_trace_names(trace: Trace) -> List[str]:
     return [node.name for node in trace.nodes if node.node_type in TRACE_TOOL_TYPES]
+
+
+def logical_state_domain(resolved: ResolvedBenchmark, target_name: str) -> str:
+    """One declared state domain survives a physical topology rename.
+
+    Existing composite/undeclared baseline snapshots retain their original
+    logical target namespace; planning forbids ambiguous regrouping.
+    """
+    domains = {route.domain for route in resolved.routes.values()
+               if route.target_name == target_name and route.domain and route.access != STATELESS_ACCESS}
+    return next(iter(domains)) if len(domains) == 1 else target_name
+
+
+# Compatibility for callers which previously invalidated the path-only cache.
+# Resolution reads current immutable config artifacts on every call.
+resolve_benchmark.cache_clear = lambda: None

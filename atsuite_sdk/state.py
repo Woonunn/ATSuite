@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import contextvars
+import copy
 import json
 import os
 import shutil
@@ -17,9 +18,8 @@ _SYNC_TIMING = contextvars.ContextVar("atsuite_state_sync_timing", default=None)
 
 
 def _safe_uid(uid: Optional[str]) -> str:
-    raw = str(uid or "default")
-    cleaned = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in raw)
-    return cleaned or "default"
+    from atsuite_sdk.identity import component
+    return component(uid or 'default')
 
 
 class StateRuntime:
@@ -46,6 +46,8 @@ class StateRuntime:
         )
         self.tenant = os.getenv("ATSUITE_TENANT", "default").strip() or "default"
         self.experiment_id = os.getenv("ATSUITE_EXPERIMENT_ID", "default").strip() or "default"
+        self.candidate_id = os.getenv("ATSUITE_CANDIDATE_ID", "default")
+        self.scenario_id = os.getenv("ATSUITE_SCENARIO_ID", "default")
         self.root = Path(os.getenv("ATSUITE_SESSION_ROOT", "/tmp/atsuite_state"))
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -53,6 +55,7 @@ class StateRuntime:
         self._defaults: Dict[str, Dict[str, Any]] = {}
         self._memory_snapshots: Dict[str, Dict[str, Any]] = {}
         self._storage = None
+        self._storage_error = None
         # ponytail: registered state objects are process globals, so one lock
         # protects load -> invoke -> save. Replace with per-session object graphs
         # only when concurrent stateful calls are required.
@@ -67,10 +70,10 @@ class StateRuntime:
             try:
                 from atsuite_sdk.storage import create_storage
 
-                kwargs = {"provider": self.provider, "bucket": self.bucket}
+                kwargs = {"provider": self.provider, "bucket": self.bucket, "create_bucket": False}
                 self._storage = create_storage(**kwargs)
             except Exception as e:
-                print(f"[state] storage init disabled: {e}")
+                self._storage_error = e
                 self._storage = None
 
     def register_object(self, name: str, obj: object, module_name: Optional[str] = None) -> None:
@@ -94,6 +97,8 @@ class StateRuntime:
     @contextmanager
     def transaction(self, uid: Optional[str]):
         """Serialize complete state transactions while objects are process globals."""
+        if self.runtime == "function" and self.provider and self._storage is None:
+            raise RuntimeError("state storage unavailable") from self._storage_error
         with self._state_lock:
             yield
 
@@ -106,7 +111,7 @@ class StateRuntime:
             _CURRENT_UID.reset(token)
 
     def session_dir(self, uid: Optional[str] = None) -> Path:
-        return self.root / self.tenant / self.experiment_id / self.logical_state_domain / self._resolve_uid(uid)
+        return self.root / self._snapshot_key(self._resolve_uid(uid)).removesuffix(".json")
 
     def session_path(self, relpath: str, uid: Optional[str] = None) -> Path:
         rel = Path(relpath)
@@ -116,7 +121,7 @@ class StateRuntime:
         base = self.session_dir(uid)
         path = (base / rel).resolve()
         base_resolved = base.resolve()
-        if not str(path).startswith(str(base_resolved)):
+        if path != base_resolved and base_resolved not in path.parents:
             raise ValueError("session path escapes session directory")
         return path
 
@@ -203,7 +208,8 @@ class StateRuntime:
                 self._record_sync_timing("save_ms", sync_start_ns)
 
     def _snapshot_key(self, uid: Optional[str]) -> str:
-        return f"{self.tenant}/{self.experiment_id}/{self.logical_state_domain}/{_safe_uid(uid)}.json"
+        from atsuite_sdk.identity import StateKey
+        return StateKey(self.tenant, self.experiment_id, self.candidate_id, self.scenario_id, self.logical_state_domain, str(uid or "default")).path()
 
     def _get_snapshot(self, uid: Optional[str]) -> Dict[str, Any]:
         if self.runtime == "mcp":
@@ -219,8 +225,8 @@ class StateRuntime:
         try:
             payload = json.loads(content)
             return payload if isinstance(payload, dict) else {}
-        except json.JSONDecodeError:
-            return {}
+        except json.JSONDecodeError as exc:
+            raise ValueError('state snapshot is corrupt') from exc
 
     def _set_snapshot(self, uid: Optional[str], snapshot: Dict[str, Any]) -> None:
         if self.runtime == "mcp":
@@ -277,7 +283,7 @@ class StateRuntime:
 
     def _apply_object_state(self, obj: object, data: Dict[str, Any]) -> None:
         for key, value in data.items():
-            setattr(obj, key, value)
+            setattr(obj, key, copy.deepcopy(value))
 
     def _to_json_compatible(self, value: Any) -> Any:
         if value is None or isinstance(value, (bool, int, float, str)):

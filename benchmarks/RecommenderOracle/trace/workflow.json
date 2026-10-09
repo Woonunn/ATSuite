@@ -1,0 +1,6 @@
+{"nodes": [
+  {"id": 0, "name": "start", "type": "logic", "time": 0, "edge_to": [{"id": 1, "params": {"input": {"amount": 2}}, "interval": 0}]},
+  {"id": 1, "name": "counter.add_first", "type": "tool_use", "time": 0, "edge_to": [{"id": 2, "params": {"input": {"amount": 3}}, "interval": 0}]},
+  {"id": 2, "name": "counter.add_second", "type": "tool_use", "time": 0, "edge_to": [{"id": 3, "params": {"input": {}}, "interval": 0}]},
+  {"id": 3, "name": "counter.snapshot", "type": "tool_use", "time": 0, "edge_to": []}
+]}

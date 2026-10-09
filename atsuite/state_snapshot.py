@@ -29,7 +29,7 @@ def maybe_attach_agentcore_state_snapshot(
     seeded_targets: Set[str],
 ) -> Dict[str, Any]:
     del uid  # Reserved for future per-uid snapshot routing.
-    if provider not in ("aws_agentcore", "ali_agentrun"):
+    if provider not in ("aws_agentcore", "ali_agentrun", "gcp_mcp"):
         return args
     if target_name in seeded_targets:
         return args
@@ -60,6 +60,7 @@ def seed_lambda_state_snapshot_for_uid(
     state_snapshot_bundle: Optional[Dict[str, Any]],
     bucket: str = "atsuite",
     s3_client: Any = None,
+    state_context: Optional[Dict[str, str]] = None,
 ) -> Set[str]:
     if provider != "aws_lambda":
         return set()
@@ -87,7 +88,10 @@ def seed_lambda_state_snapshot_for_uid(
         if not isinstance(snapshot, dict):
             continue
 
-        key = f"{service_name}/{uid}.json"
+        from atsuite_sdk.identity import StateKey
+        context = state_context or {}
+        key = StateKey(context.get('tenant','default'),context.get('experiment','default'),context.get('candidate','default'),
+            context.get('scenario','default'),service_name,uid).path() if state_context else f"{service_name}/{uid}.json"
         body = json.dumps(snapshot, ensure_ascii=False).encode("utf-8")
         client.put_object(Bucket=bucket, Key=key, Body=body)
         seeded_services.add(service_name)
@@ -101,6 +105,7 @@ def seed_alifc_state_snapshot_for_uid(
     state_snapshot_bundle: Optional[Dict[str, Any]],
     bucket: str = "atsuite11",
     client: Any = None,
+    state_context: Optional[Dict[str, str]] = None,
 ) -> Set[str]:
     if provider != "ali_fc":
         return set()
@@ -116,7 +121,7 @@ def seed_alifc_state_snapshot_for_uid(
         from atsuite.ali.oss import AliOSS
 
         region = os.environ.get("ALI_REGION", "us-east-1")
-        client = AliOSS(bucket, region)
+        client = AliOSS(bucket, region, create_bucket=False)
 
     seeded_services: Set[str] = set()
     for service_name, payload in services.items():
@@ -128,9 +133,39 @@ def seed_alifc_state_snapshot_for_uid(
         if not isinstance(snapshot, dict):
             continue
 
-        key = f"{service_name}/{uid}.json"
+        from atsuite_sdk.identity import StateKey
+        context = state_context or {}
+        key = StateKey(context.get('tenant','default'),context.get('experiment','default'),context.get('candidate','default'),
+            context.get('scenario','default'),service_name,uid).path() if state_context else f"{service_name}/{uid}.json"
         body = json.dumps(snapshot, ensure_ascii=False).encode("utf-8")
+        client.clearobj(key)
         client.append(key, body)
         seeded_services.add(service_name)
 
     return seeded_services
+
+
+def seed_gcp_state_snapshot_for_uid(
+    *, provider: str, uid: str, state_snapshot_bundle: Optional[Dict[str, Any]],
+    bucket: str = "atsuite", client: Any = None, state_context: Optional[Dict[str, str]] = None,
+) -> Set[str]:
+    if provider != "gcp_faas" or not state_snapshot_bundle:
+        return set()
+    services = state_snapshot_bundle.get('services')
+    if not isinstance(services, dict) or not services:
+        return set()
+    if client is None:
+        from atsuite_sdk.storage import create_storage
+        client = create_storage(provider=provider, bucket=bucket, create_bucket=False)
+    from atsuite_sdk.identity import StateKey
+    seeded = set()
+    for domain, payload in services.items():
+        if not isinstance(domain, str) or not domain.strip() or not isinstance(payload, dict) or not isinstance(payload.get('snapshot'), dict):
+            continue
+        context = state_context or {}
+        key = StateKey(context.get('tenant','default'),context.get('experiment','default'),context.get('candidate','default'),
+            context.get('scenario','default'),domain,uid).path() if state_context else f'{domain}/{uid}.json'
+        client.clearobj(key)
+        client.append(key, json.dumps(payload['snapshot'], ensure_ascii=False).encode('utf-8'))
+        seeded.add(domain)
+    return seeded

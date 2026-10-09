@@ -1,0 +1,11 @@
+{
+  "type": "exact",
+  "version": "counter-output-state-v1",
+  "expected_outputs": {
+    "counter.add_first": {"total": 2},
+    "counter.add_second": {"total": 5},
+    "counter.snapshot": {"total": 5, "amounts": [2, 3]}
+  },
+  "state_output_node": "counter.snapshot",
+  "expected_state": {"total": 5, "amounts": [2, 3]}
+}

@@ -1,0 +1,19 @@
+{
+  "trace_file": "./trace/workflow.json",
+  "correctness": {"oracle": "./oracle/exact.json"},
+  "nodes": [{
+    "name": "counter", "dir": "./nodes/counter", "state": {"mode": "stateful", "backend": "snapshot", "shareable": false},
+    "build": {"python_version": "3.12"},
+    "trace_names": [
+      {"name": "counter.add_first", "tool": "counter_add", "domain": "counter", "access": "rw"},
+      {"name": "counter.add_second", "tool": "counter_add", "domain": "counter", "access": "rw"},
+      {"name": "counter.snapshot", "tool": "counter_snapshot", "domain": "counter", "access": "r"}
+    ]
+  }],
+  "pipeline": {
+    "faas": {"units": [{"name": "counter", "node": "counter", "trace_names": ["counter.add_first", "counter.add_second", "counter.snapshot"],
+      "build": {"python_version": "3.12"}, "deploy": {"cpu": 1, "memory": 1024, "disk": 512, "timeout": 30}}]},
+    "session": {"servers": [{"name": "counter", "nodes": ["counter"], "build": {"python_version": "3.12"},
+      "deploy": {"cpu": 1, "memory": 1024, "disk": 512, "timeout": 30}}]}
+  }
+}

@@ -30,12 +30,19 @@ class StorageBase(ABC):
 
 def create_storage(provider: str, **kwargs) -> StorageBase:
     if provider.startswith("ali"):
-        from atsuite_sdk.oss import AliOSS
+        try:
+            from atsuite_sdk.oss import AliOSS
+        except ModuleNotFoundError:
+            from atsuite.ali.oss import AliOSS
         return AliOSS(**kwargs)
     if provider.startswith("aws"):
-        from atsuite_sdk.s3 import AWSS3
+        try:
+            from atsuite_sdk.s3 import AWSS3
+        except ModuleNotFoundError:
+            from atsuite.aws.s3 import AWSS3
         return AWSS3(**kwargs)
     if provider.startswith("gcp"):
         from atsuite_sdk.gcs import GCPStorage
+        kwargs.pop("create_bucket", None)
         return GCPStorage(**kwargs)
     raise ValueError(f"Unknown storage provider: {provider}")
