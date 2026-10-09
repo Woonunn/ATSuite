@@ -4,13 +4,14 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 
-STAGES = ("PLANNED", "APPROVED", "BUILDING", "DEPLOYING", "EXPLORING", "CONFIRMING", "ANALYZING", "COMPLETED")
+STAGES = ("PLANNED", "APPROVED", "PREFLIGHT", "BUILDING", "DEPLOYING", "EXPLORING", "CONFIRMING", "ANALYZING", "COMPLETED")
 TERMINAL_STAGES = {"COMPLETED", "FAILED", "CANCELLED"}
 _ALLOWED = {
     "CREATED": {"VALIDATED", "PLANNED", "CANCEL_REQUESTED", "FAILED"},
     "VALIDATED": {"PLANNED", "CANCEL_REQUESTED", "FAILED"},
     "PLANNED": {"PLANNED", "APPROVED", "CANCEL_REQUESTED", "FAILED"},
-    "APPROVED": {"BUILDING", "CANCEL_REQUESTED", "FAILED", "CLEANUP_PENDING"},
+    "APPROVED": {"PREFLIGHT", "BUILDING", "CANCEL_REQUESTED", "FAILED", "CLEANUP_PENDING"},
+    "PREFLIGHT": {"BUILDING", "CANCEL_REQUESTED", "FAILED", "CLEANUP_PENDING"},
     "BUILDING": {"DEPLOYING", "CANCEL_REQUESTED", "FAILED", "CLEANUP_PENDING"},
     "DEPLOYING": {"EXPLORING", "CANCEL_REQUESTED", "FAILED", "CLEANUP_PENDING"},
     "EXPLORING": {"CONFIRMING", "ANALYZING", "CANCEL_REQUESTED", "FAILED", "CLEANUP_PENDING"},
@@ -18,7 +19,7 @@ _ALLOWED = {
     "ANALYZING": {"COMPLETED", "CANCEL_REQUESTED", "FAILED", "CLEANUP_PENDING"},
     "CANCEL_REQUESTED": {"CANCELLED", "CLEANUP_PENDING", "FAILED"},
     "CLEANUP_PENDING": {"COMPLETED", "CANCELLED", "FAILED"},
-    "FAILED": {"APPROVED", "BUILDING", "DEPLOYING", "EXPLORING", "CONFIRMING", "ANALYZING", "CLEANUP_PENDING", "FAILED"},
+    "FAILED": {"APPROVED", "PREFLIGHT", "BUILDING", "DEPLOYING", "EXPLORING", "CONFIRMING", "ANALYZING", "CLEANUP_PENDING", "FAILED"},
     "CANCELLED": {"APPROVED", "CANCELLED"},
     "COMPLETED": {"COMPLETED"},
 }
@@ -36,7 +37,9 @@ def next_resumable_stage(record: Mapping[str, Any]) -> str:
     completed = set(record.get("completed_stages") or ())
     if state == "COMPLETED":
         return "COMPLETED"
-    for stage in STAGES[1:]:
+    if record.get('cleanup_status') == 'failed':
+        return 'CLEANUP_PENDING'
+    for stage in STAGES[2:-1]:
         if stage not in completed:
             return stage
     return "COMPLETED"
@@ -83,10 +86,7 @@ class SearchOrchestrator:
     def transition(self, experiment_id: str, target: str, **updates: Any) -> dict[str, Any]:
         record = self.store.get(experiment_id)
         validate_transition(record["state"], target)
-        completed = list(record.get("completed_stages") or ())
-        if record["state"] in STAGES and record["state"] not in completed:
-            completed.append(record["state"])
-        return self.store.transition(experiment_id, target, completed_stages=completed, **updates)
+        return self.store.transition(experiment_id, target, **updates)
 
     def resume(self, experiment_id: str) -> dict[str, Any]:
         record = self.store.get(experiment_id)
