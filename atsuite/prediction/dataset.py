@@ -16,6 +16,11 @@ class DatasetRow:
     targets: dict[str, float]
     quality: str = "available"
     source_ref: str = ""
+    workload_family: str = ""
+    trial_ids: tuple[str, ...] = ()
+    measurement_source: str = "unverified"
+    phase: str = "exploration"
+    observed_spend: str | None = None
 
 
 class Dataset:
@@ -70,13 +75,26 @@ class Dataset:
             rows.append(DatasetRow(**payload))
         return cls(rows)
 
-    def split(self, *, test_workloads: set[str] | None = None, cutoff: str | None = None) -> tuple["Dataset", "Dataset"]:
-        train, test = [], []
+    def split(self, *, test_workloads=None, cutoff=None, test_families=None):
+        # Entire families are held out if any member crosses the time boundary.
+        holdout_groups = set()
         for row in self.rows:
-            holdout = test_workloads is not None and row.workload_fingerprint in test_workloads
-            holdout = holdout or (cutoff is not None and row.observed_at >= cutoff)
-            (test if holdout else train).append(row)
+            group = row.workload_family or row.workload_fingerprint
+            if (test_workloads and row.workload_fingerprint in test_workloads) or (test_families and group in test_families) or (cutoff and row.observed_at >= cutoff):
+                holdout_groups.add(group)
+        train, test = [], []
+        trial_groups = {}
+        for row in self.rows:
+            group = row.workload_family or row.workload_fingerprint
+            for trial in row.trial_ids:
+                if trial in trial_groups and trial_groups[trial] != group:
+                    raise ValueError('duplicate trial crosses workload families')
+                trial_groups[trial] = group
+            (test if group in holdout_groups else train).append(row)
         return Dataset(train), Dataset(test)
+
+    def qualified_history(self):
+        return Dataset(row for row in self.rows if row.quality == 'available' and row.source_ref and row.measurement_source == 'platform_measured' and row.phase != 'confirmation')
 
     def coverage(self) -> dict[str, int]:
         return {"rows": len(self.rows), "workloads": len({row.workload_fingerprint for row in self.rows}), "candidates": len({row.candidate_id for row in self.rows}), "scenarios": len({row.scenario_id for row in self.rows})}
