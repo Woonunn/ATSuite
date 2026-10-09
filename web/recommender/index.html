@@ -33,10 +33,10 @@
         <div class="section-head"><div><p class="section-index">01 / INPUT</p><h2 id="title-new">定义一个可复现实验</h2></div><p>规划是零云写入操作。执行需要固定的计划 hash 与单独授权。</p></div>
         <div class="grid two">
           <form id="experimentForm" class="panel form-panel">
-            <label>Benchmark 配置路径<input id="configPath" value="benchmarks/TravelPlanner/config/faas7_mcp2_min.json" required></label>
+            <label>已授权 Benchmark ID<input id="benchmarkId" required readonly></label><label>包内配置<select id="configId" required></select></label>
             <label>或上传受限 ZIP 包<input id="benchmarkFile" type="file" accept=".zip,application/zip"><small id="uploadStatus">上传代码只解压校验，不在 API 进程加载。</small></label>
             <fieldset><legend>候选 runtime</legend><div id="providerChecks" class="checks"></div></fieldset>
-            <label>Region 覆盖（provider=region，逗号分隔）<input id="regions" placeholder="aws_lambda=us-east-1,gcp_faas=us-central1"></label>
+            <label>Region 覆盖（provider=region，逗号分隔）<input id="regions" placeholder="aws_lambda=us-east-1,gcp_faas=us-central1"></label><label>审批账号（provider=account，逗号分隔）<input id="accounts" placeholder="aws_lambda=123456789012"><small>worker 会从厂商身份 API 回读账号并与审批绑定。</small></label>
             <div class="field-row">
               <label>目标<select id="objective"><option value="min_cost_under_slo">SLO 内最低成本</option><option value="min_latency">最低延迟</option><option value="min_cost">最低成本</option><option value="balanced">综合权衡</option></select></label>
               <label>候选上限<input id="candidateLimit" type="number" min="1" max="128" value="24"></label>
@@ -50,7 +50,7 @@
               <label>最长时间 / 秒<input id="wallTime" type="number" min="1" value="7200"></label>
             </div>
             <div class="toggles"><label><input id="prediction" type="checkbox" checked> 使用 predictor 引导选点</label><label><input id="advisor" type="checkbox" checked> 允许 Advisor 解释</label></div>
-            <label>执行授权<select id="authorization"><option value="plan_only">仅规划，不创建云资源</option><option value="approved_execution">预算已批准，交给 worker</option></select></label>
+            <p>计划冻结后，必须单独确认预算并批准执行。修改输入会创建新计划。</p>
             <div class="actions"><button type="submit" class="primary">生成计划</button><button type="button" id="createExperiment">创建持久任务</button></div>
           </form>
           <aside class="panel manifest-card">
@@ -63,7 +63,7 @@
       </section>
 
       <section class="view" id="view-plan" aria-labelledby="title-plan" hidden>
-        <div class="section-head"><div><p class="section-index">02 / PLAN</p><h2 id="title-plan">候选与拓扑预览</h2></div><div class="actions"><button id="exportPlan">导出 JSON</button></div></div>
+        <div class="section-head"><div><p class="section-index">02 / PLAN</p><h2 id="title-plan">候选与拓扑预览</h2></div><div class="actions"><button id="exportPlan">导出 JSON</button><button id="approveExperiment">批准冻结计划与预算</button><button id="runExperiment">入队运行</button></div></div>
         <div class="summary-strip" id="planSummary"></div>
         <div class="panel"><div class="table-wrap"><table><thead><tr><th>候选</th><th>Provider</th><th>Family</th><th>Topology</th><th>资源</th><th>证据</th></tr></thead><tbody id="planRows"><tr><td colspan="6" class="empty">先生成计划</td></tr></tbody></table></div></div>
         <details class="panel exclusion"><summary>排除与受限原因</summary><ul id="excludedRows"><li>暂无数据</li></ul></details>
@@ -71,7 +71,7 @@
 
       <section class="view" id="view-progress" aria-labelledby="title-progress" hidden>
         <div class="section-head"><div><p class="section-index">03 / RUN</p><h2 id="title-progress">阶段状态与预算</h2></div><div class="actions"><button id="refreshProgress">刷新</button><button id="cancelExperiment" class="danger">取消</button><button id="resumeExperiment">恢复</button></div></div>
-        <div id="stageTrack" class="stage-track"></div>
+        <p id="workerStatus">等待任务</p><div id="stageTrack" class="stage-track"></div>
         <div class="grid two"><div class="panel"><h3>任务快照</h3><pre id="progressSnapshot">未选择 experiment</pre></div><div class="panel log-panel"><h3>事件日志</h3><ol id="eventLog"><li>等待任务</li></ol></div></div>
       </section>
 
@@ -82,15 +82,15 @@
       </section>
 
       <section class="view" id="view-recommend" aria-labelledby="title-recommend" hidden>
-        <div class="section-head"><div><p class="section-index">05 / DECISION</p><h2 id="title-recommend">推荐与适用边界</h2></div><div class="actions"><button id="loadRecommendation">读取推荐</button><button id="exportRecommendation">导出 JSON</button></div></div>
-        <div class="decision-grid"><article class="winner-card" id="winnerCard"><p class="stamp">VERIFIED WINNER</p><h3>等待确认实验</h3><p>预测候选不会显示为 verified winner。</p></article><article class="panel"><h3>理由与证据引用</h3><ul id="reasonList"><li>没有足够的 measured evidence。</li></ul></article></div>
-        <div class="panel advisor"><label for="advisorPrompt">围绕冻结报告追问</label><div class="ask-row"><input id="advisorPrompt" placeholder="例如：如果更重视 P95，哪项证据会改变结论？"><button id="askAdvisor">询问 Advisor</button></div><pre id="advisorOutput">Advisor 不能覆盖确定性 winner。</pre></div>
+        <div class="section-head"><div><p class="section-index">05 / DECISION</p><h2 id="title-recommend">推荐与适用边界</h2></div><div class="actions"><button id="loadRecommendation">读取推荐</button><button id="exportRecommendation">导出 JSON</button><button id="exportMarkdown">完整 Markdown</button><button id="exportExperiment">完整 JSON</button></div></div>
+        <div class="decision-grid"><article class="winner-card" id="winnerCard"><p class="stamp">DECISION STATUS</p><h3>等待确认实验</h3><p>预测候选不会显示为 verified winner。</p></article><article class="panel"><h3>理由与证据引用</h3><ul id="reasonList"><li>没有足够的 measured evidence。</li></ul></article></div>
+        <div class="panel"><h3>资格、确认、来源、覆盖与清理</h3><pre id="qualificationOutput">等待后端证据</pre><h3>内容寻址证据引用</h3><ul id="evidenceRefs"></ul><pre id="evidenceOutput">选择证据引用以检查完整原文和身份。</pre><label>重算版本<select id="repriceVersion"><option value="original">原始测量版本</option></select></label><label>新的价格与 FX 快照<textarea id="marketSnapshot" rows="4">{"snapshot_id":"manual-review","rate_cards":[]}</textarea></label><button id="repriceExperiment">按用量账本重新计价</button><small>重新计价不重新运行 benchmark。</small><pre id="repriceOutput"></pre><h3>生产部署</h3><label>受控目标 ID<input id="productionTarget"></label><button id="productionPlan">生成部署与回滚计划</button><button id="productionApprove">额外批准生产变更</button><button id="productionApply">应用并健康检查</button><pre id="productionOutput"></pre></div><div class="panel advisor"><label for="advisorPrompt">围绕冻结报告追问</label><div class="ask-row"><input id="advisorPrompt" placeholder="例如：如果更重视 P95，哪项证据会改变结论？"><button id="askAdvisor">询问 Advisor</button></div><pre id="advisorOutput">Advisor 不能覆盖确定性 winner。</pre></div>
       </section>
 
       <section class="view" id="view-sources" aria-labelledby="title-sources" hidden>
         <div class="section-head"><div><p class="section-index">06 / PROVENANCE</p><h2 id="title-sources">模型、价格与汇率来源</h2></div><button id="loadCapabilities">刷新能力</button></div>
-        <div class="grid three" id="sourceCards"><article class="panel source"><span>Predictor</span><h3>BASELINE FALLBACK</h3><p>没有已注册模型时继续覆盖式网格搜索。</p></article><article class="panel source"><span>FX</span><h3>ECB / SNAPSHOT</h3><p>观察时间和抓取时间分别保存。</p></article><article class="panel source"><span>Pricing</span><h3>PROVIDER CATALOG</h3><p>SKU 缺失会降低 coverage，不会填充零价格。</p></article></div>
-        <div class="panel settings"><h3>本地访问设置</h3><div class="field-row"><label>API Token<input id="apiToken" type="password" autocomplete="off"></label><label>Tenant<input id="tenant" value="default"></label><label>Project<input id="project" value="default"></label></div><button id="saveSettings">保存到当前浏览器</button></div>
+        <div class="grid three" id="sourceCards"><article class="panel source"><span>Predictor</span><h3>BASELINE FALLBACK</h3><p>没有已注册模型时继续覆盖式网格搜索。</p></article><article class="panel source"><span>FX</span><h3>MISSING</h3><p>尚未读取冻结汇率；观察和抓取时间来自后端记录。</p></article><article class="panel source"><span>Pricing</span><h3>MISSING COVERAGE</h3><p>尚未读取价格快照；缺失 SKU 不会填充零价格。</p></article></div>
+        <div class="panel settings"><h3>本地访问设置</h3><div class="field-row"><label>API Token<input id="apiToken" type="password" autocomplete="off"></label><label>服务端身份<input id="principal" readonly value="正在读取"></label></div><button id="saveSettings">保存到当前浏览器</button></div>
       </section>
     </main>
   </div>
