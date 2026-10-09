@@ -77,6 +77,8 @@ class RecommendationEngine:
                         "aggregation": {"latency": latency_stat, "cost": "median", "memory": "median", "state_overhead": "median",
                                         "reliability": "failed_measured_runs / measured_runs", "cold_start": "sum(cold_start_total) / sum(invocation_count)"}},
         )
+        if self.experiment_runner is None:
+            raise ValueError("Legacy execution requires canonical service approval; use atsuite-recommend plan/run")
         runner = self.experiment_runner or ExperimentRunner(output_dir=experiment_dir, fx_rates=fx_rates,
                                                           keep_resources=keep_resources, progress=self.progress)
         for index, candidate in enumerate(candidates, 1):
@@ -119,24 +121,22 @@ class RecommendationEngine:
             values = [row.metrics[name].value for row in feasible if row.metrics[name].status == "available"]
             if weight > 0 and values:
                 result.normalization_bounds[name] = {"min": min(values), "max": max(values)}
-        if len(feasible) < 2 or not frontier:
-            result.explanation.append(f"Recommendation unavailable: {len(feasible)} comparable candidates; at least two are required.")
-        else:
-            result.winner = frontier[0]
-            for name in ("latency", "cost", "reliability"):
-                available = [row for row in result.rankings if row.metrics[name].status == "available"]
-                if available:
-                    setattr(result, f"best_{name}", min(available, key=lambda row: (row.metrics[name].value, ranking_key(row))).candidate.id)
-            for family in ("faas", "session"):
-                best = next((row for row in result.rankings if row.candidate.family == family), None)
-                setattr(result, f"best_{family}", best.candidate.id if best else None)
-            balanced = score_candidates([replace(row) for row in feasible], DEFAULT_BALANCED_WEIGHTS, reference=feasible)
-            result.best_balanced = next(row.candidate.id for row in balanced if row.on_pareto_frontier)
-            comparison = [result.winner] + [row for row in result.rankings if row is not result.winner]
-            incomplete = len(feasible) != len(candidates) or any(
-                row.metrics[name].status != "available" for row in feasible for name, weight in selected_weights.items() if weight
-            )
-            result.confidence, result.score_margin = assess_confidence(comparison, selected_weights, incomplete_comparison=incomplete)
+        # Legacy scalar reports remain inspectable, but have no confirmation/oracle
+        # identity chain. Only the shared service can publish a winner.
+        from atsuite.recommender.service import compare
+        from atsuite.recommender.contracts import ObjectiveSpec, ProtocolSpec
+        canonical_rows=getattr(runner,'evidence_candidates',None)
+        if canonical_rows is None:
+            canonical_rows=[{'candidate_id':row.candidate.id,'scenario_id':'legacy','metrics':{}} for row in result.candidates]
+        decision=compare(canonical_rows,ObjectiveSpec(type={'cost':'min_cost','latency':'min_latency','balanced':'balanced','reliability':'min_latency'}.get(objective,'balanced'),
+            max_p95_workflow_ms=constraints.max_p95_latency_ms),protocol=ProtocolSpec(confirmation_runs=runs))
+        result.experiment['canonical_decision']=decision
+        result.experiment['evidence_quality']='legacy_unverified' if not getattr(runner,'evidence_candidates',None) else 'canonical'
+        winner_id=decision['best_verified']
+        result.winner=next((row for row in result.candidates if row.candidate.id==winner_id),None)
+        if result.winner is None:
+            result.confidence='UNVERIFIED'
+            result.explanation.append('Recommendation unavailable: legacy reports require versioned confirmation, oracle, configuration and ledger evidence.')
         explain(result)
         export_recommendation(result, directory / f"{stamp}.recommendation.json")
         return result

@@ -1,18 +1,13 @@
+"""Transparent ranking over the canonical evidence eligibility service."""
 from __future__ import annotations
-
+import math
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable, Mapping
+from .contracts import EvidenceMetric, ObjectiveSpec, ProtocolSpec
+from .eligibility import ComparisonContext, EvidenceResolver, evaluate_eligibility, required_metrics
+from .statistics import quantile_interval, binomial_lower_bound
 
-from atsuite.recommender.contracts import EvidenceMetric, ObjectiveSpec
-
-
-DEFAULT_ANCHORS = {
-    "p95_workflow_ms": 10_000.0,
-    "cost": 1.0,
-    "failure_rate": 1.0,
-    "memory_mb": 32_768.0,
-}
-
+DEFAULT_ANCHORS = {'p95_workflow_ms': 10000., 'cost': 1., 'failure_rate': 1., 'memory_mb': 32768.}
 
 @dataclass(frozen=True)
 class DecisionResult:
@@ -24,126 +19,92 @@ class DecisionResult:
     promising_unverified: tuple[str, ...]
     reason: str
     anchors: dict[str, float]
+    eligibility: tuple[dict[str, Any], ...] = ()
+    scope: dict[str, Any] | None = None
+    def to_dict(self): return asdict(self)
 
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-def _metric(raw: EvidenceMetric | Mapping[str, Any] | None) -> EvidenceMetric | None:
-    if raw is None:
-        return None
-    if isinstance(raw, EvidenceMetric):
-        return raw
-    return EvidenceMetric(**dict(raw))
-
-
-def _required(objective: ObjectiveSpec) -> tuple[str, ...]:
-    if objective.type == "min_cost_under_slo":
-        names = ["cost", "p95_workflow_ms", "failure_rate"]
-    elif objective.type == "min_latency":
-        names = ["p95_workflow_ms", "failure_rate"]
-    elif objective.type == "min_cost":
-        names = ["cost", "failure_rate"]
+def decide(candidates: Iterable[Mapping[str, Any]], objective: ObjectiveSpec, *,
+           anchors: Mapping[str,float] | None = None, minimum_score_margin: float = .02,
+           protocol: ProtocolSpec | None = None, context: ComparisonContext | None = None,
+           artifact_resolver: EvidenceResolver | None = None) -> DecisionResult:
+    rows = list(candidates)
+    ids = [str(row.get('candidate_id') or '') for row in rows]
+    if not all(ids) or len(set(ids)) != len(ids):
+        raise ValueError('duplicate_or_missing_candidate_id')
+    run_ids=[t.get('run_id') for row in rows for t in row.get('trials',[])]
+    if len(set(run_ids))!=len(run_ids): raise ValueError('duplicate_cross_candidate_run_id')
+    objective = ObjectiveSpec.from_dict(asdict(objective))
+    fixed = {**DEFAULT_ANCHORS, **dict(anchors or {})}
+    if any(not math.isfinite(value) or value <= 0 for value in fixed.values()):
+        raise ValueError('decision anchors must be finite and positive')
+    if minimum_score_margin < 0 or not math.isfinite(minimum_score_margin):
+        raise ValueError('invalid practical difference')
+    context = context or ComparisonContext(scenario_id=str(rows[0].get('scenario_id','')) if rows else '',
+        workload_fingerprint=str(rows[0].get('workload_fingerprint','')) if rows else '', expected_candidate_ids=tuple(ids))
+    weights = {'min_cost': {'cost':1.}, 'min_cost_under_slo':{'cost':1.},
+        'min_latency':{'p95_workflow_ms':1.}, 'balanced':{'p95_workflow_ms':.45,'cost':.35,'failure_rate':.2}}[objective.type]
+    accepted, excluded, gates, promising = [], [], [], []
+    for row in rows:
+        gate = evaluate_eligibility(row,objective,protocol,context,artifact_resolver)
+        gates.append({'candidate_id':row['candidate_id'], **gate.to_dict()})
+        if not gate.eligible:
+            excluded.append({'candidate_id':row['candidate_id'], 'reasons':list(gate.blocking_reasons)})
+            if any((m.measurement_kind if isinstance(m,EvidenceMetric) else m.get('measurement_kind')) == 'predicted' for m in row.get('metrics',{}).values()):
+                promising.append(row['candidate_id'])
+            continue
+        metrics = {k:(v if isinstance(v,EvidenceMetric) else EvidenceMetric(**v)) for k,v in row['metrics'].items()}
+        score = sum(w*float(metrics[k].value)/fixed[k] for k,w in weights.items())
+        accepted.append({'candidate_id':row['candidate_id'],'metrics':metrics,'score':score})
+    accepted.sort(key=lambda row:(row['score'],row['candidate_id']))
+    frontier = tuple(sorted(row['candidate_id'] for row in accepted if not any(other is not row
+        and all(other['metrics'][k].value <= row['metrics'][k].value for k in weights)
+        and any(other['metrics'][k].value < row['metrics'][k].value for k in weights) for other in accepted)))
+    ranks = tuple({'candidate_id':r['candidate_id'],'score':r['score'],'on_pareto_frontier':r['candidate_id'] in frontier} for r in accepted)
+    scope = {'requested_candidates':list(context.expected_candidate_ids),'eligible_candidates':len(accepted),
+             'search_exhaustive':False,'scenario_id':context.scenario_id,'workload_fingerprint':context.workload_fingerprint}
+    unknown = set(context.expected_candidate_ids)-set(ids)
+    incomplete = bool(unknown or any(set(g['blocking_reasons'])-set(g['constraint_reasons']) for g in gates))
+    if not accepted:
+        status = 'insufficient_evidence' if incomplete or not gates else 'no_feasible_candidate'
+        reason = 'Missing or unqualified evidence in the declared comparison scope.' if status == 'insufficient_evidence' else 'All fully evidenced candidates violate constraints.'
+        winner = None
+    elif len(accepted) < 2 or incomplete:
+        status, winner, reason = 'insufficient_evidence', None, 'Only verified candidate or incomplete comparison coverage; no comparative winner.'
     else:
-        names = ["p95_workflow_ms", "cost", "failure_rate"]
-    return tuple(names)
-
-
-def _weights(objective: ObjectiveSpec) -> dict[str, float]:
-    return {
-        "min_cost_under_slo": {"cost": 1.0},
-        "min_latency": {"p95_workflow_ms": 0.9, "failure_rate": 0.1},
-        "min_cost": {"cost": 0.9, "failure_rate": 0.1},
-        "balanced": {"p95_workflow_ms": 0.45, "cost": 0.35, "failure_rate": 0.2},
-    }[objective.type]
-
-
-def _constraint_reasons(metrics: Mapping[str, EvidenceMetric], objective: ObjectiveSpec) -> list[str]:
-    reasons = []
-    latency = metrics.get("p95_workflow_ms")
-    failure = metrics.get("failure_rate")
-    if objective.max_p95_workflow_ms is not None and latency and latency.value is not None and latency.value > objective.max_p95_workflow_ms:
-        reasons.append(f"p95_workflow_ms {latency.value} exceeds {objective.max_p95_workflow_ms}")
-    if objective.min_success_rate is not None and failure and failure.value is not None:
-        success = 1.0 - failure.value
-        if success < objective.min_success_rate:
-            reasons.append(f"success_rate {success} below {objective.min_success_rate}")
-    return reasons
-
-
-def _dominates(left: Mapping[str, EvidenceMetric], right: Mapping[str, EvidenceMetric], dimensions: Iterable[str]) -> bool:
-    names = tuple(dimensions)
-    if not names:
-        return False
-    return all(left[name].value <= right[name].value for name in names) and any(left[name].value < right[name].value for name in names)
-
-
-def decide(
-    candidates: Iterable[Mapping[str, Any]],
-    objective: ObjectiveSpec,
-    *,
-    anchors: Mapping[str, float] | None = None,
-    minimum_score_margin: float = 0.02,
-) -> DecisionResult:
-    """Return a deterministic recommendation from frozen, comparable evidence."""
-    fixed_anchors = {**DEFAULT_ANCHORS, **dict(anchors or {})}
-    if any(value <= 0 for value in fixed_anchors.values()):
-        raise ValueError("decision anchors must be positive")
-    required = _required(objective)
-    weights = _weights(objective)
-    comparable: list[dict[str, Any]] = []
-    excluded: list[dict[str, Any]] = []
-    promising: list[str] = []
-    scenario: str | None = None
-    complete_evidence_candidates = 0
-
-    for raw in candidates:
-        candidate_id = str(raw.get("candidate_id") or "")
-        if not candidate_id:
-            raise ValueError("candidate_id is required")
-        candidate_scenario = str(raw.get("scenario_id") or "default")
-        if scenario is None:
-            scenario = candidate_scenario
-        if candidate_scenario != scenario:
-            excluded.append({"candidate_id": candidate_id, "reasons": ["scenario mismatch"]})
-            continue
-        metrics = {name: value for name, value in ((_name, _metric(_raw)) for _name, _raw in dict(raw.get("metrics") or {}).items()) if value is not None}
-        evidence_reasons = []
-        for name in required:
-            value = metrics.get(name)
-            if value is None or value.value is None:
-                evidence_reasons.append(f"required metric {name} is missing")
-            elif value.quality != "available":
-                evidence_reasons.append(f"required metric {name} quality is {value.quality}")
-            elif value.measurement_kind != "measured":
-                evidence_reasons.append(f"required metric {name} is {value.measurement_kind}")
-            elif objective.strict_evidence and not value.evidence_refs:
-                evidence_reasons.append(f"required metric {name} has no evidence reference")
-        if not evidence_reasons:
-            complete_evidence_candidates += 1
-        reasons = evidence_reasons + _constraint_reasons(metrics, objective)
-        if reasons:
-            if any(value.measurement_kind == "predicted" for value in metrics.values()):
-                promising.append(candidate_id)
-            excluded.append({"candidate_id": candidate_id, "reasons": reasons})
-            continue
-        score = sum(weights[name] * min(float(metrics[name].value) / fixed_anchors[name], 1.0) for name in weights)
-        comparable.append({"candidate_id": candidate_id, "metrics": metrics, "score": score})
-
-    if not comparable:
-        status = "no_feasible_candidate" if complete_evidence_candidates else "insufficient_evidence"
-        reason = "Complete measured candidates violate the declared constraints." if complete_evidence_candidates else "No candidate has complete measured evidence."
-        return DecisionResult(status, None, (), (), tuple(excluded), tuple(sorted(set(promising))), reason, fixed_anchors)
-
-    dimensions = tuple(weights)
-    frontier = tuple(sorted(row["candidate_id"] for row in comparable if not any(
-        other is not row and _dominates(other["metrics"], row["metrics"], dimensions) for other in comparable
-    )))
-    ranking_rows = sorted(comparable, key=lambda row: (row["score"], row["candidate_id"]))
-    rankings = tuple({"candidate_id": row["candidate_id"], "score": row["score"], "on_pareto_frontier": row["candidate_id"] in frontier} for row in ranking_rows)
-    if len(ranking_rows) > 1 and ranking_rows[1]["score"] - ranking_rows[0]["score"] < minimum_score_margin:
-        return DecisionResult("no_clear_winner", None, frontier, rankings, tuple(excluded), tuple(sorted(set(promising))),
-                              "The leading candidates are within the declared practical score margin.", fixed_anchors)
-    winner = ranking_rows[0]["candidate_id"]
-    return DecisionResult("recommended", winner, frontier, rankings, tuple(excluded), tuple(sorted(set(promising))),
-                          "Winner selected from complete measured evidence using frozen objective anchors.", fixed_anchors)
+        first, second = accepted[:2]
+        if objective.type == 'balanced':
+            gap = second['score']-first['score']
+            bounds=[]
+            for item in (first,second):
+                row=next(r for r in rows if r['candidate_id']==item['candidate_id'])
+                samples=[t['duration_ms'] for t in row['trials'] if t.get('phase')=='confirmation' and t.get('status')=='success' and t.get('output_validation')=='passed']
+                interval=quantile_interval(samples,confidence_level=1-(1-(protocol or ProtocolSpec()).confidence_level)/len(rows))
+                latency_bounds=(interval.lower,interval.upper)
+                cost_metric=item['metrics']['cost']; failure_metric=item['metrics']['failure_rate']
+                confirmed=[t for t in row['trials'] if t.get('phase')=='confirmation']
+                successes=sum(t.get('status')=='success' and t.get('output_validation')=='passed' for t in confirmed)
+                confidence=1-(1-(protocol or ProtocolSpec()).confidence_level)/(2*len(rows))
+                failure_lower=binomial_lower_bound(len(confirmed)-successes,len(confirmed),confidence)
+                failure_upper=1-binomial_lower_bound(successes,len(confirmed),confidence)
+                lower=.45*latency_bounds[0]/fixed['p95_workflow_ms']+.35*cost_metric.ci_lower/fixed['cost']+.2*failure_lower
+                upper=.45*latency_bounds[1]/fixed['p95_workflow_ms']+.35*cost_metric.ci_upper/fixed['cost']+.2*failure_upper
+                bounds.append((lower,upper))
+            if bounds[0][1]>=bounds[1][0]:gap=0
+        else:
+            name = next(iter(weights)); a = first['metrics'][name]; b = second['metrics'][name]
+            gap = (b.value-a.value)/max(abs(a.value),abs(b.value),1e-30)
+            # Frozen simultaneous intervals must separate when supplied.
+            if a.ci_upper is not None and b.ci_lower is not None and a.ci_upper >= b.ci_lower:
+                gap = 0
+            if name == 'p95_workflow_ms':
+                intervals=[]
+                for item in (first,second):
+                    observed=next(row for row in rows if row['candidate_id']==item['candidate_id'])
+                    samples=[t['duration_ms'] for t in observed['trials'] if t.get('phase')=='confirmation' and t.get('status')=='success' and t.get('output_validation')=='passed']
+                    intervals.append(quantile_interval(samples,confidence_level=1-(1-(protocol or ProtocolSpec()).confidence_level)/len(rows)))
+                if intervals[0].upper is None or intervals[1].lower is None or intervals[0].upper >= intervals[1].lower:
+                    gap = 0
+        status = 'no_clear_winner' if gap < minimum_score_margin else 'recommended'
+        winner = first['candidate_id'] if status == 'recommended' else None
+        reason = 'Objective difference exceeds the declared practical threshold within this scenario and measured scope.' if winner else 'Verified candidates cannot be clearly distinguished.'
+    return DecisionResult(status,winner,frontier,ranks,tuple(excluded),tuple(promising),reason,fixed,tuple(gates),scope)

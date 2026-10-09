@@ -53,6 +53,8 @@ class ObjectiveSpec:
     max_p95_workflow_ms: float | None = None
     min_success_rate: float | None = None
     strict_evidence: bool = True
+    max_cost_per_workflow: float | None = None
+    max_memory_mb: float | None = None
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any] | None) -> "ObjectiveSpec":
@@ -65,14 +67,18 @@ class ObjectiveSpec:
             raise ValueError("base_currency must be a 3-letter currency code")
         p95 = data.get("max_p95_workflow_ms")
         success = data.get("min_success_rate")
+        if success is None and objective == 'min_latency':
+            success = .95
         if p95 is not None:
             p95 = _finite_number(p95, "max_p95_workflow_ms", minimum=0)
         if success is not None:
             success = _finite_number(success, "min_success_rate", minimum=0)
             if success > 1:
                 raise ValueError("min_success_rate must be <= 1")
+        for name in ('max_cost_per_workflow','max_memory_mb'):
+            if data.get(name) is not None: _finite_number(data[name], name, minimum=0)
         return cls(objective, currency, str(data.get("cost_scope", cls.cost_scope)), p95, success,
-                   bool(data.get("strict_evidence", True)))
+                   bool(data.get("strict_evidence", True)),data.get('max_cost_per_workflow'),data.get('max_memory_mb'))
 
 
 @dataclass(frozen=True)
@@ -151,6 +157,10 @@ class ProtocolSpec:
         if not 0 < confidence < 1:
             raise ValueError("confidence_level must be between 0 and 1")
         scale = _finite_number(data.get("llm_replay_scale", cls.llm_replay_scale), "llm_replay_scale", minimum=0)
+        if data.get('confirmation_schedule',cls.confirmation_schedule)!=cls.confirmation_schedule:
+            raise ValueError('only predeclared randomized confirmation blocks are supported')
+        if data.get('keep_all_failed_attempts',True) is not True:
+            raise ValueError('confirmation must retain every failed or timed-out attempt')
         return cls(values["warmup_runs"], values["exploration_runs"], values["confirmation_runs"],
                    str(data.get("confirmation_schedule", cls.confirmation_schedule)), confidence,
                    bool(data.get("keep_all_failed_attempts", True)), scale)
@@ -392,8 +402,8 @@ class EvidenceMetric:
             raise ValueError("invalid metric quality")
         if self.value is not None:
             _finite_number(self.value, "metric value", minimum=0)
-        if self.sample_count < 0:
-            raise ValueError("sample_count must be nonnegative")
+        if isinstance(self.sample_count, bool) or not isinstance(self.sample_count, int) or self.sample_count < 0:
+            raise ValueError("sample_count must be a nonnegative integer")
 
 
 @dataclass(frozen=True)

@@ -60,6 +60,29 @@ def zero_failure_lower_bound(trials: int, confidence_level: float = 0.95) -> flo
     return (1 - confidence_level) ** (1 / trials)
 
 
+def binomial_lower_bound(successes: int, trials: int, confidence_level: float = .95) -> float | None:
+    """One-sided exact binomial inversion (Clopper-Pearson), including zero failures."""
+    if not 0 <= successes <= trials or not 0 < confidence_level < 1:
+        raise ValueError("invalid binomial policy")
+    if not trials:
+        return None
+    if not successes:
+        return 0.0
+    if successes == trials:
+        return zero_failure_lower_bound(trials, confidence_level)
+    def tail(p):
+        return sum(math.exp(math.lgamma(trials+1)-math.lgamma(k+1)-math.lgamma(trials-k+1)
+                    + k*math.log(p)+(trials-k)*math.log1p(-p)) for k in range(successes, trials+1))
+    low, high = 1e-15, 1-1e-15
+    for _ in range(64):
+        midpoint = (low+high)/2
+        if tail(midpoint) < 1-confidence_level:
+            low = midpoint
+        else:
+            high = midpoint
+    return (low+high)/2
+
+
 def compare_means(left: Iterable[float], right: Iterable[float], *, practical_difference: float = 0.0) -> str:
     a, b = list(left), list(right)
     if not a or not b:
@@ -68,3 +91,30 @@ def compare_means(left: Iterable[float], right: Iterable[float], *, practical_di
     if abs(difference) <= practical_difference:
         return "practically_equivalent"
     return "left_lower" if difference < 0 else "right_lower"
+
+
+def quantile_interval(values: Iterable[float], probability: float = .95,
+                      confidence_level: float = .95) -> Interval:
+    """Exact order-statistic interval over independent experiment blocks.
+
+    An unbounded tail remains None; a small sample maximum cannot be promoted
+    to a population P95 upper bound. Simultaneous coverage is supplied by the
+    caller's Bonferroni-adjusted confidence level.
+    """
+    samples = sorted(float(v) for v in values)
+    if not 0 < probability < 1 or not 0 < confidence_level < 1:
+        raise ValueError('invalid quantile policy')
+    if not samples or any(not math.isfinite(v) or v < 0 for v in samples):
+        return Interval(float('nan'), None, None, confidence_level, 'unavailable')
+    n = len(samples)
+    masses = [math.exp(math.lgamma(n+1)-math.lgamma(k+1)-math.lgamma(n-k+1)
+              + k*math.log(probability)+(n-k)*math.log1p(-probability)) for k in range(n+1)]
+    cdf = [0.0]
+    for mass in masses:
+        cdf.append(min(1., cdf[-1]+mass))
+    tail = (1-confidence_level)/2
+    lower_rank = max((r for r in range(1,n+1) if cdf[r] <= tail), default=0)
+    upper_rank = next((r for r in range(1,n+1) if cdf[r] >= 1-tail), None)
+    return Interval(quantile(samples, probability), samples[lower_rank-1] if lower_rank else None,
+                    samples[upper_rank-1] if upper_rank else None, confidence_level,
+                    'exact_order_statistic_independent_blocks_v1')
