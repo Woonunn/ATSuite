@@ -1,0 +1,17 @@
+test_asynchronous_delete_remains_queued_until_readback (tests.test_recommender_resume_cancel_cleanup.DurableJobs.test_asynchronous_delete_remains_queued_until_readback) ... FAIL
+
+======================================================================
+FAIL: test_asynchronous_delete_remains_queued_until_readback (tests.test_recommender_resume_cancel_cleanup.DurableJobs.test_asynchronous_delete_remains_queued_until_readback)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_resume_cancel_cleanup.py", line 16, in test_asynchronous_delete_remains_queued_until_readback
+    self.assertEqual(first['state'],'CLEANUP_PENDING')
+AssertionError: 'FAILED' != 'CLEANUP_PENDING'
+- FAILED
++ CLEANUP_PENDING
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

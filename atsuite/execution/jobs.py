@@ -35,6 +35,8 @@ class ExperimentJob:
                     raise RuntimeError('cleanup handler required for deployed resources')
                 record['_lease_token']=token
                 result=(handler(record) if handler else {'cleanup_status':'not_needed'}) or {}
+                if result.get('cleanup_status') == 'pending':
+                    return transition('CLEANUP_PENDING',**{**(updates or {}),**result})
                 if result.get('cleanup_status','success') not in {'success','not_needed'}:
                     raise RuntimeError('remote cleanup remains pending')
                 return transition(terminal,**{**(updates or {}),**result,'cleanup_status':result.get('cleanup_status','success')})
