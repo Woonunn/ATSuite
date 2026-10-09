@@ -236,5 +236,6 @@ class ReportAggregator:
             invocations=invocation_rows,
             costs=[cost.to_dict() for cost in costs],
             diagnostics=list(diagnostics),
+            provider_metrics=[metric.to_dict() for metric in metrics],
         )
         return report

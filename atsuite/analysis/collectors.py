@@ -757,6 +757,7 @@ class AWSCloudWatchCollector:
                     usage
                     and not usage.get("missing_log_group")
                     and _coerce_int(usage.get("log_entries")) > 0
+                    and usage.get('vcpu_hours') is not None and usage.get('memory_gb_hours') is not None
                 ):
                     ready += 1
                 else:
@@ -1132,9 +1133,8 @@ class AWSCloudWatchCollector:
                         fields={
                             "session_id": sid,
                             "runtime_name": runtime_name,
-                            "vcpu_hours": usage.get("vcpu_hours", 0.0),
-                            "memory_gb_hours": usage.get("memory_gb_hours", 0.0),
-                            "log_entries": usage.get("log_entries", 0),
+                            **{key:usage[key] for key in ('vcpu_hours','memory_gb_hours','log_entries') if key in usage and usage[key] is not None},
+                            'observed_fields':[key for key in ('vcpu_hours','memory_gb_hours') if key in usage and usage[key] is not None],
                         },
                         evidence_refs=[evidence_id],
                     )

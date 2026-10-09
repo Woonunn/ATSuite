@@ -306,8 +306,8 @@ class AWSCloudWatch:
             )
             print(f"    [usage-logs] {message}")
             return {
-                'vcpu_hours': 0.0,
-                'memory_gb_hours': 0.0,
+                'vcpu_hours': None,
+                'memory_gb_hours': None,
                 'log_entries': 0,
                 'session_id': session_id,
                 'missing_log_group': True,
@@ -347,8 +347,12 @@ class AWSCloudWatch:
         # 汇总
         total_vcpu_hours = 0.0
         total_mem_gb_hours = 0.0
+        matched=0;cpu_observed=0;memory_observed=0;meter_ids=[];seen=set()
 
         for event in all_events:
+            meter_id=event.get('eventId')
+            if meter_id and meter_id in seen:continue
+            if meter_id:seen.add(meter_id)
             try:
                 data = _json.loads(event.get('message', '{}'))
             except _json.JSONDecodeError:
@@ -358,13 +362,21 @@ class AWSCloudWatch:
                 continue
 
             metrics = data.get('metrics', {})
-            total_vcpu_hours += metrics.get('agent.runtime.vcpu.hours.used', 0)
-            total_mem_gb_hours += metrics.get('agent.runtime.memory.gb_hours.used', 0)
+            matched+=1
+            if meter_id:meter_ids.append(meter_id)
+            import math
+            for key,field in (('agent.runtime.vcpu.hours.used','cpu'),('agent.runtime.memory.gb_hours.used','memory')):
+                value=metrics.get(key)
+                if isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or value<0:continue
+                if field=='cpu':total_vcpu_hours+=value;cpu_observed+=1
+                else:total_mem_gb_hours+=value;memory_observed+=1
 
         return {
-            'vcpu_hours': total_vcpu_hours,
-            'memory_gb_hours': total_mem_gb_hours,
-            'log_entries': len(all_events),
+            'vcpu_hours': total_vcpu_hours if matched and cpu_observed==matched else None,
+            'memory_gb_hours': total_mem_gb_hours if matched and memory_observed==matched else None,
+            'log_entries': matched,
+            'provider_meter_ids':meter_ids,
+            'usage_field_coverage':{'vcpu_hours':cpu_observed,'memory_gb_hours':memory_observed,'matching_entries':matched},
             'session_id': session_id,
         }
 

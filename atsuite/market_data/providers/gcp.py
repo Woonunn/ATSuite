@@ -38,6 +38,25 @@ class GCPCatalogAdapter:
             if not token:
                 return cards
 
+    def discover_service(self, aliases):
+        if not self.api_key:
+            raise ValueError('GOOGLE_API_KEY is required for public catalog discovery')
+        token, matches = '', []
+        while True:
+            query = {'key':self.api_key,'pageSize':5000}
+            if token:
+                query['pageToken'] = token
+            url = self.base_url + '/services?' + urllib.parse.urlencode(query)
+            with self.opener(urllib.request.Request(url,headers={'User-Agent':'ATSuite/1'}),timeout=15) as response:
+                payload = json.loads(response.read())
+            matches.extend(row['serviceId'] for row in payload.get('services',[]) if row.get('displayName','').lower() in aliases)
+            token = str(payload.get('nextPageToken') or '')
+            if not token:
+                break
+        if len(set(matches)) != 1:
+            raise ValueError('ambiguous_or_missing_gcp_price_service')
+        return matches[0]
+
     @staticmethod
     def _money(payload: dict[str, Any]) -> Decimal:
         return Decimal(str(payload.get("units", 0))) + Decimal(str(payload.get("nanos", 0))) / Decimal("1000000000")
@@ -60,7 +79,7 @@ class GCPCatalogAdapter:
             return []
         category = sku.get("category") or {}
         actual_region = region or (regions[0] if len(regions) == 1 else "multi-region")
-        data = {"sku": sku.get("skuId"), "region": actual_region, "currency": currency, "effective": latest.get("effectiveTime")}
+        data = {"sku": sku.get("skuId"), "region": actual_region, "currency": currency, "effective": latest.get("effectiveTime"), "unit": expression.get("usageUnit"), "tiers": [(str(t.up_to), str(t.unit_price)) for t in tiers], "source": self.name, "version": "1"}
         return [RateCard(
             "rate-" + digest(data, length=24), "gcp", str(category.get("serviceDisplayName") or ""), str(sku.get("skuId") or ""),
             actual_region, str(category.get("usageType") or "on_demand"), str(expression.get("usageUnit") or "unit"), currency.upper(),

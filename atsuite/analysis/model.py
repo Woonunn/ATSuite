@@ -278,6 +278,7 @@ class AnalysisReport:
     evidence_path: str = ""
     trace_path: str = ""
     report_path: str = ""
+    provider_metrics: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return _jsonable(self)
