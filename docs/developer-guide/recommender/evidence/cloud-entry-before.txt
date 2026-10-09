@@ -1,0 +1,15 @@
+test_each_service_can_freeze_a_plan_without_cloud_dispatch (tests.test_recommender_cloud_acceptance.CloudAcceptanceContracts.test_each_service_can_freeze_a_plan_without_cloud_dispatch) ... ok
+test_single_managed_candidate_can_verify_service_but_empty_or_simulated_cannot (tests.test_recommender_cloud_acceptance.CloudAcceptanceContracts.test_single_managed_candidate_can_verify_service_but_empty_or_simulated_cannot) ... FAIL
+
+======================================================================
+FAIL: test_single_managed_candidate_can_verify_service_but_empty_or_simulated_cannot (tests.test_recommender_cloud_acceptance.CloudAcceptanceContracts.test_single_managed_candidate_can_verify_service_but_empty_or_simulated_cannot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_cloud_acceptance.py", line 34, in test_single_managed_candidate_can_verify_service_but_empty_or_simulated_cannot
+    self.assertTrue(all(acceptance_checks(result).values()))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.262s
+
+FAILED (failures=1)
