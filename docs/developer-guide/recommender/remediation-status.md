@@ -250,3 +250,12 @@ All 48 affected-path tests passed in 4.803 seconds after eight failure-first
 configuration regressions. See [dotenv-before.txt](evidence/dotenv-before.txt)
 and [dotenv-after.txt](evidence/dotenv-after.txt). No authenticated model call
 or cloud acceptance was performed during this configuration change.
+
+The `.env.example` follow-up documents AWS, Alibaba Cloud and Google Cloud
+credentials, runtime roles, registry, logging, state buckets and approval identity.
+All cloud settings remain commented until selected. The user's existing local
+`.env` received only reference comments; its original bytes and parsed active
+settings were preserved. The dotenv template and both six-provider JSON mappings
+were validated, and all eight existing local configuration tests passed in 1.211
+seconds. No cloud identity request, login, deployment or authenticated LLM request
+was executed. Instructions: [cloud-env.md](../../userguide/cloud-env.md).

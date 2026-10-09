@@ -42,6 +42,8 @@ CLI、Web、worker 和连通性检查统一自动加载仓库根目录的 `.env`
 仍可选择在终端直接 export，作为临时覆盖配置。
 DeepSeek 使用独立的 `DEEPSEEK_API_KEY`，不借用 `OPENAI_API_KEY`，
 也不采用 `OPENAI_BASE_URL`。未设置模型环境变量时，DeepSeek 默认选择 `deepseek-flash`。
+同一 `.env` 可配置 AWS、阿里云和 GCP；完整字段与登录步骤见
+[三平台配置教程](cloud-env.md)。云字段默认注释，只启用实际使用的配置。
 
 ## 2. 先检查，再做一次真实调用
 

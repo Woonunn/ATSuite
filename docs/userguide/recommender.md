@@ -7,6 +7,9 @@ CLI、Web、默认 worker 和离线 compare 共用 `recommender.service` 与版�
 
 ## 安装和配置
 
+三平台 `.env` 字段、SDK/CLI 登录、运行角色、registry 与状态 bucket 的配置见
+[AWS、阿里云与 Google Cloud 配置教程](cloud-env.md)，模板见仓库根目录 `.env.example`。
+
 ```bash
 uv sync --locked --group dev
 ```
