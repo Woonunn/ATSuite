@@ -1,0 +1,17 @@
+test_partial_deployment_resume_recreates_deleted_endpoints (tests.test_recommender_default_execution.DefaultExecution.test_partial_deployment_resume_recreates_deleted_endpoints) ... FAIL
+
+======================================================================
+FAIL: test_partial_deployment_resume_recreates_deleted_endpoints (tests.test_recommender_default_execution.DefaultExecution.test_partial_deployment_resume_recreates_deleted_endpoints)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 147, in test_partial_deployment_resume_recreates_deleted_endpoints
+    self.assertEqual(result['state'],'COMPLETED',result.get('error'))
+AssertionError: 'FAILED' != 'COMPLETED'
+- FAILED
++ COMPLETED
+ : RuntimeError: deleted endpoint reused
+
+----------------------------------------------------------------------
+Ran 1 test in 0.199s
+
+FAILED (failures=1)

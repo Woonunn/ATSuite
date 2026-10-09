@@ -1,0 +1,25 @@
+test_observed_memory_constraint_can_pass (tests.test_recommender_memory_constraint.MemoryConstraints.test_observed_memory_constraint_can_pass) ... ERROR
+test_observed_violation_and_missing_are_distinct (tests.test_recommender_memory_constraint.MemoryConstraints.test_observed_violation_and_missing_are_distinct) ... ERROR
+
+======================================================================
+ERROR: test_observed_memory_constraint_can_pass (tests.test_recommender_memory_constraint.MemoryConstraints.test_observed_memory_constraint_can_pass)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_memory_constraint.py", line 8, in test_observed_memory_constraint_can_pass
+    result=decide([verified_candidate('a',memory=128),verified_candidate('b',cost=.3,memory=256)],ObjectiveSpec(type='min_cost',max_memory_mb=512))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: verified_candidate() got an unexpected keyword argument 'memory'
+
+======================================================================
+ERROR: test_observed_violation_and_missing_are_distinct (tests.test_recommender_memory_constraint.MemoryConstraints.test_observed_violation_and_missing_are_distinct)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_memory_constraint.py", line 11, in test_observed_violation_and_missing_are_distinct
+    result=decide([verified_candidate('a',memory=1024),verified_candidate('b',cost=.3)],ObjectiveSpec(type='min_cost',max_memory_mb=512))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: verified_candidate() got an unexpected keyword argument 'memory'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+FAILED (errors=2)

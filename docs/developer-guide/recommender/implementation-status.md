@@ -1,3 +1,10 @@
+# Historical implementation record
+
+This September 2026 record is superseded for current behavior and acceptance by
+[remediation-status.md](remediation-status.md). Its old claims do not establish
+current cloud, browser, security, or recommendation correctness. The old
+`--no-project` command is historical, not the supported verification command.
+
 # Recommender implementation status
 
 Status date: **September 16, 2026**

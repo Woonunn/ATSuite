@@ -1,0 +1,159 @@
+test_all_negatives_reason_codes (tests.test_recommender_evidence_eligibility.EvidenceGates.test_all_negatives_reason_codes) ... ok
+test_insufficient_counts_and_bound (tests.test_recommender_evidence_eligibility.EvidenceGates.test_insufficient_counts_and_bound) ... ok
+test_malformed_counts_and_duplicate_ids (tests.test_recommender_evidence_eligibility.EvidenceGates.test_malformed_counts_and_duplicate_ids) ... ok
+test_partial_scope_not_no_feasible (tests.test_recommender_evidence_eligibility.EvidenceGates.test_partial_scope_not_no_feasible) ... ok
+test_real_module_and_two_valid_candidates (tests.test_recommender_evidence_eligibility.EvidenceGates.test_real_module_and_two_valid_candidates) ... ok
+test_tie_and_derived_metrics (tests.test_recommender_evidence_eligibility.EvidenceGates.test_tie_and_derived_metrics) ... ok
+test_configuration_must_be_content_bound (tests.test_recommender_statistical_contract.StatisticalContract.test_configuration_must_be_content_bound) ... ok
+test_forged_p95_cannot_replace_observed_distribution (tests.test_recommender_statistical_contract.StatisticalContract.test_forged_p95_cannot_replace_observed_distribution) ... ok
+test_large_independent_blocks_can_produce_latency_winner (tests.test_recommender_statistical_contract.StatisticalContract.test_large_independent_blocks_can_produce_latency_winner) ... ok
+test_small_fast_sample_cannot_prove_p95_slo (tests.test_recommender_statistical_contract.StatisticalContract.test_small_fast_sample_cannot_prove_p95_slo) ... ok
+test_small_sample_cannot_prove_latency_winner (tests.test_recommender_statistical_contract.StatisticalContract.test_small_sample_cannot_prove_latency_winner) ... ok
+test_bad_output_and_state_are_excluded_without_discarding_trials (tests.test_recommender_default_execution.DefaultExecution.test_bad_output_and_state_are_excluded_without_discarding_trials) ... ok
+test_cleanup_failure_resume_retries_only_cleanup (tests.test_recommender_default_execution.DefaultExecution.test_cleanup_failure_resume_retries_only_cleanup) ... ok
+test_default_chain_executes_workflow_oracle_ledger_and_cleanup (tests.test_recommender_default_execution.DefaultExecution.test_default_chain_executes_workflow_oracle_ledger_and_cleanup) ... Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-a120451ab57156bc-cb5b79485baf/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-a5e80a705219c562-4d69665ada57/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-46cb4f59c731298c/runs/aws_lambda/bundle/run-6e7c994b6dccd96d-6ba508dc6e73/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-46cb4f59c731298c/runs/aws_lambda/bundle/run-44ac2ff8ac3943a0-9030edfc0a4a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-46cb4f59c731298c/runs/aws_lambda/bundle/run-1f25a6c2a37b72f0-90b8b12fe78c/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-52341e82d0509e26-213e34a91803/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-46cb4f59c731298c/runs/aws_lambda/bundle/run-a4b6bc43f15286e7-39c4f0f269f7/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-24f6e54b01a7175f-fc1a0e302994/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-afdf6d2e982e425c-c6258064e567/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpouvroo5w/plan/candidates/candidate-46cb4f59c731298c/runs/aws_lambda/bundle/run-fc07e79bc99eedee-c59c45c4c8d4/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-c6e5dfcd1ae4e625-f3552fefd29f/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-15272e25658eedb8-5c8fe487720f/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-22082e25c489fe7e-340ca8429b0a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-41824f2044277977-3ea471023c8b/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-a92dcad6a02c36a7-dd28413fb6df/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-64f34506628591bd-a2fedbe56fc2/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-1a62facceb57342f-568b3398aa76/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-8f6ec1c54f6d6ec4-0cbb5ea90127/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-02dc2962a659e476-e7b1a51bc3c6/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpwit5wuvj/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-0e7b2c0893e3d58e-6804c1986a36/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-398fe1419b4b3b92-7a973d98c76d/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-36ead3ff80720eb8-71e9707af7ba/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-2eff68085dc78349-1d20549eb068/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-3afe87b61405d6d0-078a4db9d6de/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-7c31544f82668885-9adfdbf26bca/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-3f2d9793bbebcff4-c5a20c015919/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-d6fdda4e37c1081a-9e831831ec70/run.log
+Running node: 0, name: start, type: logic, time: 0.0FAIL
+test_default_factory_exists_and_has_real_stages (tests.test_recommender_default_execution.DefaultExecution.test_default_factory_exists_and_has_real_stages) ... ok
+test_export_offline_compare_replays_same_protocol_and_simulation_label (tests.test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label) ... ok
+test_frozen_bundle_changes_are_rejected_before_build (tests.test_recommender_default_execution.DefaultExecution.test_frozen_bundle_changes_are_rejected_before_build) ... ok
+test_missing_approval_cannot_be_replaced_by_request_field (tests.test_recommender_default_execution.DefaultExecution.test_missing_approval_cannot_be_replaced_by_request_field) ... ok
+test_publication_failure_never_deploys (tests.test_recommender_default_execution.DefaultExecution.test_publication_failure_never_deploys) ... ok
+test_real_cli_queues_and_worker_uses_default_handlers_without_plugin (tests.test_recommender_default_execution.DefaultExecution.test_real_cli_queues_and_worker_uses_default_handlers_without_plugin) ... ok
+test_untracked_bundle_injection_is_rejected (tests.test_recommender_default_execution.DefaultExecution.test_untracked_bundle_injection_is_rejected) ... ok
+test_canonical_runner_evidence_uses_shared_winner (tests.test_recommender_engine.EngineTests.test_canonical_runner_evidence_uses_shared_winner) ... ok
+test_incomplete_and_constraint_evidence_do_not_become_winners (tests.test_recommender_engine.EngineTests.test_incomplete_and_constraint_evidence_do_not_become_winners) ... ok
+test_legacy_reports_are_readable_but_never_publish_unverified_winner (tests.test_recommender_engine.EngineTests.test_legacy_reports_are_readable_but_never_publish_unverified_winner) ... ok
+test_raw_legacy_runs_recompute_descriptive_scores_without_verification (tests.test_recommender_engine.EngineTests.test_raw_legacy_runs_recompute_descriptive_scores_without_verification) ... ok
+test_validation_before_legacy_execution (tests.test_recommender_engine.EngineTests.test_validation_before_legacy_execution) ... ok
+
+======================================================================
+FAIL: test_default_chain_executes_workflow_oracle_ledger_and_cleanup (tests.test_recommender_default_execution.DefaultExecution.test_default_chain_executes_workflow_oracle_ledger_and_cleanup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 42, in test_default_chain_executes_workflow_oracle_ledger_and_cleanup
+    self.assertTrue(all(g['eligible'] for g in result['recommendation']['eligibility']))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 26 tests in 3.724s
+
+FAILED (failures=1)
+
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-f5e29acdc0be6cf1-69f74ad532de/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-87a84822dbd94e12-10bfb4d84876/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpa94hhzav/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-ed380060e650db64-3bb4cdcfc45c/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-c537ec3d65f241d1-05c443592357/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-65a9265c26a9c9fe-cc5707716503/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-8c9ddb4b0b831445-c2d20509a220/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-3df65646b7a3990d-4062fe905c5c/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-f2d9ac7d239a8c51-0cdfe183e6c5/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-e8165023afc39a3a-2db8a7bf5423/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-3598b5bf2d8f90d2-8b518cca7bfa/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-6fdbc662183f001e-5f233f9b74ca/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-baf57caabe846beb-3f6a5a0e4470/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppmcanmda/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-42457ed11c00d490-41dfd8b90f74/run.log

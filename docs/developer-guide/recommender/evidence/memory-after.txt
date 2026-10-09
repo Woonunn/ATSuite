@@ -1,0 +1,7 @@
+test_observed_memory_constraint_can_pass (tests.test_recommender_memory_constraint.MemoryConstraints.test_observed_memory_constraint_can_pass) ... ok
+test_observed_violation_and_missing_are_distinct (tests.test_recommender_memory_constraint.MemoryConstraints.test_observed_violation_and_missing_are_distinct) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.054s
+
+OK

@@ -1,0 +1,17 @@
+test_balanced_ranking_includes_failure_rate_uncertainty (tests.test_recommender_statistical_contract.StatisticalContract.test_balanced_ranking_includes_failure_rate_uncertainty) ... FAIL
+
+======================================================================
+FAIL: test_balanced_ranking_includes_failure_rate_uncertainty (tests.test_recommender_statistical_contract.StatisticalContract.test_balanced_ranking_includes_failure_rate_uncertainty)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_statistical_contract.py", line 17, in test_balanced_ranking_includes_failure_rate_uncertainty
+    self.assertEqual(result.status,'no_clear_winner')
+AssertionError: 'recommended' != 'no_clear_winner'
+- recommended
++ no_clear_winner
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.032s
+
+FAILED (failures=1)

@@ -1,0 +1,15 @@
+test_default_factory_exists_and_has_real_stages (tests.test_recommender_default_execution.DefaultExecution.test_default_factory_exists_and_has_real_stages) ... ERROR
+test_missing_approval_cannot_be_replaced_by_request_field (tests.test_recommender_default_execution.DefaultExecution.test_missing_approval_cannot_be_replaced_by_request_field) ... ok
+
+======================================================================
+ERROR: test_default_factory_exists_and_has_real_stages (tests.test_recommender_default_execution.DefaultExecution.test_default_factory_exists_and_has_real_stages)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 11, in test_default_factory_exists_and_has_real_stages
+    from atsuite.execution.default_handlers import create_handlers
+ModuleNotFoundError: No module named 'atsuite.execution.default_handlers'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.006s
+
+FAILED (errors=1)

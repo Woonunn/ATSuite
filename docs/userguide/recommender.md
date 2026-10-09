@@ -1,218 +1,146 @@
 # ATSuite 自动部署优化器
 
-本功能从 benchmark 配置生成合法的 provider、MCP topology 和 target 级资源候选，保存实验任务与证据，并在严格证据条件下给出推荐。预测值和 Advisor 文本不会替代实测 winner。
+CLI、Web、默认 worker 和离线 compare 共用 `recommender.service` 与版本化证据门控。
+默认 handlers 已随仓库提供；基本实验不需要编写 Python worker。
+本地契约和浏览器测试使用明确的 simulated 外部边界，不能证明云部署成功。
+最新逐项验收见 [修复状态](../developer-guide/recommender/remediation-status.md)。
 
-## 快速开始
+## 安装和配置
 
-### 1. 创建实验规格
+```bash
+uv sync --locked --group dev
+```
+
+实际执行需要 Docker/buildx、目标云凭证、已授权的执行角色、可推送的 registry 和明确地区。
+GCP 需要 gcloud 和 `GOOGLE_CLOUD_PROJECT`；Alibaba 默认执行身份检查需要 aliyun CLI。
+AWS 使用 SDK 默认凭证链。云凭证仅供部署/观测 worker 使用，不注入上传的构建代码。
+`init.sh` 在无网络、限 CPU/内存/PID 的容器执行；设置 `ATSUITE_INIT_IMAGE=repository@sha256:<完整摘要>`。
+运行角色访问预先建立的状态存储；`ATSUITE_STATE_BUCKETS` 是 provider 到 bucket 的 JSON 映射。
+默认执行不创建或删除共享 bucket，不修改已有生产资源。
+
+registry 默认为 AWS ECR、GCP Artifact Registry、Alibaba 的 `DOCKERHUB_NAME`。
+可使用 `ATSUITE_REGISTRY_REPOSITORIES` 的 provider→repository JSON 映射，运行前配置 registry 登录与推送权限。
+构建产物必须完成 registry push、远端 manifest 校验及按 digest 拉取检查；本地 Image ID 不充当云镜像摘要。
+
+## 规划、审批和执行
+
+benchmark 必须声明节点状态语义和确定性业务 oracle。配置示意：
+
+```json
+{
+  "correctness": {"oracle": {"type": "exact", "version": "example-v1", "expected_output": {"answer": 42}}},
+  "nodes": [{"name": "tool", "dir": "./nodes/tool", "trace_names": ["tool.run"], "state": {"mode": "stateless"}}]
+}
+```
+
+有状态 workload 还需实际可读回的 `expected_state` 与 `state_output_node`。
+没有 oracle 时可以规划，执行预检会明确拒绝 business verified。
+
+实验规格仍为 schema 1（与 Analyzer schema 2、推荐 evidence schema 2 分开）：
 
 ```json
 {
   "schema_version": 1,
-  "benchmark": {
-    "config": "benchmarks/TravelPlanner/config/faas7_mcp2_min.json",
-    "correctness_policy": "require_declared_oracle"
-  },
-  "providers": ["aws_lambda", "aws_agentcore", "gcp_faas", "gcp_mcp"],
-  "regions": {"aws_lambda": "us-east-1", "aws_agentcore": "us-east-1", "gcp_faas": "us-central1", "gcp_mcp": "us-central1"},
-  "objective": {
-    "type": "min_cost_under_slo",
-    "base_currency": "USD",
-    "cost_scope": "declared_runtime_scope",
-    "max_p95_workflow_ms": 2000,
-    "min_success_rate": 0.99,
-    "strict_evidence": true
-  },
-  "search": {
-    "mode": "adaptive",
-    "max_candidates": 24,
-    "baseline_coverage": "all_eligible_provider_families",
-    "topology_strategies": [
-      "baseline", "all_in_one", "per_node", "state_domain",
-      "affinity_cluster", "dependency_partition"
-    ],
-    "max_generated_topologies": 8,
-    "resources_mode": "provider_legal_grid",
-    "per_target": true
-  },
-  "budget": {
-    "currency": "USD",
-    "max_estimated_spend": 50,
-    "max_wall_time_seconds": 7200,
-    "max_llm_tokens": 50000,
-    "include_cleanup_reserve": true
-  },
+  "benchmark": {"config": "benchmarks/YourBenchmark/config/benchmark.json"},
+  "providers": ["aws_lambda", "aws_agentcore"],
+  "regions": {"aws_lambda": "us-east-1", "aws_agentcore": "us-east-1"},
+  "objective": {"type": "min_cost_under_slo", "base_currency": "USD", "max_p95_workflow_ms": 2000, "min_success_rate": 0.99},
+  "search": {"max_candidates": 8},
+  "protocol": {"warmup_runs": 2, "exploration_runs": 5, "confirmation_runs": 500},
+  "budget": {"currency": "USD", "max_estimated_spend": 50, "max_wall_time_seconds": 7200, "max_llm_tokens": 5000, "include_cleanup_reserve": true},
   "authorization": "plan_only"
 }
 ```
 
-### 2. 零云写入规划
+```bash
+uv run atsuite-recommend plan --spec experiment.json --output recommendation_results/demo/plan.json
+uv run atsuite-recommend run --plan recommendation_results/demo/plan.json \
+  --store results/recommender/jobs.sqlite --approve-budget \
+  --account aws_lambda=ACCOUNT_ID --account aws_agentcore=ACCOUNT_ID
+uv run atsuite-worker --store results/recommender/jobs.sqlite --poll
+```
+
+`run` 默认返回 `execution_queued` 和 experiment ID。加 `--wait` 在当前 CLI 进程执行同一持久任务。
+`authorization=approved_execution` 只是意图字段；有效审批另行绑定 plan digest、版本、操作者、账号、地区、预算与搜索边界。
+plan 保留原始 baseline 和完整冻结 bundle，候选路径为 `candidates/<id>/bundle/config/generated_config.json`。
+修改任意已冻结文件或注入新文件会使预检失败。计划不可原地改写。
+
+在线价格按实际服务自动查询，找不到的 SKU/用量显示 coverage gap。
+无法可靠估算构建、部署、调用和清理开销时停止派发，不按零元处理。
+可在规划时使用已批准的市场快照：
 
 ```bash
-uv run atsuite-recommend plan \
-  --spec experiment.json \
-  --output recommendation_results/demo/plan.json
+uv run atsuite-recommend plan --spec experiment.json \
+  --market-snapshot market.json --output recommendation_results/snapshot/plan.json
 ```
 
-`plan` 会同时生成：
+快照包含 rate cards、FX、来源/有效日期、费用范围，以及 `operation_cost_bounds` 的 build/deploy/invoke/cleanup 上界；
+调用估算可用 `maximum_tool_calls`、`maximum_session_idle_seconds` 与正式费率推导。
+也可设置服务器管理的 `ATSUITE_MARKET_SNAPSHOT`。快照随计划审批冻结，过期或缺项不伪装实时完整价格。
+已批准的过期快照需在 spec 中显式设置 `market_data.stale_policy=allow`；仍保留过期状态，不能据此获得合格成本排名。
+预算为保守派发限制，账单延迟和在途工作仍会形成 pending 费用。
 
-```text
-recommendation_results/demo/
-  plan.json
-  candidates/<candidate_id>/generated_config.json
-```
+## 状态、恢复和清理
 
-生成配置把原 benchmark 的 trace 和 node 路径固定到源目录，并写入候选 topology 与 target 级资源。相同 provider、topology、architecture 但不同 memory/CPU 档位可以复用同一镜像构建。
-
-独立 worker 通过 handler factory 执行已批准任务，避免 Web 请求线程直接执行云操作：
+成功路径为 PREFLIGHT → BUILDING → DEPLOYING → EXPLORING → CONFIRMING → ANALYZING → CLEANUP_PENDING → COMPLETED。
+构建与部署有独立并行度；确认窗口没有构建任务竞争 runner。
+阶段及子任务落库，恢复跳过已成功工作；未决远端调用需先对账，不能重复业务调用补日志。
 
 ```bash
-uv run atsuite-worker \
-  --store recommendation_results/jobs.sqlite \
-  --experiment EXPERIMENT_ID \
-  --handlers my_worker:create_handlers
+uv run atsuite-recommend resume --experiment EXPERIMENT_ID --store results/recommender/jobs.sqlite
+uv run atsuite-worker --experiment EXPERIMENT_ID --store results/recommender/jobs.sqlite
+uv run atsuite-worker --reconcile-ttl --store results/recommender/jobs.sqlite
 ```
 
-`create_handlers(store, experiment_id)` 必须返回 `BUILDING`、`DEPLOYING`、`EXPLORING`、`CONFIRMING`、`ANALYZING` 和可选 `CLEANUP` handler。缺少阶段 handler 会使任务明确失败；worker 不会把空操作标记为完成。
+清理只针对账号、地区和 ownership 完整匹配的实验资源，保存删除回读。
+清理失败保留推荐结果并把 job 标为 FAILED；恢复只重试清理。
+云端异步删除保留 CLEANUP_PENDING，`--poll` 会继续检查删除结果直到清理完成。
+取消不等同于云端停止计费。CANCELLED 不能直接恢复新的付费实验。
+自定义 `--handlers` 仅为本地管理员扩展，需 `--allow-custom-handlers`；Web 不接收模块名。
 
-### 3. 启动控制面与 Web UI
+## 比较与重新计价
 
 ```bash
-uv run atsuite-serve \
-  --host 127.0.0.1 \
-  --port 8000 \
-  --store results/recommender/jobs.sqlite \
-  --artifact-root recommendation_results
+uv run atsuite-recommend compare --manifest comparison.json --output offline-comparison.json
+uv run atsuite-recommend reprice --experiment comparison.json \
+  --market-snapshot new-market.json --output comparison-repriced.json
 ```
 
-打开 `http://127.0.0.1:8000/`。页面包括：新建实验、方案预览、实验进度、比较结果、推荐详情、模型与数据源。
+compare 可直接读取导出的报告或报告路径数组。旧报告可读，但缺版本化身份、确认试验、oracle、readback 和账本时标记 legacy_unverified。
+重新计价使用不可变用量账本产生新报告与 parent digest，不修改原实验。
+每正确成功 workflow 成本的分子保留全部正式尝试（包括失败/超时）的归因费用，零成功则 unavailable。
 
-若设置 `ATSUITE_API_TOKEN`，请求需发送 `Authorization: Bearer ...`。租户范围由以下请求头确定：
+`recommended` 仅表示声明的 scenario、候选覆盖、业务约束和费用范围内可区分的已确认候选；不代表全局最优。
+`no_clear_winner` 显示 Pareto 和权衡；`no_feasible_candidate` 需要全范围足够证据；缺样本、引用或覆盖返回 `insufficient_evidence`。
+少量零失败不能证明高成功率。P95 使用独立 block 的分位区间，同时 deadline 完成比例包含失败/超时。
+纯延迟目标未声明成功率时，计划冻结默认 `min_success_rate=0.95`；balanced 排序也计入失败率的不确定性。
+模拟、预测和人工输入不会自动成为 `best_verified`。
 
-```text
-X-ATSuite-Tenant
-X-ATSuite-Project
-X-ATSuite-Role: viewer | editor | admin
-```
-
-生产部署应由可信认证网关写入这些头，不应接受互联网客户端自行声明角色。浏览器修改请求会校验 `Origin`；跨域来源通过 `ATSUITE_ALLOWED_ORIGINS` 以逗号分隔配置。
-
-## Benchmark 上传
-
-`POST /api/v1/benchmarks` 接受原始 ZIP 请求体，文件名放在 `X-Filename`。控制面只解压和检查，不 import 上传代码。
-
-上传会拒绝：
-
-- 绝对路径与 `..` 路径穿越
-- symlink、设备、FIFO、socket 等特殊条目
-- 加密 ZIP
-- 超过 25 MiB 的压缩包
-- 超过 100 MiB 的解压后内容
-- 超过 2,000 个条目
-- 单文件压缩比超过 200
-
-工具代码必须在隔离 worker 中执行。
-
-## 推荐语义
-
-确定性决策返回以下状态之一：
-
-- `recommended`：完整 measured evidence 下有明确 winner。
-- `no_clear_winner`：领先候选在预先声明的实际差异范围内。
-- `no_feasible_candidate`：具有完整实测证据的候选全部违反硬约束。
-- `insufficient_evidence`：必需指标缺失、过期、预测或没有 evidence ref。
-
-固定锚点评分不会因加入一个更差候选而改变原候选得分。不同场景不会混排。`promising_unverified` 只用于后续选点。
-
-## Predictor
+## Web、身份与生产变更
 
 ```bash
-uv run atsuite-predictor train \
-  --dataset dataset.jsonl \
-  --output models/model-20260916.json
-
-uv run atsuite-predictor evaluate \
-  --model models/model-20260916.json \
-  --dataset holdout.jsonl \
-  --output evaluation.json
+uv run atsuite-serve --host 127.0.0.1 --port 8000 \
+  --store results/recommender/jobs.sqlite --artifact-root recommendation_results
 ```
 
-训练器使用依赖最少的 ridge linear model。数据集支持 workload 分组与时间 cutoff 拆分。超出训练特征范围的预测标记 `ood=true`。无模型或无训练数据时使用明确的 baseline/missing 状态。
+浏览器提供上传、新建、计划审批、进度、比较、推荐详情、数据源/模型、导出和重算。
+上传只接收 ZIP，所有嵌套路径限于 bundle；控制面不导入上传工具。
+断线后按事件游标恢复轮询。未启动 worker 的任务显示 queued，不显示完成。
 
-模型代码可运行不代表模型质量已经达标。启用 ML acquisition 前应保存未见 workload 的误差、候选召回和 regret 评估。
+开发模式仅 loopback。`ATSUITE_IDENTITY_TOKENS` 是服务器配置的 token→principal JSON，principal 含 subject、tenant、project、role、audience、expires_at。
+客户端 `X-ATSuite-Role/Tenant/Project` 不决定权限。浏览器 token 存在 sessionStorage。
+生产启动需要已配置身份、真实隔离 builder 与 ownership cleanup 能力，并使用受支持的生产存储。
 
-## Advisor
+生产 apply 使用独立目标 allowlist、配置快照、额外一次性审批、漂移/readback/健康/rollback 检查；模拟报告不能 apply。
+AWS Lambda 目标适配器可配置 `ATSUITE_PRODUCTION_TARGETS`，其他生产目标未配置适配器时明确不可执行。
 
-设置：
+## Predictor 和 Advisor
 
-```bash
-export OPENAI_API_KEY=...
-export ATSUITE_ADVISOR_MODEL=<已批准的模型 ID>
-```
+`atsuite-predictor train/evaluate` 使用版本化 ridge baseline、完整 provider/region/mode/架构/逐 target 特征及 family/time 隔离。
+`ATSUITE_PREDICTOR_MODEL_ID` 和 `ATSUITE_MODEL_REGISTRY` 指定模型；真实 holdout 质量不足或 OOD 时实际走 grid fallback。
+ML 只影响探索选点，最终使用新的确认试验。没有真实 unseen-workload 评估时质量为 insufficient_real_data。
 
-Advisor 使用 Responses API Structured Outputs，仅发送白名单化的候选、指标、winner 和意图字段，并设置 `store=false`。它会记录 model、response ID、prompt template hash、catalog hash 和 token usage。
-
-以下情况自动使用确定性模板：
-
-- 未配置 `ATSUITE_ADVISOR_MODEL`
-- SDK 或 API 不可用
-- 模型拒答或没有结构化结果
-- schema 解析失败
-
-Advisor 返回后仍会校验 candidate ID、eligibility、metric ref，以及它是否试图覆盖确定性 winner。
-
-## 市场数据
-
-已提供：
-
-- AWS Price List Query `GetProducts` 分页适配器
-- GCP Cloud Billing Catalog `services.skus.list` 分页适配器
-- Alibaba BSS `GetPayAsYouGoPrice` 适配器
-- ECB 日参考汇率
-- Open Exchange Rates 可选适配器
-- Decimal 阶梯计价、向上舍入、usage 去重和币种交叉转换
-- 不可变 JSON snapshot store
-
-在线 API 找不到 SKU 时应返回 coverage 缺失。静态或手工数据必须保留来源和 freshness，不能标成实时价格。
-
-## Replay 输出与正确性
-
-每次 replay 会写入独立的 `outputs.json` 和 `correctness.json`。业务输出按 call ID 保存；`request_id`、`provider_request_id` 和 `timing` 等 provider 元数据不会参与默认业务结果比较。调用方可向 `run_trace()` 传入 `expected_outputs`，并为非确定结果提供 `output_comparator`。未声明 oracle 时 correctness 状态为 `not_configured`，不会伪装成已验证。
-
-取消、失败和正常完成都会先进入 `CLEANUP_PENDING`。cleanup handler 失败会保存 `cleanup_error`；缺失实际阶段 handler 的任务会失败，不会被空操作标记为完成。
-
-## 重新计价
-
-`atsuite-recommend reprice` 读取实验的不可变 `usage_ledger.jsonl`、新的 rate-card snapshot 和可选 FX snapshot，重新执行 Decimal 阶梯计价。结果状态明确区分 `reprice_completed`、`reprice_missing_coverage`、`reprice_stale` 和 `insufficient_usage_ledger`，并保留原实验、usage ledger 与市场快照 digest。控制面将每次结果保存成新的 artifact。
-
-## 工件与部署
-
-`BuildArtifact` 包含 source tree、Dockerfile、dependency lock、platform 和镜像 digest。源码摘要递归覆盖构建上下文；provider、topology 和 architecture 进入 build identity。
-
-向 `deploy()` 传入 artifact 时，部署器只接受 `repository@sha256:...`。若 provider 返回 effective resources 且与 requested resources 不同，部署立即失败。无法回读时记录 `configuration_readback=unverified`。
-
-旧 CLI 不传 artifact 时保留原 tag/push 路径，以兼容已有工作流。自动推荐的 verified 部署链应使用已发布且可拉取的 registry digest。
-
-## API 摘要
-
-```text
-POST /api/v1/benchmarks
-GET  /api/v1/providers/capabilities
-POST /api/v1/experiments/plan
-POST /api/v1/experiments
-GET  /api/v1/experiments/{id}
-GET  /api/v1/experiments/{id}/events
-POST /api/v1/experiments/{id}/cancel
-POST /api/v1/experiments/{id}/resume
-GET  /api/v1/experiments/{id}/comparison
-GET  /api/v1/experiments/{id}/recommendation
-POST /api/v1/experiments/{id}/reprice
-POST /api/v1/experiments/{id}/advisor
-GET  /api/v1/artifacts/{artifact_id}
-POST /api/v1/deployments/plan
-POST /api/v1/deployments/apply
-```
-
-创建实验支持 `Idempotency-Key`。相同 key 与相同请求返回原任务；相同 key 与不同请求返回 HTTP 409。SSE 支持 `Last-Event-ID`。
-
-`deployments/apply` 只接受 admin、`confirm=true` 且实验明确使用 `production_apply` 授权。Web 请求线程只入队；外部 worker 负责变更、readback、健康检查和 rollback 证据。
+`plan --request 'P95 小于 2 秒且成功率至少 99%'` 可解析意图；未解析约束会阻止审批。
+Advisor 可用 `ATSUITE_ADVISOR_MODEL` 和 `OPENAI_API_KEY`，预算限制 token；调用失败使用确定性模板。
+结构化解释只能引用实际候选和有单位/范围的证据，不得改变确定性 winner。
+真实模型 API 及云验收状态独立记录，未执行时均为 blocked_external。

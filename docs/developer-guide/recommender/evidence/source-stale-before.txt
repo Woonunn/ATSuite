@@ -1,0 +1,54 @@
+test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) ...
+  test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='predicted') ... FAIL
+  test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='simulated') ... FAIL
+  test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='manual_upload') ... FAIL
+  test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='unknown') ... FAIL
+test_stale_snapshot_acceptance_uses_frozen_typed_policy (tests.test_recommender_market_accounting.DefaultMarketServiceContracts.test_stale_snapshot_acceptance_uses_frozen_typed_policy) ... ERROR
+
+======================================================================
+ERROR: test_stale_snapshot_acceptance_uses_frozen_typed_policy (tests.test_recommender_market_accounting.DefaultMarketServiceContracts.test_stale_snapshot_acceptance_uses_frozen_typed_policy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_market_accounting.py", line 145, in test_stale_snapshot_acceptance_uses_frozen_typed_policy
+    allowed=freeze_market_data([],MarketDataPolicy(pricing='snapshot',stale_policy='allow'),approved_snapshot=snapshot)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/market_data/service.py", line 110, in freeze_market_data
+    raise ValueError('stale_market_snapshot_requires_explicit_acceptance')
+ValueError: stale_market_snapshot_requires_explicit_acceptance
+
+======================================================================
+FAIL: test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='predicted')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_evidence_eligibility.py", line 23, in test_metric_source_must_match_confirmed_measurement_source
+    self.assertIsNone(result.best_verified)
+AssertionError: 'bad' is not None
+
+======================================================================
+FAIL: test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='simulated')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_evidence_eligibility.py", line 23, in test_metric_source_must_match_confirmed_measurement_source
+    self.assertIsNone(result.best_verified)
+AssertionError: 'bad' is not None
+
+======================================================================
+FAIL: test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='manual_upload')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_evidence_eligibility.py", line 23, in test_metric_source_must_match_confirmed_measurement_source
+    self.assertIsNone(result.best_verified)
+AssertionError: 'bad' is not None
+
+======================================================================
+FAIL: test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) (source='unknown')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_evidence_eligibility.py", line 23, in test_metric_source_must_match_confirmed_measurement_source
+    self.assertIsNone(result.best_verified)
+AssertionError: 'bad' is not None
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.086s
+
+FAILED (failures=4, errors=1)

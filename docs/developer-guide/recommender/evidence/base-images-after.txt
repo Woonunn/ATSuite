@@ -1,0 +1,8 @@
+test_base_digest_changes_build_key_without_resource_fields (tests.test_recommender_base_images.BaseImages.test_base_digest_changes_build_key_without_resource_fields) ... ok
+test_tag_is_frozen_to_concrete_platform_digest (tests.test_recommender_base_images.BaseImages.test_tag_is_frozen_to_concrete_platform_digest) ... ok
+test_wrong_platform_and_short_hash_are_rejected (tests.test_recommender_base_images.BaseImages.test_wrong_platform_and_short_hash_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.021s
+
+OK

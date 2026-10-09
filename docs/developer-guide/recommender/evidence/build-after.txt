@@ -1,0 +1,121 @@
+test_bad_output_and_state_are_excluded_without_discarding_trials (tests.test_recommender_default_execution.DefaultExecution.test_bad_output_and_state_are_excluded_without_discarding_trials) ... FAIL
+test_cleanup_failure_resume_retries_only_cleanup (tests.test_recommender_default_execution.DefaultExecution.test_cleanup_failure_resume_retries_only_cleanup) ... ok
+test_default_chain_executes_workflow_oracle_ledger_and_cleanup (tests.test_recommender_default_execution.DefaultExecution.test_default_chain_executes_workflow_oracle_ledger_and_cleanup) ... FAIL
+test_default_factory_exists_and_has_real_stages (tests.test_recommender_default_execution.DefaultExecution.test_default_factory_exists_and_has_real_stages) ... ok
+test_export_offline_compare_replays_same_protocol_and_simulation_label (tests.test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label) ... ok
+test_frozen_bundle_changes_are_rejected_before_build (tests.test_recommender_default_execution.DefaultExecution.test_frozen_bundle_changes_are_rejected_before_build) ... ok
+test_missing_approval_cannot_be_replaced_by_request_field (tests.test_recommender_default_execution.DefaultExecution.test_missing_approval_cannot_be_replaced_by_request_field) ... ok
+test_publication_failure_never_deploys (tests.test_recommender_default_execution.DefaultExecution.test_publication_failure_never_deploys) ... ok
+test_real_cli_queues_and_worker_uses_default_handlers_without_plugin (tests.test_recommender_default_execution.DefaultExecution.test_real_cli_queues_and_worker_uses_default_handlers_without_plugin) ... FAIL
+test_untracked_bundle_injection_is_rejected (tests.test_recommender_default_execution.DefaultExecution.test_untracked_bundle_injection_is_rejected) ... ok
+test_agentcore_strict_conflict_never_updates_foreign_runtime (tests.test_recommender_provider_options.ProviderOptionsTests.test_agentcore_strict_conflict_never_updates_foreign_runtime) ... ok
+test_ali_creation_identity_and_failures_are_real_failures (tests.test_recommender_provider_options.ProviderOptionsTests.test_ali_creation_identity_and_failures_are_real_failures) ... ok
+test_cloud_run_readback_normalizes_units_and_does_not_impute_unknown (tests.test_recommender_provider_options.ProviderOptionsTests.test_cloud_run_readback_normalizes_units_and_does_not_impute_unknown) ... ok
+test_gcp_fractional_cpu_options_and_no_silent_timeout_clamp (tests.test_recommender_provider_options.ProviderOptionsTests.test_gcp_fractional_cpu_options_and_no_silent_timeout_clamp) ... ok
+test_gcp_strict_conflict_refuses_existing_unowned_resource (tests.test_recommender_provider_options.ProviderOptionsTests.test_gcp_strict_conflict_refuses_existing_unowned_resource) ... ok
+test_lambda_creation_propagates_architecture_identity_tags (tests.test_recommender_provider_options.ProviderOptionsTests.test_lambda_creation_propagates_architecture_identity_tags) ... ok
+test_lambda_readback_derives_cpu_from_observation_and_keeps_actual_digest (tests.test_recommender_provider_options.ProviderOptionsTests.test_lambda_readback_derives_cpu_from_observation_and_keeps_actual_digest) ... ok
+test_lambda_strict_does_not_mutate_customer_function_or_role (tests.test_recommender_provider_options.ProviderOptionsTests.test_lambda_strict_does_not_mutate_customer_function_or_role) ... ok
+test_invalid_digest_is_rejected (tests.test_recommender_publication_isolation.ArtifactIsolation.test_invalid_digest_is_rejected) ... ok
+test_source_and_dependency_changes_invalidate_build (tests.test_recommender_publication_isolation.ArtifactIsolation.test_source_and_dependency_changes_invalidate_build) ... ok
+
+======================================================================
+FAIL: test_bad_output_and_state_are_excluded_without_discarding_trials (tests.test_recommender_default_execution.DefaultExecution.test_bad_output_and_state_are_excluded_without_discarding_trials)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 60, in test_bad_output_and_state_are_excluded_without_discarding_trials
+    self.assertEqual(result['state'],'COMPLETED');self.assertEqual(len(result['trials']),10)
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 5 != 10
+
+======================================================================
+FAIL: test_default_chain_executes_workflow_oracle_ledger_and_cleanup (tests.test_recommender_default_execution.DefaultExecution.test_default_chain_executes_workflow_oracle_ledger_and_cleanup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 40, in test_default_chain_executes_workflow_oracle_ledger_and_cleanup
+    self.assertEqual(len(result['trials']),10)
+AssertionError: 5 != 10
+
+======================================================================
+FAIL: test_real_cli_queues_and_worker_uses_default_handlers_without_plugin (tests.test_recommender_default_execution.DefaultExecution.test_real_cli_queues_and_worker_uses_default_handlers_without_plugin)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 123, in test_real_cli_queues_and_worker_uses_default_handlers_without_plugin
+    self.assertEqual(result['state'],'COMPLETED');self.assertEqual(len(result['trials']),10)
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 5 != 10
+
+----------------------------------------------------------------------
+Ran 20 tests in 1.867s
+
+FAILED (failures=3)
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpmxqsks9u/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-8273d55fdd13aa4d-1d6a808b1aa5/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpmxqsks9u/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-02cf7e6109206e58-5aee875fa527/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpmxqsks9u/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-e66c3c39fd863458-15aa7ce351a8/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpmxqsks9u/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-ddb7b182fcaa65ce-55ae4ce965d5/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpmxqsks9u/plan/candidates/candidate-c76e6dd76a4f77d7/runs/aws_lambda/bundle/run-40ae180f81d8132c-108369bb1964/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6r5fn1ma/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-a6f715a64aaf6b04-9876d9e93eb8/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6r5fn1ma/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-ebbcbe6dfe9a26a3-49db3dc75f7f/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6r5fn1ma/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-dfe815a85874b0d2-5060569deb6d/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6r5fn1ma/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-5b15311748070355-3a73a42eaeef/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6r5fn1ma/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-6dffa6d43a01bccf-abdf906402b2/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpb6sp0mxr/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-e1f3ca5f7ebbe183-f9c32c2d7172/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpb6sp0mxr/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-89b5d0b7a517e7c4-6dd25b23cff6/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpb6sp0mxr/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-a5c7f4306e1328a7-840f659a2274/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpb6sp0mxr/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-1f73599880363153-1d0c010951b4/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpb6sp0mxr/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-a75de35f0eb917bc-2a4263c52247/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6nuba622/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-93409c875179a188-7f3b1a9815dd/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6nuba622/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-3672e80c36956de0-5efe47e546e0/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6nuba622/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-1b3f60492ccead10-0cdf23f51aa5/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6nuba622/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-f6aa6faba6550e00-5d7d76777138/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp6nuba622/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-49cce5616fa97cd2-3d2d7c5040c8/run.log
+[AgentCore] Creating Runtime 'atsuite_service'...
+[AgentCore] Container image: repo@sha256:expected
+[AgentCore] Runtime 'atsuite_service' already exists, updating...
+
+
+Success deploy on GCP Cloud Run
+
+
+Lambda Function created successfully
+Lambda Checking if function 'existing' exists...

@@ -1,0 +1,28 @@
+test_resume_never_repeats_successful_stage (tests.test_recommender_resume_cancel_cleanup.DurableJobs.test_resume_never_repeats_successful_stage) ... FAIL
+test_two_connections_cannot_claim_same_job (tests.test_recommender_resume_cancel_cleanup.DurableJobs.test_two_connections_cannot_claim_same_job) ... ERROR
+
+======================================================================
+ERROR: test_two_connections_cannot_claim_same_job (tests.test_recommender_resume_cancel_cleanup.DurableJobs.test_two_connections_cannot_claim_same_job)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_resume_cancel_cleanup.py", line 12, in test_two_connections_cannot_claim_same_job
+    token=a.claim('e','a')
+          ^^^^^^^
+AttributeError: 'JobStore' object has no attribute 'claim'
+
+======================================================================
+FAIL: test_resume_never_repeats_successful_stage (tests.test_recommender_resume_cancel_cleanup.DurableJobs.test_resume_never_repeats_successful_stage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_resume_cancel_cleanup.py", line 23, in test_resume_never_repeats_successful_stage
+    self.assertEqual(result['state'],'COMPLETED'); self.assertNotIn('BUILDING',called)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'FAILED' != 'COMPLETED'
+- FAILED
++ COMPLETED
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.019s
+
+FAILED (failures=1, errors=1)

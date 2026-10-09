@@ -1,0 +1,30 @@
+test_missing_component_is_not_observed_zero (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_missing_component_is_not_observed_zero) ... ok
+test_missing_log_group_has_no_billable_zero (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_missing_log_group_has_no_billable_zero) ... ok
+test_real_zero_component_retains_observed_identity (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_real_zero_component_retains_observed_identity) ... ok
+test_agentcore_collector_joins_breakdown_by_call_id (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_agentcore_collector_joins_breakdown_by_call_id) ... ok
+test_agentcore_usage_uses_session_id_from_invocations (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_agentcore_usage_uses_session_id_from_invocations) ... ok
+test_agentcore_wait_polls_until_usage_logs_are_ready (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_agentcore_wait_polls_until_usage_logs_are_ready) ... ok
+test_ali_collector_joins_sls_metrics_and_sdk_breakdown (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_ali_collector_joins_sls_metrics_and_sdk_breakdown) ... ok
+test_aws_lambda_collector_populates_breakdown_and_provider_timestamps (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_aws_lambda_collector_populates_breakdown_and_provider_timestamps) ... ok
+test_gcp_collector_indexes_trace_join_and_breakdown (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_gcp_collector_indexes_trace_join_and_breakdown) ... ok
+test_gcp_pricing_uses_100ms_request_rounding (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_gcp_pricing_uses_100ms_request_rounding) ... ok
+test_noop_collector_uses_runtime_invocation_metadata (tests.test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_noop_collector_uses_runtime_invocation_metadata) ... ok
+test_analyze_events_exports_v2_report_and_full_evidence_jsonl (tests.test_analysis_v2.AnalysisV2PipelineTests.test_analyze_events_exports_v2_report_and_full_evidence_jsonl) ... ok
+test_analyze_recorder_delegates_ingestion_wait_to_collector (tests.test_analysis_v2.AnalysisV2PipelineTests.test_analyze_recorder_delegates_ingestion_wait_to_collector) ... ok
+test_recorder_is_thread_safe_and_roundtrips_events (tests.test_analysis_v2.AnalysisV2RecorderTests.test_recorder_is_thread_safe_and_roundtrips_events) ... ok
+test_timeline_builder_emits_client_only_trace_with_missing_cloud_diagnostic (tests.test_analysis_v2.AnalysisV2TimelineTests.test_timeline_builder_emits_client_only_trace_with_missing_cloud_diagnostic) ... ok
+test_timeline_builder_preserves_overlapping_client_lanes (tests.test_analysis_v2.AnalysisV2TimelineTests.test_timeline_builder_preserves_overlapping_client_lanes) ... ok
+test_invoker_no_longer_mentions_provider_specific_analyzer_hooks (tests.test_analysis_v2.InvokerAnalyzerBoundaryTests.test_invoker_no_longer_mentions_provider_specific_analyzer_hooks) ... ok
+test_run_trace_returns_compact_v2_result_with_universal_call_id (tests.test_analysis_v2.InvokerAnalyzerBoundaryTests.test_run_trace_returns_compact_v2_result_with_universal_call_id) ... ok
+test_function_breakdown_payload_contains_absolute_wall_timestamps (tests.test_analysis_v2.SDKBreakdownTimestampTests.test_function_breakdown_payload_contains_absolute_wall_timestamps) ... ok
+test_mcp_breakdown_payload_contains_absolute_wall_timestamps (tests.test_analysis_v2.SDKBreakdownTimestampTests.test_mcp_breakdown_payload_contains_absolute_wall_timestamps) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 1.241s
+
+OK
+    [usage-logs] Log group: group
+    [usage-logs] Session ID: s
+    [usage-logs] No AgentCore usage log groups found for runtime_id 'r' in region 'us-east-1'
+    [usage-logs] Log group: group
+    [usage-logs] Session ID: s

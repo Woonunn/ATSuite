@@ -1,0 +1,44 @@
+test_configuration_must_be_content_bound (tests.test_recommender_statistical_contract.StatisticalContract.test_configuration_must_be_content_bound) ... ERROR
+test_forged_p95_cannot_replace_observed_distribution (tests.test_recommender_statistical_contract.StatisticalContract.test_forged_p95_cannot_replace_observed_distribution) ... ERROR
+test_large_independent_blocks_can_produce_latency_winner (tests.test_recommender_statistical_contract.StatisticalContract.test_large_independent_blocks_can_produce_latency_winner) ... ok
+test_small_fast_sample_cannot_prove_p95_slo (tests.test_recommender_statistical_contract.StatisticalContract.test_small_fast_sample_cannot_prove_p95_slo) ... FAIL
+test_small_sample_cannot_prove_latency_winner (tests.test_recommender_statistical_contract.StatisticalContract.test_small_sample_cannot_prove_latency_winner) ... FAIL
+
+======================================================================
+ERROR: test_configuration_must_be_content_bound (tests.test_recommender_statistical_contract.StatisticalContract.test_configuration_must_be_content_bound)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_statistical_contract.py", line 20, in test_configuration_must_be_content_bound
+    self.assertIn('configuration_reference_invalid',result.excluded[0]['reasons'])
+                                                    ~~~~~~~~~~~~~~~^^^
+IndexError: tuple index out of range
+
+======================================================================
+ERROR: test_forged_p95_cannot_replace_observed_distribution (tests.test_recommender_statistical_contract.StatisticalContract.test_forged_p95_cannot_replace_observed_distribution)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_statistical_contract.py", line 24, in test_forged_p95_cannot_replace_observed_distribution
+    self.assertIn('quantile_value_mismatch',result.excluded[0]['reasons'])
+                                            ~~~~~~~~~~~~~~~^^^
+IndexError: tuple index out of range
+
+======================================================================
+FAIL: test_small_fast_sample_cannot_prove_p95_slo (tests.test_recommender_statistical_contract.StatisticalContract.test_small_fast_sample_cannot_prove_p95_slo)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_statistical_contract.py", line 10, in test_small_fast_sample_cannot_prove_p95_slo
+    self.assertIsNone(result.best_verified)
+AssertionError: 'a' is not None
+
+======================================================================
+FAIL: test_small_sample_cannot_prove_latency_winner (tests.test_recommender_statistical_contract.StatisticalContract.test_small_sample_cannot_prove_latency_winner)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_statistical_contract.py", line 15, in test_small_sample_cannot_prove_latency_winner
+    self.assertIsNone(result.best_verified)
+AssertionError: 'a' is not None
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.060s
+
+FAILED (failures=2, errors=2)

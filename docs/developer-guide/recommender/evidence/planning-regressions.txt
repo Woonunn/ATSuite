@@ -1,0 +1,83 @@
+test_agentcore_strict_conflict_never_updates_foreign_runtime (tests.test_recommender_provider_options.ProviderOptionsTests.test_agentcore_strict_conflict_never_updates_foreign_runtime) ... ok
+test_ali_creation_identity_and_failures_are_real_failures (tests.test_recommender_provider_options.ProviderOptionsTests.test_ali_creation_identity_and_failures_are_real_failures) ... ok
+test_cloud_run_readback_normalizes_units_and_does_not_impute_unknown (tests.test_recommender_provider_options.ProviderOptionsTests.test_cloud_run_readback_normalizes_units_and_does_not_impute_unknown) ... ok
+test_gcp_fractional_cpu_options_and_no_silent_timeout_clamp (tests.test_recommender_provider_options.ProviderOptionsTests.test_gcp_fractional_cpu_options_and_no_silent_timeout_clamp) ... ok
+test_gcp_strict_conflict_refuses_existing_unowned_resource (tests.test_recommender_provider_options.ProviderOptionsTests.test_gcp_strict_conflict_refuses_existing_unowned_resource) ... ok
+test_lambda_creation_propagates_architecture_identity_tags (tests.test_recommender_provider_options.ProviderOptionsTests.test_lambda_creation_propagates_architecture_identity_tags) ... ok
+test_lambda_readback_derives_cpu_from_observation_and_keeps_actual_digest (tests.test_recommender_provider_options.ProviderOptionsTests.test_lambda_readback_derives_cpu_from_observation_and_keeps_actual_digest) ... ok
+test_lambda_strict_does_not_mutate_customer_function_or_role (tests.test_recommender_provider_options.ProviderOptionsTests.test_lambda_strict_does_not_mutate_customer_function_or_role) ... ok
+test_bundle_materialization_keeps_data_and_is_frozen (tests.test_recommender_topology_validation.TopologyValidationTests.test_bundle_materialization_keeps_data_and_is_frozen) ... ok
+test_colocate_atoms_unknown_state_and_topology_deduplication (tests.test_recommender_topology_validation.TopologyValidationTests.test_colocate_atoms_unknown_state_and_topology_deduplication) ... ok
+test_duplicate_trace_route_rejected_and_source_not_rewritten (tests.test_recommender_topology_validation.TopologyValidationTests.test_duplicate_trace_route_rejected_and_source_not_rewritten) ... ok
+test_full_constraints_compile_revalidation_and_state_domain_atoms (tests.test_recommender_topology_validation.TopologyValidationTests.test_full_constraints_compile_revalidation_and_state_domain_atoms) ... ok
+test_invalid_topology_not_selected_and_compile_rechecks (tests.test_recommender_topology_validation.TopologyValidationTests.test_invalid_topology_not_selected_and_compile_rechecks) ... ok
+test_metadata_retains_multiple_domains (tests.test_recommender_topology_validation.TopologyValidationTests.test_metadata_retains_multiple_domains) ... ok
+test_tools_realizations_and_mcp_alias_normalized_with_constraints (tests.test_recommender_topology_validation.TopologyValidationTests.test_tools_realizations_and_mcp_alias_normalized_with_constraints) ... ok
+test_unknown_references_and_python_conflicts_block (tests.test_recommender_topology_validation.TopologyValidationTests.test_unknown_references_and_python_conflicts_block) ... ok
+test_ali_adapter_modes_and_steps (tests.test_recommender_resource_search.ResourceSearchTests.test_ali_adapter_modes_and_steps) ... ok
+test_exact_family_baselines_round_robin_and_local_resources (tests.test_recommender_resource_search.ResourceSearchTests.test_exact_family_baselines_round_robin_and_local_resources) ... ok
+test_gcp_fractional_limits_and_modes (tests.test_recommender_resource_search.ResourceSearchTests.test_gcp_fractional_limits_and_modes) ... ok
+test_legal_lambda_unsampled_baseline (tests.test_recommender_resource_search.ResourceSearchTests.test_legal_lambda_unsampled_baseline) ... ok
+test_missing_resources_not_filled_and_no_effective_fabrication (tests.test_recommender_resource_search.ResourceSearchTests.test_missing_resources_not_filled_and_no_effective_fabrication) ... ok
+test_region_and_deployment_options_survive_resolution_and_no_cache_staleness (tests.test_recommender_resource_search.ResourceSearchTests.test_region_and_deployment_options_survive_resolution_and_no_cache_staleness) ... ok
+test_three_heterogeneous_targets_change_one_coordinate (tests.test_recommender_resource_search.ResourceSearchTests.test_three_heterogeneous_targets_change_one_coordinate) ... ok
+test_child_uses_frozen_bundle_and_parent_remains_immutable (tests.test_recommender_child_planning.ChildPlanningTests.test_child_uses_frozen_bundle_and_parent_remains_immutable) ... ok
+test_out_of_scope_missing_targets_and_illegal_resource_proposals_rejected (tests.test_recommender_child_planning.ChildPlanningTests.test_out_of_scope_missing_targets_and_illegal_resource_proposals_rejected) ... ok
+test_proposal_capacity_reserved_without_losing_provider_coverage (tests.test_recommender_child_planning.ChildPlanningTests.test_proposal_capacity_reserved_without_losing_provider_coverage) ... ok
+test_real_registered_tools_restore_state_per_uid_and_oracle_rejects_corruption (tests.test_recommender_oracle_benchmark.OracleBenchmarkTests.test_real_registered_tools_restore_state_per_uid_and_oracle_rejects_corruption) ... ok
+test_real_workflow_replay_and_cleanup_use_logical_domain (tests.test_recommender_oracle_benchmark.OracleBenchmarkTests.test_real_workflow_replay_and_cleanup_use_logical_domain) ... ok
+test_workflow_routes_same_logical_domain_for_faas_and_session (tests.test_recommender_oracle_benchmark.OracleBenchmarkTests.test_workflow_routes_same_logical_domain_for_faas_and_session) ... ok
+test_ali_snapshot_seeding_replaces_and_uses_sdk_identity (tests.test_recommender_state_domains.StateDomainRoutingTests.test_ali_snapshot_seeding_replaces_and_uses_sdk_identity) ... ok
+test_gcp_faas_snapshot_seeding_preserves_identity_and_propagates_storage_error (tests.test_recommender_state_domains.StateDomainRoutingTests.test_gcp_faas_snapshot_seeding_preserves_identity_and_propagates_storage_error) ... ok
+test_gcp_session_snapshot_attaches_once_by_logical_domain (tests.test_recommender_state_domains.StateDomainRoutingTests.test_gcp_session_snapshot_attaches_once_by_logical_domain) ... ok
+test_multidomain_baseline_retained_and_regrouping_excluded (tests.test_recommender_state_domains.StateDomainRoutingTests.test_multidomain_baseline_retained_and_regrouping_excluded) ... ok
+test_single_domain_does_not_follow_target_rename (tests.test_recommender_state_domains.StateDomainRoutingTests.test_single_domain_does_not_follow_target_rename) ... ok
+test_faas_read_write_lock_semantics (tests.test_runtime_refactor.AccessSchedulerTests.test_faas_read_write_lock_semantics) ... ok
+test_session_scheduler_is_passthrough (tests.test_runtime_refactor.AccessSchedulerTests.test_session_scheduler_is_passthrough) ... ok
+test_legacy_stateful_maps_to_domain_access (tests.test_runtime_refactor.PipelineSchemaTests.test_legacy_stateful_maps_to_domain_access) ... ok
+test_provider_registry_excludes_local_and_includes_gateway (tests.test_runtime_refactor.PipelineSchemaTests.test_provider_registry_excludes_local_and_includes_gateway) ... ok
+test_sandbox_config_is_unsupported (tests.test_runtime_refactor.PipelineSchemaTests.test_sandbox_config_is_unsupported) ... ok
+test_function_runtime_invokes_with_namespace_session (tests.test_runtime_refactor.RuntimeContractTests.test_function_runtime_invokes_with_namespace_session) ... ok
+test_gateway_registration_consumes_endpoint (tests.test_runtime_refactor.RuntimeContractTests.test_gateway_registration_consumes_endpoint) ... ok
+test_session_runtime_opens_once_and_reuses_client (tests.test_runtime_refactor.RuntimeContractTests.test_session_runtime_opens_once_and_reuses_client) ... ok
+test_aws_agentcore_falls_back_to_docker_build_when_buildx_missing (tests.test_build_cli.BuildDockerImagesTests.test_aws_agentcore_falls_back_to_docker_build_when_buildx_missing) ... ok
+test_system_packages_are_opt_in_build_args (tests.test_build_cli.BuildDockerImagesTests.test_system_packages_are_opt_in_build_args) ... ok
+test_candidate_identity_and_lambda_capability (tests.test_recommender_platform.RecommenderPlatformTests.test_candidate_identity_and_lambda_capability) ... ok
+test_decimal_billing_fx_and_deduplication (tests.test_recommender_platform.RecommenderPlatformTests.test_decimal_billing_fx_and_deduplication) ... ok
+test_job_store_events_and_idempotent_state_data (tests.test_recommender_platform.RecommenderPlatformTests.test_job_store_events_and_idempotent_state_data) ... ok
+test_plan_is_bounded_and_keeps_unverified_state (tests.test_recommender_platform.RecommenderPlatformTests.test_plan_is_bounded_and_keeps_unverified_state) ... ok
+test_reprice_recomputes_immutable_usage_ledger (tests.test_recommender_platform.RecommenderPlatformTests.test_reprice_recomputes_immutable_usage_ledger) ... ok
+test_state_identity_is_strict_and_uids_do_not_overlap (tests.test_recommender_platform.RecommenderPlatformTests.test_state_identity_is_strict_and_uids_do_not_overlap) ... ok
+test_statistics_and_predictor_labels (tests.test_recommender_platform.RecommenderPlatformTests.test_statistics_and_predictor_labels) ... ok
+test_strict_contracts_and_fractional_cpu (tests.test_recommender_platform.RecommenderPlatformTests.test_strict_contracts_and_fractional_cpu) ... ok
+test_topology_generation_and_compilation (tests.test_recommender_platform.RecommenderPlatformTests.test_topology_generation_and_compilation) ... ok
+
+----------------------------------------------------------------------
+Ran 53 tests in 1.278s
+
+OK
+[AgentCore] Creating Runtime 'atsuite_service'...
+[AgentCore] Container image: repo@sha256:expected
+[AgentCore] Runtime 'atsuite_service' already exists, updating...
+
+
+Success deploy on GCP Cloud Run
+
+
+Lambda Function created successfully
+Lambda Checking if function 'existing' exists...
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: counter.add_first, type: tool_use, time: 0.0
+Running node: 2, name: counter.add_second, type: tool_use, time: 0.0
+Running node: 3, name: counter.snapshot, type: tool_use, time: 0.0
+[export] Log: /var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpxwerdz7l/outputs/aws_lambda/tmpxwerdz7l/trial-aws_lambda-7d31d05b72fb/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: counter.add_first, type: tool_use, time: 0.0
+Running node: 2, name: counter.add_second, type: tool_use, time: 0.0
+Running node: 3, name: counter.snapshot, type: tool_use, time: 0.0
+[export] Log: /var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpxwerdz7l/outputs/ali_fc/tmpxwerdz7l/trial-ali_fc-6e6e926178e4/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: counter.add_first, type: tool_use, time: 0.0
+Running node: 2, name: counter.add_second, type: tool_use, time: 0.0
+Running node: 3, name: counter.snapshot, type: tool_use, time: 0.0
+[export] Log: /var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpxwerdz7l/outputs/gcp_faas/tmpxwerdz7l/trial-gcp_faas-05da85ab004d/run.log

@@ -1,0 +1,23 @@
+test_configuration_must_be_content_bound (tests.test_recommender_statistical_contract.StatisticalContract.test_configuration_must_be_content_bound) ... ok
+test_forged_p95_cannot_replace_observed_distribution (tests.test_recommender_statistical_contract.StatisticalContract.test_forged_p95_cannot_replace_observed_distribution) ... ok
+test_large_independent_blocks_can_produce_latency_winner (tests.test_recommender_statistical_contract.StatisticalContract.test_large_independent_blocks_can_produce_latency_winner) ... ok
+test_latency_objective_has_a_declared_success_floor (tests.test_recommender_statistical_contract.StatisticalContract.test_latency_objective_has_a_declared_success_floor) ... ok
+test_small_fast_sample_cannot_prove_p95_slo (tests.test_recommender_statistical_contract.StatisticalContract.test_small_fast_sample_cannot_prove_p95_slo) ... ok
+test_small_sample_cannot_prove_latency_winner (tests.test_recommender_statistical_contract.StatisticalContract.test_small_sample_cannot_prove_latency_winner) ... ok
+test_canonical_runner_evidence_uses_shared_winner (tests.test_recommender_engine.EngineTests.test_canonical_runner_evidence_uses_shared_winner) ... ok
+test_incomplete_and_constraint_evidence_do_not_become_winners (tests.test_recommender_engine.EngineTests.test_incomplete_and_constraint_evidence_do_not_become_winners) ... ok
+test_legacy_reports_are_readable_but_never_publish_unverified_winner (tests.test_recommender_engine.EngineTests.test_legacy_reports_are_readable_but_never_publish_unverified_winner) ... ok
+test_raw_legacy_runs_recompute_descriptive_scores_without_verification (tests.test_recommender_engine.EngineTests.test_raw_legacy_runs_recompute_descriptive_scores_without_verification) ... ok
+test_validation_before_legacy_execution (tests.test_recommender_engine.EngineTests.test_validation_before_legacy_execution) ... ok
+test_all_negatives_reason_codes (tests.test_recommender_evidence_eligibility.EvidenceGates.test_all_negatives_reason_codes) ... ok
+test_insufficient_counts_and_bound (tests.test_recommender_evidence_eligibility.EvidenceGates.test_insufficient_counts_and_bound) ... ok
+test_malformed_counts_and_duplicate_ids (tests.test_recommender_evidence_eligibility.EvidenceGates.test_malformed_counts_and_duplicate_ids) ... ok
+test_metric_source_must_match_confirmed_measurement_source (tests.test_recommender_evidence_eligibility.EvidenceGates.test_metric_source_must_match_confirmed_measurement_source) ... ok
+test_partial_scope_not_no_feasible (tests.test_recommender_evidence_eligibility.EvidenceGates.test_partial_scope_not_no_feasible) ... ok
+test_real_module_and_two_valid_candidates (tests.test_recommender_evidence_eligibility.EvidenceGates.test_real_module_and_two_valid_candidates) ... ok
+test_tie_and_derived_metrics (tests.test_recommender_evidence_eligibility.EvidenceGates.test_tie_and_derived_metrics) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 1.441s
+
+OK

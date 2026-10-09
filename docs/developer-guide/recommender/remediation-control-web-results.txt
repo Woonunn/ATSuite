@@ -1,0 +1,23 @@
+Current working tree; baseline HEAD de752f21342162dd4412ea9dd3b6e224a1f633fd
+Python 3.12.12, locked project environment, Playwright 1.58.0 / Chromium v1208
+
+Real browser suite:
+Ran 3 tests in 107.962s
+OK
+
+API authorization/evidence/transactional upload/apply suite:
+Ran 10 tests in 0.194s
+OK
+
+Combined current API + existing positive API + PostgreSQL contracts:
+Ran 14 tests in 0.332s
+OK (skipped=1: PostgreSQL service not configured)
+
+External cloud and production apply validation: blocked_external
+Live PostgreSQL validation: blocked_external
+Simulated browser/default execution is explicitly not cloud_verified.
+
+Final targeted command:
+UV_CACHE_DIR=/private/tmp/atsuite-uv-cache uv run --no-sync python -m unittest tests.test_recommender_api_authorization tests.test_recommender_postgres_store tests.test_recommender_platform.OptionalIntegrationTests.test_control_plane_idempotency_origin_tenant_and_artifacts -v
+Ran 15 tests in 0.327s
+OK (skipped=1: PostgreSQL service not configured)

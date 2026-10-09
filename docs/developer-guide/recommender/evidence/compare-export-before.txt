@@ -1,0 +1,47 @@
+test_export_offline_compare_replays_same_protocol_and_simulation_label (tests.test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label) ... FAIL
+
+======================================================================
+FAIL: test_export_offline_compare_replays_same_protocol_and_simulation_label (tests.test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 103, in test_export_offline_compare_replays_same_protocol_and_simulation_label
+    self.assertEqual(offline['status'],result['recommendation']['status'])
+AssertionError: 'insufficient_evidence' != 'no_clear_winner'
+- insufficient_evidence
++ no_clear_winner
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.349s
+
+FAILED (failures=1)
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-3389c28603863816-ac6cac66b8f2/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-1bd956311d23bd4e-8d99ac1f68bf/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-7ab96e5bcf371415-f97247472fcd/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-824c37039489ba01-85787c571b9a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-4a742630343e9307-baddecd34272/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-427f711a9686c82a-5c18116f5537/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-3c021a1123ce2eef-b54c0fc8a670/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-81140b2124a7f2f9-db64cde02d6d/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-94efca7e3e52b47e-6e4e901e82ba/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpexo83v8x/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-7a74e0531f015d1f-277d43bc3aba/run.log

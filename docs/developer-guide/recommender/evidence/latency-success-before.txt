@@ -1,0 +1,14 @@
+test_latency_objective_has_a_declared_success_floor (tests.test_recommender_statistical_contract.StatisticalContract.test_latency_objective_has_a_declared_success_floor) ... FAIL
+
+======================================================================
+FAIL: test_latency_objective_has_a_declared_success_floor (tests.test_recommender_statistical_contract.StatisticalContract.test_latency_objective_has_a_declared_success_floor)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_statistical_contract.py", line 9, in test_latency_objective_has_a_declared_success_floor
+    self.assertEqual(objective.min_success_rate,.95)
+AssertionError: None != 0.95
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

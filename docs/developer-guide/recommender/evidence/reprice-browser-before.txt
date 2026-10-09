@@ -141,7 +141,7 @@ test_browser_cancellation_failed_cleanup_and_resume (test_recommender_browser_e2
 /Users/woon/Project/ATSuite/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
   from websockets.server import WebSocketServerProtocol
 ok
-test_browser_reports_real_authentication_failure (test_recommender_browser_e2e.BrowserWorkflowTests.test_browser_reports_real_authentication_failure) ... 
+test_browser_reports_real_authentication_failure (test_recommender_browser_e2e.BrowserWorkflowTests.test_browser_reports_real_authentication_failure) ...
 Running node: 0, name: start, type: logic, time: 0.0
 Running node: 1, name: tool.run, type: tool_use, time: 0.1
 [export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpqxe45lq1/plan/execution/exp-25b6bee3f8356a71cfa67be4/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-edaa00b719ff48de-505e113ff12b/run.log
@@ -2013,7 +2013,7 @@ test_each_threshold_and_boundary (test_recommender_constraints.ConstraintTests.t
 test_missing_and_multiple_constraints (test_recommender_constraints.ConstraintTests.test_missing_and_multiple_constraints) ... ok
 test_p50_scoring_does_not_change_p95_constraint (test_recommender_constraints.ConstraintTests.test_p50_scoring_does_not_change_p95_constraint) ... ok
 test_bad_output_and_state_are_excluded_without_discarding_trials (test_recommender_default_execution.DefaultExecution.test_bad_output_and_state_are_excluded_without_discarding_trials) ... ok
-test_cleanup_failure_resume_retries_only_cleanup (test_recommender_default_execution.DefaultExecution.test_cleanup_failure_resume_retries_only_cleanup) ... 
+test_cleanup_failure_resume_retries_only_cleanup (test_recommender_default_execution.DefaultExecution.test_cleanup_failure_resume_retries_only_cleanup) ...
 Running node: 0, name: start, type: logic, time: 0.0
 Running node: 1, name: tool.run, type: tool_use, time: 0.1
 [export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpkhp1wrjg/artifacts/exp-10d507fd3a73782bca14/candidates/candidate-be6a00c7edfdd8e5/runs/aws_lambda/bundle/run-e5d1f46a5bd290a0-11ba354d7bbc/run.log
@@ -2094,7 +2094,7 @@ Running node: 1, name: tool.run, type: tool_use, time: 0.1
 [export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1d9un_i6/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-e20f7c9ab8e37411-c023a9175a04/run.logok
 test_default_chain_executes_workflow_oracle_ledger_and_cleanup (test_recommender_default_execution.DefaultExecution.test_default_chain_executes_workflow_oracle_ledger_and_cleanup) ... ok
 test_default_factory_exists_and_has_real_stages (test_recommender_default_execution.DefaultExecution.test_default_factory_exists_and_has_real_stages) ... ok
-test_export_offline_compare_replays_same_protocol_and_simulation_label (test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label) ... 
+test_export_offline_compare_replays_same_protocol_and_simulation_label (test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label) ...
 Running node: 0, name: start, type: logic, time: 0.0
 Running node: 1, name: tool.run, type: tool_use, time: 0.1
 [export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1d9un_i6/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-773c2c6f00b7f8b7-cc97872935a9/run.log
@@ -2362,7 +2362,7 @@ Traceback (most recent call last):
   File "/Users/woon/Project/ATSuite/.venv/lib/python3.12/site-packages/playwright/_impl/_assertions.py", line 85, in _expect_impl
     raise AssertionError(
 AssertionError: Locator expected to have count '2'
-Actual value: 1 
+Actual value: 1
 Call log:
   - Expect "to_have_count" with timeout 5000ms
   - waiting for locator("#repriceVersion option")

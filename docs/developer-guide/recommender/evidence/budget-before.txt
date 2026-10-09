@@ -1,0 +1,17 @@
+test_durable_reservation_and_cleanup_reserve (tests.test_recommender_budget_cleanup_contract.BudgetCleanupContract.test_durable_reservation_and_cleanup_reserve) ... ok
+test_trial_and_candidate_quota_before_dispatch (tests.test_recommender_budget_cleanup_contract.BudgetCleanupContract.test_trial_and_candidate_quota_before_dispatch) ... FAIL
+test_ttl_reconciler_cannot_delete_under_live_lease (tests.test_recommender_budget_cleanup_contract.BudgetCleanupContract.test_ttl_reconciler_cannot_delete_under_live_lease) ... ok
+
+======================================================================
+FAIL: test_trial_and_candidate_quota_before_dispatch (tests.test_recommender_budget_cleanup_contract.BudgetCleanupContract.test_trial_and_candidate_quota_before_dispatch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_budget_cleanup_contract.py", line 14, in test_trial_and_candidate_quota_before_dispatch
+    with self.assertRaisesRegex(RuntimeError,'trial budget'):budget.reserve(reservation_id='b',trials=1)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: RuntimeError not raised
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.014s
+
+FAILED (failures=1)

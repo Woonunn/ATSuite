@@ -1,0 +1,39 @@
+test_missing_component_is_not_observed_zero (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_missing_component_is_not_observed_zero) ... FAIL
+test_missing_log_group_has_no_billable_zero (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_missing_log_group_has_no_billable_zero) ... FAIL
+test_real_zero_component_retains_observed_identity (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_real_zero_component_retains_observed_identity) ... ERROR
+
+======================================================================
+ERROR: test_real_zero_component_retains_observed_identity (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_real_zero_component_retains_observed_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_agentcore_missing_usage.py", line 26, in test_real_zero_component_retains_observed_identity
+    self.assertEqual(value['provider_meter_ids'],['meter-1'])
+                     ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'provider_meter_ids'
+
+======================================================================
+FAIL: test_missing_component_is_not_observed_zero (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_missing_component_is_not_observed_zero)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_agentcore_missing_usage.py", line 17, in test_missing_component_is_not_observed_zero
+    self.assertIsNone(value.get('memory_gb_hours'))
+AssertionError: 0.0 is not None
+
+======================================================================
+FAIL: test_missing_log_group_has_no_billable_zero (tests.test_recommender_agentcore_missing_usage.AgentCoreMissingUsage.test_missing_log_group_has_no_billable_zero)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_agentcore_missing_usage.py", line 21, in test_missing_log_group_has_no_billable_zero
+    self.assertIsNone(value.get('vcpu_hours'));self.assertIsNone(value.get('memory_gb_hours'))
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.0 is not None
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=2, errors=1)
+    [usage-logs] Log group: group
+    [usage-logs] Session ID: s
+    [usage-logs] No AgentCore usage log groups found for runtime_id 'r' in region 'us-east-1'
+    [usage-logs] Log group: group
+    [usage-logs] Session ID: s

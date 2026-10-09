@@ -1,0 +1,48 @@
+test_untracked_bundle_injection_is_rejected (tests.test_recommender_default_execution.DefaultExecution.test_untracked_bundle_injection_is_rejected) ... FAIL
+
+======================================================================
+FAIL: test_untracked_bundle_injection_is_rejected (tests.test_recommender_default_execution.DefaultExecution.test_untracked_bundle_injection_is_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 93, in test_untracked_bundle_injection_is_rejected
+    self.assertEqual(result['state'],'FAILED');self.assertIn('frozen_bundle_changed',result['error'])
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'COMPLETED' != 'FAILED'
+- COMPLETED
++ FAILED
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.358s
+
+FAILED (failures=1)
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-e4de0e38fe1c38c7-6c1665df5c6b/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-3b582fd04ff828e7-5dffe4d203b7/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-28232c0b43401646-b39569868d32/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-0b05f995913088ed-72540d51b725/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-872600081e9a384c-328c10d30286/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-2e06a30a5307ffd5-d0849d830073/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-c4153f1abb64571e-1f67726cdbd7/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-3914c29035d041a7-af3d6c54f98a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-ea1e038fe79ecea2-e3c76fd67d54/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp8haul8zf/plan/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-93c3cb81f26abc01-61d15123eee4/run.log

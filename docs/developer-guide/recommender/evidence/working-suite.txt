@@ -1,0 +1,381 @@
+test_agentcore_collector_joins_breakdown_by_call_id (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_agentcore_collector_joins_breakdown_by_call_id) ... ok
+test_agentcore_usage_uses_session_id_from_invocations (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_agentcore_usage_uses_session_id_from_invocations) ... ok
+test_agentcore_wait_polls_until_usage_logs_are_ready (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_agentcore_wait_polls_until_usage_logs_are_ready) ... ok
+test_ali_collector_joins_sls_metrics_and_sdk_breakdown (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_ali_collector_joins_sls_metrics_and_sdk_breakdown) ... ok
+test_aws_lambda_collector_populates_breakdown_and_provider_timestamps (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_aws_lambda_collector_populates_breakdown_and_provider_timestamps) ... ok
+test_gcp_collector_indexes_trace_join_and_breakdown (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_gcp_collector_indexes_trace_join_and_breakdown) ... ok
+test_gcp_pricing_uses_100ms_request_rounding (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_gcp_pricing_uses_100ms_request_rounding) ... ok
+test_noop_collector_uses_runtime_invocation_metadata (test_analysis_v2.AnalysisV2CollectorAndPricingTests.test_noop_collector_uses_runtime_invocation_metadata) ... ok
+test_analyze_events_exports_v2_report_and_full_evidence_jsonl (test_analysis_v2.AnalysisV2PipelineTests.test_analyze_events_exports_v2_report_and_full_evidence_jsonl) ... ok
+test_analyze_recorder_delegates_ingestion_wait_to_collector (test_analysis_v2.AnalysisV2PipelineTests.test_analyze_recorder_delegates_ingestion_wait_to_collector) ... ok
+test_recorder_is_thread_safe_and_roundtrips_events (test_analysis_v2.AnalysisV2RecorderTests.test_recorder_is_thread_safe_and_roundtrips_events) ... ok
+test_timeline_builder_emits_client_only_trace_with_missing_cloud_diagnostic (test_analysis_v2.AnalysisV2TimelineTests.test_timeline_builder_emits_client_only_trace_with_missing_cloud_diagnostic) ... ok
+test_timeline_builder_preserves_overlapping_client_lanes (test_analysis_v2.AnalysisV2TimelineTests.test_timeline_builder_preserves_overlapping_client_lanes) ... ok
+test_invoker_no_longer_mentions_provider_specific_analyzer_hooks (test_analysis_v2.InvokerAnalyzerBoundaryTests.test_invoker_no_longer_mentions_provider_specific_analyzer_hooks) ... ok
+test_run_trace_returns_compact_v2_result_with_universal_call_id (test_analysis_v2.InvokerAnalyzerBoundaryTests.test_run_trace_returns_compact_v2_result_with_universal_call_id) ... ok
+test_function_breakdown_payload_contains_absolute_wall_timestamps (test_analysis_v2.SDKBreakdownTimestampTests.test_function_breakdown_payload_contains_absolute_wall_timestamps) ... ok
+test_mcp_breakdown_payload_contains_absolute_wall_timestamps (test_analysis_v2.SDKBreakdownTimestampTests.test_mcp_breakdown_payload_contains_absolute_wall_timestamps) ... ok
+test_aws_agentcore_falls_back_to_docker_build_when_buildx_missing (test_build_cli.BuildDockerImagesTests.test_aws_agentcore_falls_back_to_docker_build_when_buildx_missing) ... ok
+test_system_packages_are_opt_in_build_args (test_build_cli.BuildDockerImagesTests.test_system_packages_are_opt_in_build_args) ... ok
+test_gateway_only_when_requested (test_recommend_cli.CliTests.test_gateway_only_when_requested) ... ok
+test_legacy_options_create_frozen_plan_without_cloud_writes (test_recommend_cli.CliTests.test_legacy_options_create_frozen_plan_without_cloud_writes) ... ok
+test_queue_requires_actual_budget_approval (test_recommend_cli.CliTests.test_queue_requires_actual_budget_approval) ... ok
+test_subprocess_stdout_is_redirected (test_recommend_cli.CliTests.test_subprocess_stdout_is_redirected) ... ok
+test_validation_errors (test_recommend_cli.CliTests.test_validation_errors) ... ok
+test_budget_rejection_prevents_api_call (test_recommender_advisor_workflow.AdvisorContracts.test_budget_rejection_prevents_api_call) ... ok
+test_claim_values_units_scope_and_currency_are_checked (test_recommender_advisor_workflow.AdvisorContracts.test_claim_values_units_scope_and_currency_are_checked) ... ok
+test_explicit_constraints_remain_strict (test_recommender_advisor_workflow.AdvisorContracts.test_explicit_constraints_remain_strict) ... ok
+test_prompt_secrets_removed_and_instructions_stay_user_content (test_recommender_advisor_workflow.AdvisorContracts.test_prompt_secrets_removed_and_instructions_stay_user_content) ... ok
+test_proposals_validated_and_cannot_expand_scope (test_recommender_advisor_workflow.AdvisorContracts.test_proposals_validated_and_cannot_expand_scope) ... ok
+test_recursive_secrets_removed (test_recommender_advisor_workflow.AdvisorRegressions.test_recursive_secrets_removed) ... ok
+test_seconds_are_converted (test_recommender_advisor_workflow.AdvisorRegressions.test_seconds_are_converted) ... ok
+test_client_headers_do_not_grant_admin_or_change_tenant (test_recommender_api_authorization.ControlPlaneRegressionTests.test_client_headers_do_not_grant_admin_or_change_tenant) ... INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 200 OK"
+ok
+test_failed_archive_leaves_no_partial_executable_content (test_recommender_api_authorization.ControlPlaneRegressionTests.test_failed_archive_leaves_no_partial_executable_content) ... ok
+test_nested_reference_validation_is_transactional (test_recommender_api_authorization.ControlPlaneRegressionTests.test_nested_reference_validation_is_transactional) ... ok
+test_production_and_non_loopback_fail_closed (test_recommender_api_authorization.ControlPlaneRegressionTests.test_production_and_non_loopback_fail_closed) ... INFO:httpx:HTTP Request: GET http://evil.example/api/v1/principal "HTTP/1.1 403 Forbidden"
+ok
+test_production_api_requires_extra_approval_and_preserves_experiment (test_recommender_api_authorization.ControlPlaneRegressionTests.test_production_api_requires_extra_approval_and_preserves_experiment) ... INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/plan "HTTP/1.1 409 Conflict"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/plan "HTTP/1.1 201 Created"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/apply "HTTP/1.1 403 Forbidden"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/approve "HTTP/1.1 201 Created"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/apply "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/apply "HTTP/1.1 403 Forbidden"
+ok
+test_production_health_failure_rolls_back_exact_snapshot (test_recommender_api_authorization.ControlPlaneRegressionTests.test_production_health_failure_rolls_back_exact_snapshot) ... ok
+test_scoped_tokens_expiry_audience_and_viewer_permissions (test_recommender_api_authorization.ControlPlaneRegressionTests.test_scoped_tokens_expiry_audience_and_viewer_permissions) ... INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/benchmarks "HTTP/1.1 403 Forbidden"
+ok
+test_upload_limit_checks_stream_without_publishing (test_recommender_api_authorization.ControlPlaneRegressionTests.test_upload_limit_checks_stream_without_publishing) ... INFO:httpx:HTTP Request: POST http://localhost/api/v1/benchmarks "HTTP/1.1 413 Request Entity Too Large"
+ok
+test_web_plan_refuses_arbitrary_server_file (test_recommender_api_authorization.ControlPlaneRegressionTests.test_web_plan_refuses_arbitrary_server_file) ... INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments/plan "HTTP/1.1 400 Bad Request"
+ok
+test_base_digest_changes_build_key_without_resource_fields (test_recommender_base_images.BaseImages.test_base_digest_changes_build_key_without_resource_fields) ... ok
+test_tag_is_frozen_to_concrete_platform_digest (test_recommender_base_images.BaseImages.test_tag_is_frozen_to_concrete_platform_digest) ... ok
+test_wrong_platform_and_short_hash_are_rejected (test_recommender_base_images.BaseImages.test_wrong_platform_and_short_hash_are_rejected) ... ok
+test_browser_cancellation_failed_cleanup_and_resume (test_recommender_browser_e2e.BrowserWorkflowTests.test_browser_cancellation_failed_cleanup_and_resume) ... skipped 'explicit real browser E2E opt-in'
+test_browser_reports_real_authentication_failure (test_recommender_browser_e2e.BrowserWorkflowTests.test_browser_reports_real_authentication_failure) ... skipped 'explicit real browser E2E opt-in'
+test_upload_plan_approval_queue_polling_worker_evidence_and_exports (test_recommender_browser_e2e.BrowserWorkflowTests.test_upload_plan_approval_queue_polling_worker_evidence_and_exports) ... skipped 'explicit real browser E2E opt-in'
+test_durable_reservation_and_cleanup_reserve (test_recommender_budget_cleanup_contract.BudgetCleanupContract.test_durable_reservation_and_cleanup_reserve) ... ok
+test_trial_and_candidate_quota_before_dispatch (test_recommender_budget_cleanup_contract.BudgetCleanupContract.test_trial_and_candidate_quota_before_dispatch) ... ok
+test_ttl_reconciler_cannot_delete_under_live_lease (test_recommender_budget_cleanup_contract.BudgetCleanupContract.test_ttl_reconciler_cannot_delete_under_live_lease) ... ok
+test_families_and_registry (test_recommender_candidates.CandidateTests.test_families_and_registry) ... ok
+test_filter_gateway_and_unknown_provider (test_recommender_candidates.CandidateTests.test_filter_gateway_and_unknown_provider) ... ok
+test_child_uses_frozen_bundle_and_parent_remains_immutable (test_recommender_child_planning.ChildPlanningTests.test_child_uses_frozen_bundle_and_parent_remains_immutable) ... ok
+test_out_of_scope_missing_targets_and_illegal_resource_proposals_rejected (test_recommender_child_planning.ChildPlanningTests.test_out_of_scope_missing_targets_and_illegal_resource_proposals_rejected) ... ok
+test_proposal_capacity_reserved_without_losing_provider_coverage (test_recommender_child_planning.ChildPlanningTests.test_proposal_capacity_reserved_without_losing_provider_coverage) ... ok
+test_each_threshold_and_boundary (test_recommender_constraints.ConstraintTests.test_each_threshold_and_boundary) ... ok
+test_missing_and_multiple_constraints (test_recommender_constraints.ConstraintTests.test_missing_and_multiple_constraints) ... ok
+test_p50_scoring_does_not_change_p95_constraint (test_recommender_constraints.ConstraintTests.test_p50_scoring_does_not_change_p95_constraint) ... ok
+test_bad_output_and_state_are_excluded_without_discarding_trials (test_recommender_default_execution.DefaultExecution.test_bad_output_and_state_are_excluded_without_discarding_trials) ... ERROR
+test_cleanup_failure_resume_retries_only_cleanup (test_recommender_default_execution.DefaultExecution.test_cleanup_failure_resume_retries_only_cleanup) ... ERROR
+test_default_chain_executes_workflow_oracle_ledger_and_cleanup (test_recommender_default_execution.DefaultExecution.test_default_chain_executes_workflow_oracle_ledger_and_cleanup) ... ERROR
+test_default_factory_exists_and_has_real_stages (test_recommender_default_execution.DefaultExecution.test_default_factory_exists_and_has_real_stages) ... ok
+test_export_offline_compare_replays_same_protocol_and_simulation_label (test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label) ... ERROR
+test_frozen_bundle_changes_are_rejected_before_build (test_recommender_default_execution.DefaultExecution.test_frozen_bundle_changes_are_rejected_before_build) ... ERROR
+test_missing_approval_cannot_be_replaced_by_request_field (test_recommender_default_execution.DefaultExecution.test_missing_approval_cannot_be_replaced_by_request_field) ... ok
+test_publication_failure_never_deploys (test_recommender_default_execution.DefaultExecution.test_publication_failure_never_deploys) ... ERROR
+test_real_cli_queues_and_worker_uses_default_handlers_without_plugin (test_recommender_default_execution.DefaultExecution.test_real_cli_queues_and_worker_uses_default_handlers_without_plugin) ... ERROR
+test_untracked_bundle_injection_is_rejected (test_recommender_default_execution.DefaultExecution.test_untracked_bundle_injection_is_rejected) ... ERROR
+test_canonical_runner_evidence_uses_shared_winner (test_recommender_engine.EngineTests.test_canonical_runner_evidence_uses_shared_winner) ... ok
+test_incomplete_and_constraint_evidence_do_not_become_winners (test_recommender_engine.EngineTests.test_incomplete_and_constraint_evidence_do_not_become_winners) ... ok
+test_legacy_reports_are_readable_but_never_publish_unverified_winner (test_recommender_engine.EngineTests.test_legacy_reports_are_readable_but_never_publish_unverified_winner) ... ok
+test_raw_legacy_runs_recompute_descriptive_scores_without_verification (test_recommender_engine.EngineTests.test_raw_legacy_runs_recompute_descriptive_scores_without_verification) ... ok
+test_validation_before_legacy_execution (test_recommender_engine.EngineTests.test_validation_before_legacy_execution) ... ok
+test_analysis_failure_is_not_a_workflow_failure (test_recommender_evidence.EvidenceTests.test_analysis_failure_is_not_a_workflow_failure) ... ok
+test_build_and_deploy_use_python_apis_and_snapshot_map (test_recommender_evidence.EvidenceTests.test_build_and_deploy_use_python_apis_and_snapshot_map) ... ok
+test_clients_capture_function_and_mcp_business_results (test_recommender_evidence.EvidenceTests.test_clients_capture_function_and_mcp_business_results) ... ok
+test_clients_receive_configured_timeout (test_recommender_evidence.EvidenceTests.test_clients_receive_configured_timeout) ... ok
+test_correctness_hook_uses_captured_business_output (test_recommender_evidence.EvidenceTests.test_correctness_hook_uses_captured_business_output) ... ok
+test_fallbacks_are_unavailable_and_observed_zero_is_available (test_recommender_evidence.EvidenceTests.test_fallbacks_are_unavailable_and_observed_zero_is_available) ... ok
+test_nonfinite_summary_does_not_break_json_export (test_recommender_evidence.EvidenceTests.test_nonfinite_summary_does_not_break_json_export) ... ok
+test_partial_coverage_and_agentcore_missing_usage (test_recommender_evidence.EvidenceTests.test_partial_coverage_and_agentcore_missing_usage) ... ok
+test_real_replay_api_exports_failed_run_and_restores_stdout (test_recommender_evidence.EvidenceTests.test_real_replay_api_exports_failed_run_and_restores_stdout) ... ok
+test_tool_errors_propagate_through_clients (test_recommender_evidence.EvidenceTests.test_tool_errors_propagate_through_clients) ... ok
+test_all_negatives_reason_codes (test_recommender_evidence_eligibility.EvidenceGates.test_all_negatives_reason_codes) ... ok
+test_insufficient_counts_and_bound (test_recommender_evidence_eligibility.EvidenceGates.test_insufficient_counts_and_bound) ... ok
+test_malformed_counts_and_duplicate_ids (test_recommender_evidence_eligibility.EvidenceGates.test_malformed_counts_and_duplicate_ids) ... ok
+test_partial_scope_not_no_feasible (test_recommender_evidence_eligibility.EvidenceGates.test_partial_scope_not_no_feasible) ... ok
+test_real_module_and_two_valid_candidates (test_recommender_evidence_eligibility.EvidenceGates.test_real_module_and_two_valid_candidates) ... ok
+test_tie_and_derived_metrics (test_recommender_evidence_eligibility.EvidenceGates.test_tie_and_derived_metrics) ... ok
+test_cleanup_unsupported_and_failed_are_reported (test_recommender_experiment.ExperimentTests.test_cleanup_unsupported_and_failed_are_reported) ... ok
+test_partial_deployment_failure_and_keep_resources (test_recommender_experiment.ExperimentTests.test_partial_deployment_failure_and_keep_resources) ... ok
+test_repetitions_uid_isolation_failure_and_finally (test_recommender_experiment.ExperimentTests.test_repetitions_uid_isolation_failure_and_finally) ... ok
+test_candidates_are_separate (test_recommender_market_accounting.AccountingRegressions.test_candidates_are_separate) ... ok
+test_each_attempt_rounds_and_empty_refs_do_not_dedupe (test_recommender_market_accounting.AccountingRegressions.test_each_attempt_rounds_and_empty_refs_do_not_dedupe) ... ok
+test_loading_does_not_overwrite_regions (test_recommender_market_accounting.AccountingRegressions.test_loading_does_not_overwrite_regions) ... ok
+test_missing_is_not_zero (test_recommender_market_accounting.AccountingRegressions.test_missing_is_not_zero) ... ok
+test_monthly_total_requests_and_idle_units (test_recommender_market_accounting.AccountingRegressions.test_monthly_total_requests_and_idle_units) ... ok
+test_all_attempt_costs_and_success_denominator (test_recommender_market_accounting.CostUncertaintyContracts.test_all_attempt_costs_and_success_denominator) ... ok
+test_unknown_cost_is_not_zero_in_bootstrap (test_recommender_market_accounting.CostUncertaintyContracts.test_unknown_cost_is_not_zero_in_bootstrap) ... ok
+test_zero_success_bootstrap_draws_stay_unbounded (test_recommender_market_accounting.CostUncertaintyContracts.test_zero_success_bootstrap_draws_stay_unbounded) ... ok
+test_analyzer_usage_uses_actual_aws_billing_not_defaults (test_recommender_market_accounting.DefaultMarketServiceContracts.test_analyzer_usage_uses_actual_aws_billing_not_defaults) ... ok
+test_confirmation_scope_does_not_bill_warmup_as_production (test_recommender_market_accounting.DefaultMarketServiceContracts.test_confirmation_scope_does_not_bill_warmup_as_production) ... ok
+test_default_freeze_contract_covers_six_runtime_selectors (test_recommender_market_accounting.DefaultMarketServiceContracts.test_default_freeze_contract_covers_six_runtime_selectors) ... ok
+test_online_failure_never_static_fallback (test_recommender_market_accounting.DefaultMarketServiceContracts.test_online_failure_never_static_fallback) ... ok
+test_unknown_bounds_prevent_paid_dispatch (test_recommender_market_accounting.DefaultMarketServiceContracts.test_unknown_bounds_prevent_paid_dispatch) ... ok
+test_account_tiers_do_not_reset_for_each_candidate (test_recommender_market_accounting.FullAccountingContracts.test_account_tiers_do_not_reset_for_each_candidate) ... ok
+test_actual_meter_dedup_and_failures_kept (test_recommender_market_accounting.FullAccountingContracts.test_actual_meter_dedup_and_failures_kept) ... ok
+test_candidates_are_separate (test_recommender_market_accounting.FullAccountingContracts.test_candidates_are_separate) ... ok
+test_each_attempt_rounds_and_empty_refs_do_not_dedupe (test_recommender_market_accounting.FullAccountingContracts.test_each_attempt_rounds_and_empty_refs_do_not_dedupe) ... ok
+test_ecb_preserves_publication_date_and_rejects_entities (test_recommender_market_accounting.FullAccountingContracts.test_ecb_preserves_publication_date_and_rejects_entities) ... ok
+test_explicit_conversion (test_recommender_market_accounting.FullAccountingContracts.test_explicit_conversion) ... ok
+test_loading_does_not_overwrite_regions (test_recommender_market_accounting.FullAccountingContracts.test_loading_does_not_overwrite_regions) ... ok
+test_missing_is_not_zero (test_recommender_market_accounting.FullAccountingContracts.test_missing_is_not_zero) ... ok
+test_monthly_total_requests_and_idle_units (test_recommender_market_accounting.FullAccountingContracts.test_monthly_total_requests_and_idle_units) ... ok
+test_price_content_changes_snapshot_identity (test_recommender_market_accounting.FullAccountingContracts.test_price_content_changes_snapshot_identity) ... ok
+test_region_selector_and_ambiguity (test_recommender_market_accounting.FullAccountingContracts.test_region_selector_and_ambiguity) ... ok
+test_reprice_callback_versions_candidates_immutably (test_recommender_market_accounting.FullAccountingContracts.test_reprice_callback_versions_candidates_immutably) ... ok
+test_stale_fx_is_checked_at_use (test_recommender_market_accounting.FullAccountingContracts.test_stale_fx_is_checked_at_use) ... ok
+test_legacy_zero_is_unknown (test_recommender_metrics.MetricsTests.test_legacy_zero_is_unknown) ... ok
+test_run_failures_warmups_missing_fx_and_partial (test_recommender_metrics.MetricsTests.test_run_failures_warmups_missing_fx_and_partial) ... ok
+test_statistics_and_outliers (test_recommender_metrics.MetricsTests.test_statistics_and_outliers) ... ok
+test_validation (test_recommender_model.ModelTests.test_validation) ... ok
+test_currency (test_recommender_normalize.NormalizeTests.test_currency) ... ok
+test_min_max (test_recommender_normalize.NormalizeTests.test_min_max) ... ok
+test_real_registered_tools_restore_state_per_uid_and_oracle_rejects_corruption (test_recommender_oracle_benchmark.OracleBenchmarkTests.test_real_registered_tools_restore_state_per_uid_and_oracle_rejects_corruption) ... ok
+test_workflow_routes_same_logical_domain_for_faas_and_session (test_recommender_oracle_benchmark.OracleBenchmarkTests.test_workflow_routes_same_logical_domain_for_faas_and_session) ... ok
+test_ties_and_missing_evidence_are_not_dominance (test_recommender_pareto.ParetoTests.test_ties_and_missing_evidence_are_not_dominance) ... ok
+test_tradeoffs_and_dominance (test_recommender_pareto.ParetoTests.test_tradeoffs_and_dominance) ... ok
+test_recursive_tree_digest_and_explicit_artifact_reference (test_recommender_platform.ArtifactIdentityTests.test_recursive_tree_digest_and_explicit_artifact_reference) ... ok
+test_plan_queue_compare_dataset_and_manual_fx_commands (test_recommender_platform.CliWorkflowTests.test_plan_queue_compare_dataset_and_manual_fx_commands) ... ok
+test_safe_zip_upload_rejects_traversal_and_symlink (test_recommender_platform.ControlPlaneSecurityTests.test_safe_zip_upload_rejects_traversal_and_symlink) ... ok
+test_store_idempotency_and_tenant_artifact_ownership (test_recommender_platform.ControlPlaneSecurityTests.test_store_idempotency_and_tenant_artifact_ownership) ... ok
+test_decision_statuses_and_fixed_anchor_invariance (test_recommender_platform.DecisionAndModelEdgeTests.test_decision_statuses_and_fixed_anchor_invariance) ... ok
+test_grouped_time_split_and_predictor_ood (test_recommender_platform.DecisionAndModelEdgeTests.test_grouped_time_split_and_predictor_ood) ... ok
+test_advisor_falls_back_and_verifier_rejects_invented_facts (test_recommender_platform.MarketDecisionAdvisorTests.test_advisor_falls_back_and_verifier_rejects_invented_facts) ... ok
+test_fixed_anchor_decision_and_search_coverage (test_recommender_platform.MarketDecisionAdvisorTests.test_fixed_anchor_decision_and_search_coverage) ... ok
+test_market_adapters_parse_pagination_tiers_and_failures (test_recommender_platform.MarketDecisionAdvisorTests.test_market_adapters_parse_pagination_tiers_and_failures) ... ok
+test_control_plane_idempotency_origin_tenant_and_artifacts (test_recommender_platform.OptionalIntegrationTests.test_control_plane_idempotency_origin_tenant_and_artifacts) ... ok
+test_openai_advisor_uses_structured_outputs_and_redacts_catalog (test_recommender_platform.OptionalIntegrationTests.test_openai_advisor_uses_structured_outputs_and_redacts_catalog) ... ok
+test_experiment_job_stages_and_failure_are_persistent (test_recommender_platform.PlanExecutionTests.test_experiment_job_stages_and_failure_are_persistent) ... ok
+test_materialized_plan_preserves_source_paths_and_build_reuse (test_recommender_platform.PlanExecutionTests.test_materialized_plan_preserves_source_paths_and_build_reuse) ... ok
+test_candidate_identity_and_lambda_capability (test_recommender_platform.RecommenderPlatformTests.test_candidate_identity_and_lambda_capability) ... ok
+test_decimal_billing_fx_and_deduplication (test_recommender_platform.RecommenderPlatformTests.test_decimal_billing_fx_and_deduplication) ... ok
+test_job_store_events_and_idempotent_state_data (test_recommender_platform.RecommenderPlatformTests.test_job_store_events_and_idempotent_state_data) ... ok
+test_plan_is_bounded_and_keeps_unverified_state (test_recommender_platform.RecommenderPlatformTests.test_plan_is_bounded_and_keeps_unverified_state) ... ok
+test_reprice_recomputes_immutable_usage_ledger (test_recommender_platform.RecommenderPlatformTests.test_reprice_recomputes_immutable_usage_ledger) ... ok
+test_state_identity_is_strict_and_uids_do_not_overlap (test_recommender_platform.RecommenderPlatformTests.test_state_identity_is_strict_and_uids_do_not_overlap) ... ok
+test_statistics_and_predictor_labels (test_recommender_platform.RecommenderPlatformTests.test_statistics_and_predictor_labels) ... ok
+test_strict_contracts_and_fractional_cpu (test_recommender_platform.RecommenderPlatformTests.test_strict_contracts_and_fractional_cpu) ... ok
+test_topology_generation_and_compilation (test_recommender_platform.RecommenderPlatformTests.test_topology_generation_and_compilation) ... ok
+test_live_independent_connections_fence_workers (test_recommender_postgres_store.PostgresStoreContractTests.test_live_independent_connections_fence_workers) ... skipped 'PostgreSQL service not configured'
+test_sqlite_factory_preserves_default_local_execution (test_recommender_postgres_store.PostgresStoreContractTests.test_sqlite_factory_preserves_default_local_execution) ... ok
+test_upserts_placeholders_schema_and_transaction_lock (test_recommender_postgres_store.PostgresStoreContractTests.test_upserts_placeholders_schema_and_transaction_lock) ... ok
+test_competing_provider_coverage_precedes_prediction (test_recommender_prediction_acquisition.AcquisitionContracts.test_competing_provider_coverage_precedes_prediction) ... ok
+test_family_and_time_splits_do_not_leak (test_recommender_prediction_acquisition.AcquisitionContracts.test_family_and_time_splits_do_not_leak) ... ok
+test_ood_and_error_really_use_grid (test_recommender_prediction_acquisition.AcquisitionContracts.test_ood_and_error_really_use_grid) ... ok
+test_prediction_changes_next_pick_and_is_audited (test_recommender_prediction_acquisition.AcquisitionContracts.test_prediction_changes_next_pick_and_is_audited) ... ok
+test_synthetic_evaluation_never_marks_real_quality (test_recommender_prediction_acquisition.AcquisitionContracts.test_synthetic_evaluation_never_marks_real_quality) ... ok
+test_mapping_candidates_keep_resources (test_recommender_prediction_acquisition.PredictionRegressions.test_mapping_candidates_keep_resources) ... ok
+test_provider_features_differ (test_recommender_prediction_acquisition.PredictionRegressions.test_provider_features_differ) ... ok
+test_agentcore_strict_conflict_never_updates_foreign_runtime (test_recommender_provider_options.ProviderOptionsTests.test_agentcore_strict_conflict_never_updates_foreign_runtime) ... ok
+test_ali_creation_identity_and_failures_are_real_failures (test_recommender_provider_options.ProviderOptionsTests.test_ali_creation_identity_and_failures_are_real_failures) ... ok
+test_cloud_run_readback_normalizes_units_and_does_not_impute_unknown (test_recommender_provider_options.ProviderOptionsTests.test_cloud_run_readback_normalizes_units_and_does_not_impute_unknown) ... ok
+test_gcp_fractional_cpu_options_and_no_silent_timeout_clamp (test_recommender_provider_options.ProviderOptionsTests.test_gcp_fractional_cpu_options_and_no_silent_timeout_clamp) ... ok
+test_gcp_strict_conflict_refuses_existing_unowned_resource (test_recommender_provider_options.ProviderOptionsTests.test_gcp_strict_conflict_refuses_existing_unowned_resource) ... ok
+test_lambda_creation_propagates_architecture_identity_tags (test_recommender_provider_options.ProviderOptionsTests.test_lambda_creation_propagates_architecture_identity_tags) ... ok
+test_lambda_readback_derives_cpu_from_observation_and_keeps_actual_digest (test_recommender_provider_options.ProviderOptionsTests.test_lambda_readback_derives_cpu_from_observation_and_keeps_actual_digest) ... ok
+test_lambda_strict_does_not_mutate_customer_function_or_role (test_recommender_provider_options.ProviderOptionsTests.test_lambda_strict_does_not_mutate_customer_function_or_role) ... ok
+test_invalid_digest_is_rejected (test_recommender_publication_isolation.ArtifactIsolation.test_invalid_digest_is_rejected) ... ok
+test_source_and_dependency_changes_invalidate_build (test_recommender_publication_isolation.ArtifactIsolation.test_source_and_dependency_changes_invalidate_build) ... ok
+test_ali_adapter_modes_and_steps (test_recommender_resource_search.ResourceSearchTests.test_ali_adapter_modes_and_steps) ... ok
+test_exact_family_baselines_round_robin_and_local_resources (test_recommender_resource_search.ResourceSearchTests.test_exact_family_baselines_round_robin_and_local_resources) ... ok
+test_gcp_fractional_limits_and_modes (test_recommender_resource_search.ResourceSearchTests.test_gcp_fractional_limits_and_modes) ... ok
+test_legal_lambda_unsampled_baseline (test_recommender_resource_search.ResourceSearchTests.test_legal_lambda_unsampled_baseline) ... ok
+test_missing_resources_not_filled_and_no_effective_fabrication (test_recommender_resource_search.ResourceSearchTests.test_missing_resources_not_filled_and_no_effective_fabrication) ... ok
+test_region_and_deployment_options_survive_resolution_and_no_cache_staleness (test_recommender_resource_search.ResourceSearchTests.test_region_and_deployment_options_survive_resolution_and_no_cache_staleness) ... ok
+test_three_heterogeneous_targets_change_one_coordinate (test_recommender_resource_search.ResourceSearchTests.test_three_heterogeneous_targets_change_one_coordinate) ... ok
+test_resume_never_repeats_successful_stage (test_recommender_resume_cancel_cleanup.DurableJobs.test_resume_never_repeats_successful_stage) ... ok
+test_two_connections_cannot_claim_same_job (test_recommender_resume_cancel_cleanup.DurableJobs.test_two_connections_cannot_claim_same_job) ... ok
+test_explicit_latency_constraint_requires_latency (test_recommender_review_regressions.ReviewRegressions.test_explicit_latency_constraint_requires_latency) ... ok
+test_failed_output_must_not_win (test_recommender_review_regressions.ReviewRegressions.test_failed_output_must_not_win) ... ok
+test_mixed_currencies_require_normalization (test_recommender_review_regressions.ReviewRegressions.test_mixed_currencies_require_normalization) ... ok
+test_zero_samples_must_not_be_verified (test_recommender_review_regressions.ReviewRegressions.test_zero_samples_must_not_be_verified) ... ok
+test_best_and_tradeoff_weights (test_recommender_scoring.ScoringTests.test_best_and_tradeoff_weights) ... ok
+test_confidence_variance_missing_metrics_diagnostics_and_margin (test_recommender_scoring.ScoringTests.test_confidence_variance_missing_metrics_diagnostics_and_margin) ... ok
+test_deterministic_ties_and_confidence (test_recommender_scoring.ScoringTests.test_deterministic_ties_and_confidence) ... ok
+test_invalid_weights (test_recommender_scoring.ScoringTests.test_invalid_weights) ... ok
+test_optional_missing_reweight_and_required_invalid (test_recommender_scoring.ScoringTests.test_optional_missing_reweight_and_required_invalid) ... ok
+test_partial_metric_is_never_scored (test_recommender_scoring.ScoringTests.test_partial_metric_is_never_scored) ... ok
+test_tie_break_order_failure_latency_cost_id (test_recommender_scoring.ScoringTests.test_tie_break_order_failure_latency_cost_id) ... ok
+test_configuration_must_be_content_bound (test_recommender_statistical_contract.StatisticalContract.test_configuration_must_be_content_bound) ... ok
+test_forged_p95_cannot_replace_observed_distribution (test_recommender_statistical_contract.StatisticalContract.test_forged_p95_cannot_replace_observed_distribution) ... ok
+test_large_independent_blocks_can_produce_latency_winner (test_recommender_statistical_contract.StatisticalContract.test_large_independent_blocks_can_produce_latency_winner) ... ok
+test_small_fast_sample_cannot_prove_p95_slo (test_recommender_statistical_contract.StatisticalContract.test_small_fast_sample_cannot_prove_p95_slo) ... ok
+test_small_sample_cannot_prove_latency_winner (test_recommender_statistical_contract.StatisticalContract.test_small_sample_cannot_prove_latency_winner) ... ok
+test_bundle_materialization_keeps_data_and_is_frozen (test_recommender_topology_validation.TopologyValidationTests.test_bundle_materialization_keeps_data_and_is_frozen) ... ok
+test_colocate_atoms_unknown_state_and_topology_deduplication (test_recommender_topology_validation.TopologyValidationTests.test_colocate_atoms_unknown_state_and_topology_deduplication) ... ok
+test_duplicate_trace_route_rejected_and_source_not_rewritten (test_recommender_topology_validation.TopologyValidationTests.test_duplicate_trace_route_rejected_and_source_not_rewritten) ... ok
+test_full_constraints_compile_revalidation_and_state_domain_atoms (test_recommender_topology_validation.TopologyValidationTests.test_full_constraints_compile_revalidation_and_state_domain_atoms) ... ok
+test_invalid_topology_not_selected_and_compile_rechecks (test_recommender_topology_validation.TopologyValidationTests.test_invalid_topology_not_selected_and_compile_rechecks) ... ok
+test_metadata_retains_multiple_domains (test_recommender_topology_validation.TopologyValidationTests.test_metadata_retains_multiple_domains) ... ok
+test_tools_realizations_and_mcp_alias_normalized_with_constraints (test_recommender_topology_validation.TopologyValidationTests.test_tools_realizations_and_mcp_alias_normalized_with_constraints) ... ok
+test_unknown_references_and_python_conflicts_block (test_recommender_topology_validation.TopologyValidationTests.test_unknown_references_and_python_conflicts_block) ... ok
+test_faas_read_write_lock_semantics (test_runtime_refactor.AccessSchedulerTests.test_faas_read_write_lock_semantics) ... ok
+test_session_scheduler_is_passthrough (test_runtime_refactor.AccessSchedulerTests.test_session_scheduler_is_passthrough) ... ok
+test_legacy_stateful_maps_to_domain_access (test_runtime_refactor.PipelineSchemaTests.test_legacy_stateful_maps_to_domain_access) ... ok
+test_provider_registry_excludes_local_and_includes_gateway (test_runtime_refactor.PipelineSchemaTests.test_provider_registry_excludes_local_and_includes_gateway) ... ok
+test_sandbox_config_is_unsupported (test_runtime_refactor.PipelineSchemaTests.test_sandbox_config_is_unsupported) ... ok
+test_function_runtime_invokes_with_namespace_session (test_runtime_refactor.RuntimeContractTests.test_function_runtime_invokes_with_namespace_session) ... ok
+test_gateway_registration_consumes_endpoint (test_runtime_refactor.RuntimeContractTests.test_gateway_registration_consumes_endpoint) ... ok
+test_session_runtime_opens_once_and_reuses_client (test_runtime_refactor.RuntimeContractTests.test_session_runtime_opens_once_and_reuses_client) ... ok
+
+======================================================================
+ERROR: test_bad_output_and_state_are_excluded_without_discarding_trials (test_recommender_default_execution.DefaultExecution.test_bad_output_and_state_are_excluded_without_discarding_trials)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 58, in test_bad_output_and_state_are_excluded_without_discarding_trials
+    store,record=self._experiment(Path(tmp),oracle={'type':'exact','expected_output':{'answer':999},'expected_state':{'counter':1}})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+======================================================================
+ERROR: test_cleanup_failure_resume_retries_only_cleanup (test_recommender_default_execution.DefaultExecution.test_cleanup_failure_resume_retries_only_cleanup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 69, in test_cleanup_failure_resume_retries_only_cleanup
+    backend=FakeExecutionBackend(fail_cleanup=True);store,record=self._experiment(Path(tmp))
+                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+======================================================================
+ERROR: test_default_chain_executes_workflow_oracle_ledger_and_cleanup (test_recommender_default_execution.DefaultExecution.test_default_chain_executes_workflow_oracle_ledger_and_cleanup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 35, in test_default_chain_executes_workflow_oracle_ledger_and_cleanup
+    root=Path(tmp);backend=FakeExecutionBackend();store,record=self._experiment(root)
+                                                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+======================================================================
+ERROR: test_export_offline_compare_replays_same_protocol_and_simulation_label (test_recommender_default_execution.DefaultExecution.test_export_offline_compare_replays_same_protocol_and_simulation_label)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 100, in test_export_offline_compare_replays_same_protocol_and_simulation_label
+    store,record=self._experiment(Path(tmp));result=run(store,record['id'],backend=FakeExecutionBackend())
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+======================================================================
+ERROR: test_frozen_bundle_changes_are_rejected_before_build (test_recommender_default_execution.DefaultExecution.test_frozen_bundle_changes_are_rejected_before_build)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 80, in test_frozen_bundle_changes_are_rejected_before_build
+    backend=FakeExecutionBackend();store,record=self._experiment(Path(tmp))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+======================================================================
+ERROR: test_publication_failure_never_deploys (test_recommender_default_execution.DefaultExecution.test_publication_failure_never_deploys)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 51, in test_publication_failure_never_deploys
+    backend=FakeExecutionBackend(fail_publish=True);store,record=self._experiment(Path(tmp))
+                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+======================================================================
+ERROR: test_real_cli_queues_and_worker_uses_default_handlers_without_plugin (test_recommender_default_execution.DefaultExecution.test_real_cli_queues_and_worker_uses_default_handlers_without_plugin)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 113, in test_real_cli_queues_and_worker_uses_default_handlers_without_plugin
+    root=Path(tmp);store,original=self._experiment(root);store.close()
+                                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+======================================================================
+ERROR: test_untracked_bundle_injection_is_rejected (test_recommender_default_execution.DefaultExecution.test_untracked_bundle_injection_is_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 90, in test_untracked_bundle_injection_is_rejected
+    backend=FakeExecutionBackend();store,record=self._experiment(Path(tmp))
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/tests/test_recommender_default_execution.py", line 30, in _experiment
+    record=enqueue(store,frozen,approval,subject='s',tenant='t',project='p')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 63, in enqueue
+    validate_approval(store,plan,approval,tenant=tenant,project=project)
+  File "/Users/woon/Project/ATSuite/atsuite/recommender/service.py", line 56, in validate_approval
+    if stored != approval or approval['plan_digest'] != plan_digest(plan): raise ValueError('approval_plan_mismatch')
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: approval_plan_mismatch
+
+----------------------------------------------------------------------
+Ran 210 tests in 5.480s
+
+FAILED (errors=8, skipped=4)
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpor_sjmyo/plan.json
+{"status": "execution_queued", "experiment": "exp-7d9de9c655ca03dbad67b98c", "state": "APPROVED", "store": "/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpor_sjmyo/jobs.sqlite", "candidates": 9}
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpor_sjmyo/comparison.json
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpor_sjmyo/dataset.json
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpor_sjmyo/fx.json
+[AgentCore] Creating Runtime 'atsuite_service'...
+[AgentCore] Container image: repo@sha256:expected
+[AgentCore] Runtime 'atsuite_service' already exists, updating...
+
+
+Success deploy on GCP Cloud Run
+
+
+Lambda Function created successfully
+Lambda Checking if function 'existing' exists...

@@ -1,0 +1,26 @@
+usage: recommender_cloud_acceptance.py [-h] --config CONFIG --provider
+                                       {aws_lambda,aws_agentcore,gcp_faas,gcp_mcp,ali_fc,ali_agentrun}
+                                       --region REGION --account ACCOUNT
+                                       [--market-snapshot MARKET_SNAPSHOT]
+                                       --max-spend MAX_SPEND
+                                       --max-wall-seconds MAX_WALL_SECONDS
+                                       [--confirmation-runs CONFIRMATION_RUNS]
+                                       --output OUTPUT [--confirm-live]
+
+Opt-in real service acceptance. No paid writes without --confirm-live. Run
+separately for each actual service/region/account. Keep original evidence;
+failures are not filtered and every execution uses the built-in
+service/handlers.
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --provider {aws_lambda,aws_agentcore,gcp_faas,gcp_mcp,ali_fc,ali_agentrun}
+  --region REGION
+  --account ACCOUNT
+  --market-snapshot MARKET_SNAPSHOT
+  --max-spend MAX_SPEND
+  --max-wall-seconds MAX_WALL_SECONDS
+  --confirmation-runs CONFIRMATION_RUNS
+  --output OUTPUT
+  --confirm-live        explicit approval for actual billable cloud execution

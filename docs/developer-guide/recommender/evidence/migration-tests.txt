@@ -1,0 +1,53 @@
+test_gateway_only_when_requested (tests.test_recommend_cli.CliTests.test_gateway_only_when_requested) ... ok
+test_legacy_options_create_frozen_plan_without_cloud_writes (tests.test_recommend_cli.CliTests.test_legacy_options_create_frozen_plan_without_cloud_writes) ... ok
+test_queue_requires_actual_budget_approval (tests.test_recommend_cli.CliTests.test_queue_requires_actual_budget_approval) ... ok
+test_subprocess_stdout_is_redirected (tests.test_recommend_cli.CliTests.test_subprocess_stdout_is_redirected) ... ok
+test_validation_errors (tests.test_recommend_cli.CliTests.test_validation_errors) ... ok
+test_canonical_runner_evidence_uses_shared_winner (tests.test_recommender_engine.EngineTests.test_canonical_runner_evidence_uses_shared_winner) ... ok
+test_incomplete_and_constraint_evidence_do_not_become_winners (tests.test_recommender_engine.EngineTests.test_incomplete_and_constraint_evidence_do_not_become_winners) ... ok
+test_legacy_reports_are_readable_but_never_publish_unverified_winner (tests.test_recommender_engine.EngineTests.test_legacy_reports_are_readable_but_never_publish_unverified_winner) ... ok
+test_raw_legacy_runs_recompute_descriptive_scores_without_verification (tests.test_recommender_engine.EngineTests.test_raw_legacy_runs_recompute_descriptive_scores_without_verification) ... ok
+test_validation_before_legacy_execution (tests.test_recommender_engine.EngineTests.test_validation_before_legacy_execution) ... ok
+test_recursive_tree_digest_and_explicit_artifact_reference (tests.test_recommender_platform.ArtifactIdentityTests.test_recursive_tree_digest_and_explicit_artifact_reference) ... ok
+test_plan_queue_compare_dataset_and_manual_fx_commands (tests.test_recommender_platform.CliWorkflowTests.test_plan_queue_compare_dataset_and_manual_fx_commands) ... ok
+test_safe_zip_upload_rejects_traversal_and_symlink (tests.test_recommender_platform.ControlPlaneSecurityTests.test_safe_zip_upload_rejects_traversal_and_symlink) ... ok
+test_store_idempotency_and_tenant_artifact_ownership (tests.test_recommender_platform.ControlPlaneSecurityTests.test_store_idempotency_and_tenant_artifact_ownership) ... ok
+test_decision_statuses_and_fixed_anchor_invariance (tests.test_recommender_platform.DecisionAndModelEdgeTests.test_decision_statuses_and_fixed_anchor_invariance) ... ok
+test_grouped_time_split_and_predictor_ood (tests.test_recommender_platform.DecisionAndModelEdgeTests.test_grouped_time_split_and_predictor_ood) ... ok
+test_advisor_falls_back_and_verifier_rejects_invented_facts (tests.test_recommender_platform.MarketDecisionAdvisorTests.test_advisor_falls_back_and_verifier_rejects_invented_facts) ... ok
+test_fixed_anchor_decision_and_search_coverage (tests.test_recommender_platform.MarketDecisionAdvisorTests.test_fixed_anchor_decision_and_search_coverage) ... ok
+test_market_adapters_parse_pagination_tiers_and_failures (tests.test_recommender_platform.MarketDecisionAdvisorTests.test_market_adapters_parse_pagination_tiers_and_failures) ... ok
+test_control_plane_idempotency_origin_tenant_and_artifacts (tests.test_recommender_platform.OptionalIntegrationTests.test_control_plane_idempotency_origin_tenant_and_artifacts) ... INFO:httpx:HTTP Request: GET http://localhost/ "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/benchmarks "HTTP/1.1 201 Created"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments/plan "HTTP/1.1 403 Forbidden"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments "HTTP/1.1 202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments "HTTP/1.1 202 Accepted"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments "HTTP/1.1 409 Conflict"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/experiments/exp-d075c167737ebfb8f2f6 "HTTP/1.1 404 Not Found"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/artifacts/artifact-489ad15f777643a1fb4f3c42 "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/artifacts/artifact-489ad15f777643a1fb4f3c42 "HTTP/1.1 404 Not Found"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments/exp-d075c167737ebfb8f2f6/reprice "HTTP/1.1 201 Created"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/artifacts/artifact-02f60f27fe636d8ebb74d9df "HTTP/1.1 200 OK"
+ok
+test_openai_advisor_uses_structured_outputs_and_redacts_catalog (tests.test_recommender_platform.OptionalIntegrationTests.test_openai_advisor_uses_structured_outputs_and_redacts_catalog) ... ok
+test_experiment_job_stages_and_failure_are_persistent (tests.test_recommender_platform.PlanExecutionTests.test_experiment_job_stages_and_failure_are_persistent) ... ok
+test_materialized_plan_preserves_source_paths_and_build_reuse (tests.test_recommender_platform.PlanExecutionTests.test_materialized_plan_preserves_source_paths_and_build_reuse) ... ok
+test_candidate_identity_and_lambda_capability (tests.test_recommender_platform.RecommenderPlatformTests.test_candidate_identity_and_lambda_capability) ... ok
+test_decimal_billing_fx_and_deduplication (tests.test_recommender_platform.RecommenderPlatformTests.test_decimal_billing_fx_and_deduplication) ... ok
+test_job_store_events_and_idempotent_state_data (tests.test_recommender_platform.RecommenderPlatformTests.test_job_store_events_and_idempotent_state_data) ... ok
+test_plan_is_bounded_and_keeps_unverified_state (tests.test_recommender_platform.RecommenderPlatformTests.test_plan_is_bounded_and_keeps_unverified_state) ... ok
+test_reprice_recomputes_immutable_usage_ledger (tests.test_recommender_platform.RecommenderPlatformTests.test_reprice_recomputes_immutable_usage_ledger) ... ok
+test_state_identity_is_strict_and_uids_do_not_overlap (tests.test_recommender_platform.RecommenderPlatformTests.test_state_identity_is_strict_and_uids_do_not_overlap) ... ok
+test_statistics_and_predictor_labels (tests.test_recommender_platform.RecommenderPlatformTests.test_statistics_and_predictor_labels) ... ok
+test_strict_contracts_and_fractional_cpu (tests.test_recommender_platform.RecommenderPlatformTests.test_strict_contracts_and_fractional_cpu) ... ok
+test_topology_generation_and_compilation (tests.test_recommender_platform.RecommenderPlatformTests.test_topology_generation_and_compilation) ... ok
+
+----------------------------------------------------------------------
+Ran 32 tests in 1.687s
+
+OK
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpurdmb3nj/plan.json
+{"status": "execution_queued", "experiment": "exp-003a67aa29a0d044077d363d", "state": "APPROVED", "store": "/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpurdmb3nj/jobs.sqlite", "candidates": 9}
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpurdmb3nj/comparison.json
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpurdmb3nj/dataset.json
+/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpurdmb3nj/fx.json
