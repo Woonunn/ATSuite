@@ -275,6 +275,8 @@ class ExperimentSpec:
             unknown = sorted(set(nested) - allowed)
             if unknown:
                 raise ValueError(f"Unknown fields for {name}: {', '.join(unknown)}")
+        if advisor_data.get('provider','openai') not in {'openai','deepseek'}:
+            raise ValueError('advisor.provider must be openai or deepseek')
         if budget.currency != objective.base_currency:
             raise ValueError("objective.base_currency and budget.currency must match")
         authorization = str(data.get("authorization", cls.authorization))

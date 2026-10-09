@@ -237,6 +237,8 @@ def _new_cli(argv):
 
 
 def main(argv=None):
+    from atsuite.config import load_local_env
+    load_local_env()
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] in {"plan", "run", "resume", "compare", "reprice"}:
         return _new_cli(argv)

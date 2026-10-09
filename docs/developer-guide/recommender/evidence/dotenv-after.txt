@@ -1,0 +1,237 @@
+test_check_loads_file_without_live_call (tests.test_local_env.LocalEnvContracts.test_check_loads_file_without_live_call) ... ok
+test_direct_web_factory_loads_file_without_model_request (tests.test_local_env.LocalEnvContracts.test_direct_web_factory_loads_file_without_model_request) ... ok
+test_entrypoints_load_same_file_even_for_help (tests.test_local_env.LocalEnvContracts.test_entrypoints_load_same_file_even_for_help) ... ok
+test_existing_environment_including_empty_values_wins (tests.test_local_env.LocalEnvContracts.test_existing_environment_including_empty_values_wins) ... ok
+test_explicit_file_and_disabled_loading (tests.test_local_env.LocalEnvContracts.test_explicit_file_and_disabled_loading) ... ok
+test_missing_default_file_is_optional (tests.test_local_env.LocalEnvContracts.test_missing_default_file_is_optional) ... ok
+test_project_file_supports_quoted_values_without_exposing_key (tests.test_local_env.LocalEnvContracts.test_project_file_supports_quoted_values_without_exposing_key) ... ok
+test_working_directory_env_does_not_override_project_file (tests.test_local_env.LocalEnvContracts.test_working_directory_env_does_not_override_project_file) ... ok
+test_configuration_only_never_dispatches_and_missing_key_is_external (tests.test_deepseek_advisor.AdvisorCheckContracts.test_configuration_only_never_dispatches_and_missing_key_is_external) ... ok
+test_live_check_uses_real_sdk_and_requires_valid_response_and_observed_usage (tests.test_deepseek_advisor.AdvisorCheckContracts.test_live_check_uses_real_sdk_and_requires_valid_response_and_observed_usage) ... INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+ok
+test_disabled_advisor_never_calls_api_with_key_and_model_set (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_disabled_advisor_never_calls_api_with_key_and_model_set) ... ok
+test_explicit_empty_model_does_not_inherit_configured_global_model (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_explicit_empty_model_does_not_inherit_configured_global_model) ... ok
+test_missing_deepseek_key_never_uses_openai_key_or_reserves_budget (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_missing_deepseek_key_never_uses_openai_key_or_reserves_budget) ... ok
+test_missing_usage_is_not_zero_cost (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_missing_usage_is_not_zero_cost) ... INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+ok
+test_official_host_key_model_schema_and_usage_through_real_sdk (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_official_host_key_model_schema_and_usage_through_real_sdk) ... INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+ok
+test_provider_is_validated_in_frozen_spec (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_provider_is_validated_in_frozen_spec) ... ok
+test_rejection_timeout_and_truncation_do_not_count_as_live_success (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_rejection_timeout_and_truncation_do_not_count_as_live_success) ... INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+ok
+test_token_budget_rejects_before_http_dispatch (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_token_budget_rejects_before_http_dispatch) ... ok
+test_verified_winner_and_exact_claim_are_accepted_but_override_is_rejected (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_verified_winner_and_exact_claim_are_accepted_but_override_is_rejected) ... INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+ok
+test_default_worker_and_web_use_frozen_provider_and_keep_evidence_gate (tests.test_deepseek_advisor.DeepSeekExecutionContracts.test_default_worker_and_web_use_frozen_provider_and_keep_evidence_gate) ... INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.deepseek.com/responses "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments/exp-fa143ae70b871efc5a336878/advisor "HTTP/1.1 200 OK"
+ok
+test_disabled_web_ignores_configured_key_and_model (tests.test_deepseek_advisor.DeepSeekExecutionContracts.test_disabled_web_ignores_configured_key_and_model) ... INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments/exp-e8379dfb549211149f5619c2/advisor "HTTP/1.1 200 OK"
+ok
+test_budget_rejection_prevents_api_call (tests.test_recommender_advisor_workflow.AdvisorContracts.test_budget_rejection_prevents_api_call) ... ok
+test_claim_values_units_scope_and_currency_are_checked (tests.test_recommender_advisor_workflow.AdvisorContracts.test_claim_values_units_scope_and_currency_are_checked) ... ok
+test_explicit_constraints_remain_strict (tests.test_recommender_advisor_workflow.AdvisorContracts.test_explicit_constraints_remain_strict) ... ok
+test_prompt_secrets_removed_and_instructions_stay_user_content (tests.test_recommender_advisor_workflow.AdvisorContracts.test_prompt_secrets_removed_and_instructions_stay_user_content) ... ok
+test_proposals_validated_and_cannot_expand_scope (tests.test_recommender_advisor_workflow.AdvisorContracts.test_proposals_validated_and_cannot_expand_scope) ... ok
+test_recursive_secrets_removed (tests.test_recommender_advisor_workflow.AdvisorRegressions.test_recursive_secrets_removed) ... ok
+test_seconds_are_converted (tests.test_recommender_advisor_workflow.AdvisorRegressions.test_seconds_are_converted) ... ok
+test_child_deployment_failure_resumes_before_child_pilot (tests.test_recommender_advisor_execution.AdvisorExecutionContracts.test_child_deployment_failure_resumes_before_child_pilot) ... ok
+test_illegal_model_proposal_is_not_executed_and_grid_still_runs (tests.test_recommender_advisor_execution.AdvisorExecutionContracts.test_illegal_model_proposal_is_not_executed_and_grid_still_runs) ... Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-b35c15c3aa7b8c3d-3d84068ea13a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-71bbee34c398b97f-74b95b23ce7c/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/execution/exp-fa143ae70b871efc5a336878/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-e330727148044b19-f6183e812ad7/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/execution/exp-fa143ae70b871efc5a336878/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-a0c83fdf37092b23-2d3ef27ac22d/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/execution/exp-fa143ae70b871efc5a336878/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-66ad4b246cbac88b-72bf155efeae/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-ea0be36cc1cbb30b-a411a40da398/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/execution/exp-fa143ae70b871efc5a336878/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-f0e677f74da869af-b713a6f7fb6a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-864caab3ca076385-662a1764672c/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-c0b6cb8bfaee6ecc-dc8ab3897556/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp1nq4y0sn/plan/execution/exp-fa143ae70b871efc5a336878/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-0dfb9261898e6d05-038c79839ba9/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-1426dfb31d68ec26-be8fe61d3351/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-7bcd12136c7348f9-41f595fcac54/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/execution/exp-2bee273c6efeea188edf4828/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-60f8fcce6905e969-4030307b74ab/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/execution/exp-2bee273c6efeea188edf4828/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-297667936d501af1-c86650729b97/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/execution/exp-2bee273c6efeea188edf4828/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-9e4d06ac9ca86895-d59234f62888/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-d8e2cfe466721841-41427be5f9a8/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/execution/exp-2bee273c6efeea188edf4828/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-cc1294482a4bcd34-642bd25e94cf/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-8992a1bbbb42d26f-5c0c3b7f9f43/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-7784543a7cbf627a-cf1ed25877a3/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmp9n2yy0o5/plan/execution/exp-2bee273c6efeea188edf4828/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-2ac91f65b3bd1ab5-429fb7200513/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-d6b81d713ba360ca-1f0e48eceea1/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-b13f5560e29e8ae7-aa2bb596ec3c/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/execution/exp-2c450a65c4ae9a2568388c50/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-02d8f862915ef773-e005a96a81f0/run.logok
+test_model_new_proposal_executes_only_after_canonical_validation (tests.test_recommender_advisor_execution.AdvisorExecutionContracts.test_model_new_proposal_executes_only_after_canonical_validation) ... ok
+test_no_model_uses_frozen_grid_child_and_full_chain (tests.test_recommender_advisor_execution.AdvisorExecutionContracts.test_no_model_uses_frozen_grid_child_and_full_chain) ...
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/execution/exp-2c450a65c4ae9a2568388c50/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-064d4889e566ab74-426718bbf9e3/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/execution/exp-2c450a65c4ae9a2568388c50/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-d293a22af3e73fda-2ce3cc63c57a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-83bbf0b0c98c587f-7d36eb426ad5/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/execution/exp-2c450a65c4ae9a2568388c50/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-54988d3475e3377a-0ff61bfd485b/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-eac41b5a9efa25af-a9714bdb0003/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-ed50a8b1bc60c237-5f911925af03/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmppqnkktp3/plan/execution/exp-2c450a65c4ae9a2568388c50/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-c47d4f729df52bc2-91d273815fd0/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-46939d9b548549ca-e67b12294c6f/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-e18150af6f648957-96e255f2089a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/execution/exp-ab2832d33526ff47ddf96661/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-da03461f0bb13b5b-da5e1b697f6c/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/execution/exp-ab2832d33526ff47ddf96661/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-3978940505fca8b3-dcad932f3fd7/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/execution/exp-ab2832d33526ff47ddf96661/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-169ae681a8cc705b-13bb57db5b33/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-a8dd1b16c133e023-66fba4baf034/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/execution/exp-ab2832d33526ff47ddf96661/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-e23dfdf5f0acd7a1-c63c673959f5/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-34b90c14dcbe4313-a59c3369410d/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-a90c2c73312d8b37-4469a2474861/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpr9h372bi/plan/execution/exp-ab2832d33526ff47ddf96661/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-192013de6d35c632-113b7e99a9c6/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-0679e94f875b0c7e-8cdeb1cf4a50/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-9ff7a4e9d74f4c39-d42b708b42db/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/execution/exp-ff4c71479170e772308819e8/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-77863b9dc89a5a3d-bae20ae548a3/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/execution/exp-ff4c71479170e772308819e8/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-3077c32de8ec274f-201d2e017d43/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/execution/exp-ff4c71479170e772308819e8/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-7b8f367c78432dc2-231ab0fd865a/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-188a7559f61b0227-ea978193ac54/run.logok
+test_gateway_only_when_requested (tests.test_recommend_cli.CliTests.test_gateway_only_when_requested) ... ok
+test_legacy_options_create_frozen_plan_without_cloud_writes (tests.test_recommend_cli.CliTests.test_legacy_options_create_frozen_plan_without_cloud_writes) ... ok
+test_queue_requires_actual_budget_approval (tests.test_recommend_cli.CliTests.test_queue_requires_actual_budget_approval) ... ok
+test_subprocess_stdout_is_redirected (tests.test_recommend_cli.CliTests.test_subprocess_stdout_is_redirected) ... ok
+test_validation_errors (tests.test_recommend_cli.CliTests.test_validation_errors) ... ok
+test_builtin_lambda_production_adapter_contract (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_builtin_lambda_production_adapter_contract) ... ok
+test_client_headers_do_not_grant_admin_or_change_tenant (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_client_headers_do_not_grant_admin_or_change_tenant) ... INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 200 OK"
+ok
+test_evidence_endpoint_checks_content_hash_and_tenant (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_evidence_endpoint_checks_content_hash_and_tenant) ... INFO:httpx:HTTP Request: GET http://localhost/api/v1/experiments/exp/evidence/sha256:6e33080ef8802e05bf3680ab54afb31b6ee4ae66f128a8e2e51b319e447e274b "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/experiments/exp/evidence/sha256:6e33080ef8802e05bf3680ab54afb31b6ee4ae66f128a8e2e51b319e447e274b "HTTP/1.1 404 Not Found"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/experiments/exp/evidence/sha256:6e33080ef8802e05bf3680ab54afb31b6ee4ae66f128a8e2e51b319e447e274b "HTTP/1.1 409 Conflict"
+ok
+test_failed_archive_leaves_no_partial_executable_content (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_failed_archive_leaves_no_partial_executable_content) ... ok
+test_nested_reference_validation_is_transactional (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_nested_reference_validation_is_transactional) ... ok
+test_production_and_non_loopback_fail_closed (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_production_and_non_loopback_fail_closed) ... INFO:httpx:HTTP Request: GET http://evil.example/api/v1/principal "HTTP/1.1 403 Forbidden"
+ok
+test_production_api_requires_extra_approval_and_preserves_experiment (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_production_api_requires_extra_approval_and_preserves_experiment) ... INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/plan "HTTP/1.1 409 Conflict"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/plan "HTTP/1.1 201 Created"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/apply "HTTP/1.1 403 Forbidden"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/approve "HTTP/1.1 201 Created"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/apply "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/deployments/apply "HTTP/1.1 403 Forbidden"
+ok
+test_production_health_failure_rolls_back_exact_snapshot (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_production_health_failure_rolls_back_exact_snapshot) ... ok
+test_scoped_tokens_expiry_audience_and_viewer_permissions (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_scoped_tokens_expiry_audience_and_viewer_permissions) ... INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: GET http://localhost/api/v1/principal "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost/api/v1/benchmarks "HTTP/1.1 403 Forbidden"
+ok
+test_upload_limit_checks_stream_without_publishing (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_upload_limit_checks_stream_without_publishing) ... INFO:httpx:HTTP Request: POST http://localhost/api/v1/benchmarks "HTTP/1.1 413 Request Entity Too Large"
+ok
+test_web_plan_refuses_arbitrary_server_file (tests.test_recommender_api_authorization.ControlPlaneRegressionTests.test_web_plan_refuses_arbitrary_server_file) ... INFO:httpx:HTTP Request: POST http://localhost/api/v1/experiments/plan "HTTP/1.1 400 Bad Request"
+ok
+
+----------------------------------------------------------------------
+Ran 48 tests in 4.803s
+
+OK
+
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/execution/exp-ff4c71479170e772308819e8/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-fcee2075728c7df7-113c031c1655/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-56e5e06f9814719c-0e5c18ebfc54/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/candidates/candidate-cc16a3850c7dfd13/runs/aws_lambda/bundle/run-20e66c37348d5282-598e1924e0e5/run.log
+Running node: 0, name: start, type: logic, time: 0.0
+Running node: 1, name: tool.run, type: tool_use, time: 0.1
+[export] Log: /private/var/folders/ff/ym5gn97d64vcb4cr0_tm3vhm0000gn/T/tmpe7nltvju/plan/execution/exp-ff4c71479170e772308819e8/children/a2896987722b824763a274717cfe7144dd05d1864f1f3ea15d7d479c5a2da709/candidates/candidate-adc66bbe65a58e00/runs/aws_lambda/bundle/run-b69e5dc7ddb31259-2713e0d57475/run.log

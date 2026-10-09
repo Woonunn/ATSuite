@@ -11,6 +11,8 @@ wheels/
 .vscode/
 url_results/
 .env
+.env.*
+!.env.example
 results/
 zyh/
 con_result/

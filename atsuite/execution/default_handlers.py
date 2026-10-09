@@ -274,10 +274,11 @@ def create_handlers(store,experiment_id,*,backend=None):
             decision.setdefault('best_simulated',decision['best_verified']); decision['best_verified']=None
             decision['evidence_quality']='simulated';decision['cloud_verified']=False
         from atsuite.advisor.workflow import explanation_catalog
-        from atsuite.advisor.client import OpenAIAdvisor
+        from atsuite.advisor.client import create_advisor
         from atsuite.advisor.verify import verify_response
         catalog=explanation_catalog(evidence,decision)
-        advisor=OpenAIAdvisor(model=__import__('os').environ.get(spec.advisor_model_env,'') if spec.advisor_enabled else '',budget_controller=budget(record))
+        advisor=create_advisor(provider=spec.advisor_provider,model=__import__('os').environ.get(spec.advisor_model_env) or None,
+            enabled=spec.advisor_enabled,budget_controller=budget(record))
         response=advisor.recommend(catalog)
         response=verify_response(response,candidate_catalog=catalog['candidates'],eligible_ids={g['candidate_id'] for g in decision['eligibility'] if g['eligible']},
             metric_catalog=catalog['metrics'],objective_winner=decision['best_verified'])

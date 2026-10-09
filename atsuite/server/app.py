@@ -25,6 +25,8 @@ def create_app(*, store_path: str | Path = ':memory:', artifact_root: str | Path
                web_root: str | Path | None = None, mode='local_development', identity_tokens=None,
                execution_backend=None,
                production_adapter=None) -> FastAPI:
+    from atsuite.config import load_local_env
+    load_local_env()
     if identity_tokens is None and os.environ.get('ATSUITE_IDENTITY_TOKENS'):
         identity_tokens = json.loads(os.environ['ATSUITE_IDENTITY_TOKENS'])
     identities = TokenIdentityProvider(identity_tokens, mode=mode)
@@ -355,7 +357,7 @@ def create_app(*, store_path: str | Path = ':memory:', artifact_root: str | Path
 
     @app.post('/api/v1/experiments/{experiment_id}/advisor')
     async def advisor(experiment_id: str, request: Request):
-        from atsuite.advisor.client import OpenAIAdvisor
+        from atsuite.advisor.client import create_advisor
         from atsuite.advisor.verify import verify_response
         from atsuite.advisor.workflow import explanation_catalog
         from atsuite.execution.budget import BudgetController
@@ -368,12 +370,15 @@ def create_app(*, store_path: str | Path = ':memory:', artifact_root: str | Path
         candidates = catalog['candidates']
         eligible = set(catalog['eligible_candidates'])
         spec = record['plan']['spec']
-        model = ''
+        model = None
+        enabled = False
         if record.get('approval') and spec.get('advisor', {}).get('enabled'):
             from atsuite.recommender.service import validate_approval
             validate_approval(store, record['plan'], record['approval'], tenant=record['tenant'], project=record['project'])
-            model = os.environ.get('ATSUITE_ADVISOR_MODEL', '')
-        response = OpenAIAdvisor(model=model, budget_controller=BudgetController(store, experiment_id)).recommend(catalog, str(body.get('prompt') or ''))
+            enabled = True
+            model = os.environ.get('ATSUITE_ADVISOR_MODEL') or None
+        response = create_advisor(provider=spec.get('advisor',{}).get('provider','openai'),model=model,enabled=enabled,
+            budget_controller=BudgetController(store, experiment_id)).recommend(catalog, str(body.get('prompt') or ''))
         return verify_response(response, candidate_catalog=candidates, eligible_ids=eligible,
                                metric_catalog=catalog['metrics'], objective_winner=catalog['objective_winner']).to_dict()
 

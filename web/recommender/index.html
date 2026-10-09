@@ -49,6 +49,7 @@
               <label>预算 / USD<input id="budget" type="number" min="0" step="0.01" value="50"></label>
               <label>最长时间 / 秒<input id="wallTime" type="number" min="1" value="7200"></label>
             </div>
+            <label for="advisorProvider">Advisor API 服务<select id="advisorProvider"><option value="openai">OpenAI</option><option value="deepseek">DeepSeek（V4.1 Flash）</option></select></label>
             <div class="toggles"><label><input id="prediction" type="checkbox" checked> 使用 predictor 引导选点</label><label><input id="advisor" type="checkbox" checked> 允许 Advisor 解释</label></div>
             <p>计划冻结后，必须单独确认预算并批准执行。修改输入会创建新计划。</p>
             <div class="actions"><button type="submit" class="primary">生成计划</button><button type="button" id="createExperiment">创建持久任务</button></div>

@@ -1,0 +1,12 @@
+test_disabled_advisor_never_calls_api_with_key_and_model_set (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_disabled_advisor_never_calls_api_with_key_and_model_set) ... ok
+test_explicit_empty_model_does_not_inherit_configured_global_model (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_explicit_empty_model_does_not_inherit_configured_global_model) ... ok
+test_missing_deepseek_key_never_uses_openai_key_or_reserves_budget (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_missing_deepseek_key_never_uses_openai_key_or_reserves_budget) ... ok
+test_official_host_key_model_schema_and_usage_through_real_sdk (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_official_host_key_model_schema_and_usage_through_real_sdk) ... ok
+test_provider_is_validated_in_frozen_spec (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_provider_is_validated_in_frozen_spec) ... ok
+test_rejection_timeout_and_truncation_do_not_count_as_live_success (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_rejection_timeout_and_truncation_do_not_count_as_live_success) ... ok
+test_token_budget_rejects_before_http_dispatch (tests.test_deepseek_advisor.DeepSeekAdvisorContracts.test_token_budget_rejects_before_http_dispatch) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.048s
+
+OK

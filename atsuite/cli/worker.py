@@ -5,6 +5,8 @@ from atsuite.execution.postgres_store import open_store
 from atsuite.recommender import service
 
 def main(argv=None):
+    from atsuite.config import load_local_env
+    load_local_env()
     parser=argparse.ArgumentParser(description='Run approved experiments with built-in ATSuite handlers')
     parser.add_argument('--store',required=True);parser.add_argument('--experiment')
     parser.add_argument('--poll',action='store_true');parser.add_argument('--interval',type=float,default=2)

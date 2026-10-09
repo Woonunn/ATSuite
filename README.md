@@ -251,3 +251,4 @@ observability.
 The recommender can generate legal provider/topology/resource plans without creating cloud resources, persist experiments in the FastAPI control plane, and expose the six-view Web console.
 
 See [`docs/userguide/recommender.md`](docs/userguide/recommender.md) for commands and evidence semantics. Implementation and external verification status is recorded in [`docs/developer-guide/recommender/implementation-status.md`](docs/developer-guide/recommender/implementation-status.md).
+For local Advisor access to the official DeepSeek API, see the [DeepSeek-V4.1-Flash setup guide](docs/userguide/deepseek.md), including an opt-in real connectivity check.

@@ -152,7 +152,8 @@ simulated observations cannot pass service acceptance.
 
 ## Commits and regression commands
 
-All commits are local on feat/recommender. These are task records, not live-cloud
+All remediation commits are on feat/recommender and were pushed through bf120c5
+at the user's request. These are task records, not live-cloud
 validation. Run each listed module with `uv run --locked --all-groups python -m
 unittest MODULE -v`; the final discover command executes all modules together.
 The full result, environment and limits apply to each row.
@@ -210,3 +211,42 @@ ATSUITE_BROWSER_E2E=1 uv run --locked --all-groups python -m unittest tests.test
 **1 passed in 108.792 seconds**, including automatic selection of the returned
 reprice version and equality of the original report digest. Output:
 [evidence/reprice-browser-after.txt](evidence/reprice-browser-after.txt).
+
+## Follow-up: local DeepSeek official API integration
+
+The shared Advisor factory now supports `advisor.provider=deepseek`, official
+`deepseek-flash`, independent `DEEPSEEK_API_KEY`, bounded Responses requests and
+the existing proposal/evidence gate. CLI/default worker and Web select the
+frozen provider; disabled advisors do not inherit a globally configured model
+and dispatch requests. Missing usage does not become a zero cost estimate.
+The Web form persists the chosen provider. No trace LLM replay behavior changed.
+
+Failure-first reproduction, local changes and the external boundary are recorded
+in [deepseek-integration.md](deepseek-integration.md).
+Setup and a single opt-in real API check are in
+[the DeepSeek tutorial](../../userguide/deepseek.md).
+
+```bash
+ATSUITE_BROWSER_E2E=1 uv run --locked --all-groups python -m unittest discover -s tests -p 'test_*.py' -v
+git diff --check
+```
+
+**254 tests run in 153.215 seconds: 253 passed, 1 skipped**, including all three
+real Chromium E2E tests and 13 DeepSeek contract tests. The skip remains the
+unconfigured live PostgreSQL service. HTTP SDK and cloud transports in these
+local tests are explicitly simulated. Original browser assertions, all 600
+confirmation attempts and immutable repricing checks remain enforced.
+Full output: [evidence/deepseek-full-suite.txt](evidence/deepseek-full-suite.txt).
+
+**Real DeepSeek API acceptance: blocked_external** because this environment has
+no `DEEPSEEK_API_KEY`. Configuration checking reports `real_api_verified: false`
+and exit code 2. No authenticated model call, cloud write or new remote push
+ran for this follow-up. All six cloud service acceptance statuses remain open.
+
+Persistent `.env` support was added afterward through a shared startup loader.
+The existing process environment takes priority, default lookup stays anchored
+to the repository, and uploaded/workload directories are not searched.
+All 48 affected-path tests passed in 4.803 seconds after eight failure-first
+configuration regressions. See [dotenv-before.txt](evidence/dotenv-before.txt)
+and [dotenv-after.txt](evidence/dotenv-after.txt). No authenticated model call
+or cloud acceptance was performed during this configuration change.

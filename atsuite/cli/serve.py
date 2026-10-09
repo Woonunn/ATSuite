@@ -4,6 +4,8 @@ import argparse
 
 
 def main(argv=None):
+    from atsuite.config import load_local_env
+    load_local_env()
     parser = argparse.ArgumentParser(description="Run the ATSuite recommender control plane")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)

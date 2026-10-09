@@ -4,7 +4,7 @@ from dataclasses import asdict
 import json
 import os
 from pathlib import Path
-from atsuite.advisor.client import OpenAIAdvisor,TemplateAdvisor
+from atsuite.advisor.client import create_advisor
 from atsuite.advisor.model import CandidateProposal
 from atsuite.advisor.workflow import validate_proposal
 from atsuite.recommender.identity import digest,file_digest
@@ -67,8 +67,11 @@ def collect_child_candidates(record,*,backend,budget_controller,artifact_root):
         for name,value in pilot.items():
             if value is not None:
                 catalog['metrics'][cid+':pilot:'+name]={'candidate_id':cid,'metric_id':cid+':pilot:'+name,'value':value,'unit':'ms' if name=='latency_ms' else 'ratio','scope':'exploration','quality':'pilot','measurement_kind':'derived'}
-    configured_model=os.environ.get(spec.get('advisor',{}).get('model_from_env','ATSUITE_ADVISOR_MODEL'),'')
-    client=getattr(backend,'advisor',None) or OpenAIAdvisor(configured_model,budget_controller=budget_controller,proposal_validator=materialize,search_boundary=boundary,parent_plan_digest=parent_digest)
+    settings=spec.get('advisor',{})
+    configured_model=os.environ.get(settings.get('model_from_env','ATSUITE_ADVISOR_MODEL')) or None
+    client=getattr(backend,'advisor',None) or create_advisor(provider=settings.get('provider','openai'),model=configured_model,
+        enabled=settings.get('enabled',True),budget_controller=budget_controller,proposal_validator=materialize,
+        search_boundary=boundary,parent_plan_digest=parent_digest)
     try:
         response=client.recommend(catalog,'Propose one new legal resource or topology configuration inside the supplied frozen search boundary. It will require real pilot and independent confirmation measurements. Do not change objective, permissions, account, or budget.')
         audit.append({'status':'advisor_response','provider':response.provider,'model':response.model,'audit':response.audit,'parent_plan_digest':parent_digest})

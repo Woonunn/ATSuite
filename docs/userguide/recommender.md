@@ -141,6 +141,11 @@ AWS Lambda 目标适配器可配置 `ATSUITE_PRODUCTION_TARGETS`，其他生产�
 ML 只影响探索选点，最终使用新的确认试验。没有真实 unseen-workload 评估时质量为 insufficient_real_data。
 
 `plan --request 'P95 小于 2 秒且成功率至少 99%'` 可解析意图；未解析约束会阻止审批。
-Advisor 可用 `ATSUITE_ADVISOR_MODEL` 和 `OPENAI_API_KEY`，预算限制 token；调用失败使用确定性模板。
+Advisor 支持 OpenAI 和 DeepSeek 官方 API。规格的 `advisor.provider` 选择服务，
+`ATSUITE_ADVISOR_MODEL` 选择模型，Key 分别使用 `OPENAI_API_KEY` / `DEEPSEEK_API_KEY`。
+CLI、Web、worker 和连通性检查自动读取仓库根目录 `.env`，已有环境变量优先；
+可复制 `.env.example` 后填写本地 Key，修改后重启相应进程。
+完整配置与真实连通性检查见 [本地接入 DeepSeek-V4.1-Flash](deepseek.md)。
+预算限制 token；调用失败使用确定性模板，关闭 Advisor 时不发起模型调用。
 结构化解释只能引用实际候选和有单位/范围的证据，不得改变确定性 winner。
 真实模型 API 及云验收状态独立记录，未执行时均为 blocked_external。

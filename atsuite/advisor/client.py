@@ -71,8 +71,11 @@ class TemplateAdvisor:
 class OpenAIAdvisor:
     """Responses API adapter. Only a redacted evidence catalog is sent."""
 
+    provider = 'openai'
+    default_model = ''
+
     def __init__(self, model: str | None = None, client: Any | None = None, *, budget_controller=None, max_output_tokens=1024, timeout_seconds=20, proposal_validator=None, search_boundary=None, parent_plan_digest="", token_price_per_million=None):
-        self.model = model or os.environ.get("ATSUITE_ADVISOR_MODEL", "")
+        self.model = (os.environ.get("ATSUITE_ADVISOR_MODEL") or self.default_model) if model is None else model
         self.client = client
         self.budget_controller = budget_controller
         self.max_output_tokens = max_output_tokens
@@ -82,11 +85,28 @@ class OpenAIAdvisor:
         self.parent_plan_digest=parent_plan_digest
         self.token_price_per_million=token_price_per_million
 
+    def _configuration_error(self):
+        return ''
+
+    def _create_client(self):
+        from openai import OpenAI
+        return OpenAI(max_retries=0)
+
+    def _request_options(self):
+        return {}
+
+    def _fallback(self, catalog, prompt, error):
+        result=TemplateAdvisor().recommend(catalog,prompt,error=error)
+        return replace(result,audit={**result.audit,'requested_provider':self.provider,'requested_model':self.model})
+
     def recommend(self, catalog: dict[str, Any], prompt: str = "") -> AdvisorResponse:
         safe_catalog = _redacted_catalog({**catalog,"search_boundary":self.search_boundary,"parent_plan_digest":self.parent_plan_digest})
         prompt = redact(str(prompt))
         if not self.model:
-            return TemplateAdvisor().recommend(safe_catalog, prompt, error="ATSUITE_ADVISOR_MODEL is not set")
+            return self._fallback(safe_catalog,prompt,"ATSUITE_ADVISOR_MODEL is not set")
+        configuration_error=self._configuration_error()
+        if configuration_error:
+            return self._fallback(safe_catalog,prompt,configuration_error)
         try:
             from pydantic import BaseModel, ConfigDict
 
@@ -135,8 +155,7 @@ class OpenAIAdvisor:
                 self.budget_controller.reserve(llm_tokens=input_bound + self.max_output_tokens)
             client = self.client
             if client is None:
-                from openai import OpenAI
-                client = OpenAI()
+                client = self._create_client()
             response = client.responses.parse(
                 model=self.model,
                 input=[
@@ -147,6 +166,7 @@ class OpenAIAdvisor:
                 store=False,
                 max_output_tokens=self.max_output_tokens,
                 timeout=self.timeout_seconds,
+                **self._request_options(),
             )
             if getattr(response,"status","completed") != "completed":
                 raise ValueError("incomplete_model_response")
@@ -155,14 +175,18 @@ class OpenAIAdvisor:
                 raise ValueError("structured response was empty or refused")
             usage = getattr(response, "usage", None)
             usage_data = usage.model_dump() if hasattr(usage, "model_dump") else dict(usage or {}) if isinstance(usage, dict) else {}
+            total_tokens=usage_data.get('total_tokens')
+            observed_total=isinstance(total_tokens,int) and not isinstance(total_tokens,bool) and total_tokens>=0
             audit = {
                 "response_id": getattr(response, "id", ""),
                 "status": str(getattr(response, "status", "")),
                 "template_hash": _template_hash(),
                 "usage": usage_data,
-                "llm_cost_estimate": str(Decimal(str(usage_data.get("total_tokens",0))) * Decimal(str(self.token_price_per_million)) / Decimal("1000000")) if self.token_price_per_million is not None else None,
+                "llm_cost_estimate": str(Decimal(total_tokens) * Decimal(str(self.token_price_per_million)) / Decimal("1000000")) if self.token_price_per_million is not None and observed_total else None,
                 "fallback": False,
                 "catalog_hash": hashlib.sha256(json.dumps(safe_catalog, sort_keys=True, default=str).encode()).hexdigest(),
+                'requested_provider':self.provider,
+                'requested_model':self.model,
             }
             proposals=[]
             children=[]
@@ -183,7 +207,7 @@ class OpenAIAdvisor:
             audit['validated_children']=children
             result = AdvisorResponse(parsed.objective_interpretation, proposals, parsed.preferred_candidate_id,
                                    tuple(parsed.reason_codes), tuple(parsed.metric_references), tuple(parsed.tradeoffs),
-                                   tuple(parsed.additional_experiments), "openai", self.model, audit=audit, metric_claims=tuple(claim.model_dump() if hasattr(claim,"model_dump") else dict(claim) for claim in getattr(parsed,"metric_claims",[])))
+                                   tuple(parsed.additional_experiments), self.provider, self.model, audit=audit, metric_claims=tuple(claim.model_dump() if hasattr(claim,"model_dump") else dict(claim) for claim in getattr(parsed,"metric_claims",[])))
             from atsuite.advisor.verify import verify_response
             checked = verify_response(replace(result,candidate_proposals=tuple(p for p in proposals if not p.specification)), candidate_catalog=safe_catalog.get("candidates",{}), eligible_ids=set(safe_catalog.get("eligible_candidates",[])), metric_catalog=safe_catalog.get("metrics",{}), objective_winner=safe_catalog.get("objective_winner"))
             if not checked.valid:
@@ -191,4 +215,34 @@ class OpenAIAdvisor:
                 return replace(fallback,audit={**fallback.audit, **audit, "fallback":True, "validation_errors":checked.validation_errors})
             return replace(checked,candidate_proposals=proposals)
         except Exception as exc:
-            return TemplateAdvisor().recommend(safe_catalog, prompt, error=type(exc).__name__)
+            return self._fallback(safe_catalog,prompt,type(exc).__name__)
+
+
+class DeepSeekAdvisor(OpenAIAdvisor):
+    """Official DeepSeek Responses API; same schema, budget and evidence gate."""
+    provider = 'deepseek'
+    default_model = 'deepseek-flash'
+    base_url = 'https://api.deepseek.com'
+
+    def _configuration_error(self):
+        if self.client is None and not os.environ.get('DEEPSEEK_API_KEY','').strip():
+            return 'missing_deepseek_api_key'
+        return ''
+
+    def _create_client(self):
+        from openai import OpenAI
+        return OpenAI(api_key=os.environ['DEEPSEEK_API_KEY'],base_url=self.base_url,max_retries=0)
+
+    def _request_options(self):
+        # Evidence explanation and bounded proposals do not need extended CoT.
+        # DeepSeek otherwise defaults to high thinking, which consumes the cap.
+        return {'reasoning':{'effort':'none'}}
+
+
+def create_advisor(*, provider='openai', model=None, enabled=True, **kwargs):
+    adapters={'openai':OpenAIAdvisor,'deepseek':DeepSeekAdvisor}
+    if provider not in adapters:
+        raise ValueError('unsupported advisor.provider: '+str(provider))
+    if not enabled:
+        return TemplateAdvisor()
+    return adapters[provider](model=model,**kwargs)
