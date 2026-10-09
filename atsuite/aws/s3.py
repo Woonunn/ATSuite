@@ -16,11 +16,11 @@ _S3_TIMEOUT = Config(
 class AWSS3(StorageBase):
     """AWS S3 对象存储适配器"""
 
-    def __init__(self, bucket: str, region: str = "us-east-1"):
+    def __init__(self, bucket: str, region: str = "", *, create_bucket: bool = True):
         self.bucket = bucket
         self.region = region or os.environ.get("AWS_REGION", "us-east-1")
         self.client = self.create_s3_client()
-        self.ensure_bucket_exists()
+        if create_bucket: self.ensure_bucket_exists()
 
     def create_s3_client(self):
         return boto3.client("s3", region_name=self.region, config=_S3_TIMEOUT)

@@ -42,7 +42,8 @@ class ArtifactStore:
 def create_build_artifact(*, repository: str, digest_value: str, platform: str, source_digest: str, dockerfile_digest: str, dependency_lock_digest: str = "", manifest_path: str = "", log_path: str = "") -> BuildArtifact:
     identifier = build_id(source_digest=source_digest, dependency_lock_digest=dependency_lock_digest, dockerfile_digest=dockerfile_digest,
                          topology=None, platform=platform)
-    if not digest_value.startswith("sha256:"):
+    import re
+    if not re.fullmatch(r"sha256:[a-f0-9]{64}", digest_value):
         raise ValueError("build artifact digest must be a content digest")
     return BuildArtifact(identifier, repository, digest_value, platform, source_digest, dockerfile_digest, dependency_lock_digest, manifest_path, log_path)
 

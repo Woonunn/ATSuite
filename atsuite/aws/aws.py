@@ -11,12 +11,12 @@ load_dotenv()
 class AWS:
     """AWS 客户端管理类，负责创建和管理 AWS 服务客户端"""
 
-    def __init__(self):
+    def __init__(self, *, region=None):
         self.lambda_client = None
         self.ecr_client = None
         self.iam_client = None
         self.agentcore_client = None
-        self.region = os.environ.get("AWS_REGION", "us-east-1")
+        self.region = region or os.environ.get("AWS_REGION", "us-east-1")
 
         self._validate_credentials()
 

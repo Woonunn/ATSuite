@@ -62,7 +62,20 @@ def cleaner(
     *,
     url_map: Optional[Dict[str, Any]] = None,
     bench_name: str = "",
+    state_context: Optional[Dict[str, str]] = None,
 ) -> float:
+    if state_context:
+        from atsuite_sdk.identity import StateKey
+        from atsuite_sdk.storage import create_storage
+        storage = create_storage(provider=provider,bucket=bucket_name,create_bucket=False)
+        measured_size=0.0
+        for domain in toclean:
+            key=StateKey(state_context['tenant'],state_context['experiment'],state_context['candidate'],state_context['scenario'],domain,uid).path()
+            content=storage.read(key)
+            measured_size+=len(content.encode('utf-8'))/(1024**3)
+            storage.deleteobj(key)
+            if storage.read(key): raise RuntimeError('state cleanup readback still exists')
+        return measured_size
     provider = normalize_provider_storage(provider)
     size = 0.0
     if provider == "ali":

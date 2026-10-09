@@ -246,10 +246,17 @@ def build_resolved_targets(
     python_version: Optional[str] = None,
     experiment_id: Optional[str] = None,
     candidate_id: Optional[str] = None,
+    base_images: Optional[dict[str,str]] = None,
 ) -> dict[str, object]:
     overrides = CliOverrides(python_version=python_version)
     resolved = resolve_benchmark(config_path, provider, overrides)
     spec = resolved.provider
+    if base_images is not None:
+        if set(base_images)!=set(resolved.targets):raise ValueError('frozen base image target coverage mismatch')
+        from atsuite.execution.publish import require_digest
+        for value in base_images.values():
+            if '@' not in value:raise ValueError('frozen base image digest required')
+            require_digest(value.rsplit('@',1)[1])
     platform = platform or spec.default_platform
     output_root = ROOT_DIR / output / resolved.bench_name
     if experiment_id:
@@ -280,6 +287,7 @@ def build_resolved_targets(
                 requirements.append("google-cloud-storage")
             elif spec.docker_provider == "ali":
                 requirements.append("alibabacloud-oss-v2")
+                requirements.append("alibabacloud-credentials")
             elif spec.docker_provider in ("aws_lambda", "aws_agentcore"):
                 requirements.append("boto3")
             requirements.append("pydantic")
@@ -290,13 +298,9 @@ def build_resolved_targets(
                 encoding="utf-8",
             )
             if (target_dir / "init.sh").exists():
-                env = dict(os.environ)
-                env["ATSUITE_DATA_PATH"] = str(output_root / "data")
-                run(
-                    ["/bin/bash", str(target_dir / "init.sh"), str(target_dir)],
-                    cwd=target_dir,
-                    env=env,
-                )
+                from atsuite.execution.isolated_builder import run_init
+                (output_root / "data").mkdir(exist_ok=True)
+                run_init(target_dir / "init.sh", target_dir, output_root / "data")
             dockerfile = (
                 DOCKERFILES_DIR / spec.docker_provider / "function" / "Dockerfile"
             )
@@ -310,7 +314,7 @@ def build_resolved_targets(
                 dockerfile,
                 python_version=normalized_version,
                 provider=spec.runtime_provider,
-                base_image=spec.base_image(normalized_version),
+                base_image=base_images[target.name] if base_images is not None else spec.base_image(normalized_version),
                 module_name="implementation",
                 name=target.name,
                 no_cache=no_cache,
@@ -336,17 +340,9 @@ def build_resolved_targets(
                 )
                 all_system_packages.update(read_system_requirements(node.dir))
                 if (node_target_dir / "init.sh").exists():
-                    env = dict(os.environ)
-                    env["ATSUITE_DATA_PATH"] = str(output_root / "data")
-                    run(
-                        [
-                            "/bin/bash",
-                            str(node_target_dir / "init.sh"),
-                            str(node_target_dir),
-                        ],
-                        cwd=node_target_dir,
-                        env=env,
-                    )
+                    from atsuite.execution.isolated_builder import run_init
+                    (output_root / "data").mkdir(exist_ok=True)
+                    run_init(node_target_dir / "init.sh", node_target_dir, output_root / "data")
             write_requirements(
                 target_dir / "requirements.txt", sorted(all_requirements)
             )
@@ -376,7 +372,7 @@ def build_resolved_targets(
                 dockerfile,
                 python_version=normalized_version,
                 provider=spec.runtime_provider,
-                base_image=spec.base_image(normalized_version),
+                base_image=base_images[target.name] if base_images is not None else spec.base_image(normalized_version),
                 module_name="implementation",
                 name=target.name,
                 no_cache=no_cache,
@@ -392,7 +388,8 @@ def build_resolved_targets(
         dependency_lock_digest = file_digest(target_dir / "requirements.txt") if (target_dir / "requirements.txt").is_file() else ""
         identifier = build_id(source_digest=source_digest, dependency_lock_digest=dependency_lock_digest,
                               dockerfile_digest=dockerfile_digest, topology=list(target.node_names), platform=platform or "",
-                              build_args={"provider": provider, "python_version": normalized_version})
+                              build_args={"provider": provider, "python_version": normalized_version,
+                                  'base_image':base_images[target.name] if base_images is not None else spec.base_image(normalized_version)})
         manifest_path = target_dir / "build-manifest.json"
         print(f"Built image: {image_tag}")
         image_digest = local_image_digest(image_tag)
@@ -400,12 +397,14 @@ def build_resolved_targets(
                     "platform": platform or "", "digest_verified": bool(image_digest)}, "target": target.name, "provider": provider,
                     "source_digest": source_digest, "dockerfile_digest": dockerfile_digest,
                     "dependency_lock_digest": dependency_lock_digest, "source_files": source_files,
-                    "candidate_ids": [candidate_id] if candidate_id else []}
+                    "candidate_ids": [candidate_id] if candidate_id else [],
+                    'base_image':base_images[target.name] if base_images is not None else spec.base_image(normalized_version)}
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         artifacts[target.name] = {"build_id": identifier, "repository": image_tag, "digest": image_digest,
                                   "platform": platform or "", "source_digest": source_digest,
                                   "dockerfile_digest": dockerfile_digest, "dependency_lock_digest": dependency_lock_digest,
-                                  "manifest_path": str(manifest_path), "digest_verified": bool(image_digest)}
+                                  "manifest_path": str(manifest_path), "digest_verified": bool(image_digest),
+                                  'base_image':manifest['base_image']}
 
     return artifacts
 

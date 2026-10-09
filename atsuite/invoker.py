@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, TextIO
 
-from atsuite.pipeline import CliOverrides, is_sandbox_config, read_url_map, resolve_benchmark
+from atsuite.pipeline import CliOverrides, is_sandbox_config, logical_state_domain, read_url_map, resolve_benchmark
 from atsuite.runtime import (
     InvocationRequest, RuntimeAdapter, RuntimeSession, RuntimeTarget,
     create_runtime_adapter, normalize_invocation_result,
@@ -20,6 +20,8 @@ from atsuite.runtime import (
 from atsuite.scheduler import AccessScheduler, ToolAccess
 from atsuite.state_snapshot import (
     maybe_attach_agentcore_state_snapshot,
+    seed_alifc_state_snapshot_for_uid,
+    seed_gcp_state_snapshot_for_uid,
     seed_lambda_state_snapshot_for_uid,
 )
 from atsuite.utils import (
@@ -147,6 +149,8 @@ def run_node(
     max_workers: Optional[int] = None,
     state_snapshot_bundle: Optional[Dict[str, Any]] = None,
     outputs: Optional[Dict[str, Any]] = None,
+    log_stream: Optional[TextIO] = None,
+    dispatch_guard: Optional[Callable[[],None]] = None,
 ) -> Dict[str, Any]:
     if visited:
         return
@@ -267,13 +271,14 @@ def run_node(
                 args = maybe_attach_agentcore_state_snapshot(
                     args,
                     provider=resolved.provider.name,
-                    target_name=target.name,
+                    target_name=logical_state_domain(resolved, target.name),
                     uid=uid,
                     state_snapshot_bundle=state_snapshot_bundle,
                     seeded_targets=seeded_targets,
                 )
 
             call_id = f"{uid}_{current_node_id}_{int(time.time() * 1e6)}"
+            if dispatch_guard:dispatch_guard()
             session = session_for_target(target.name, current_node_id, current_node.name)
             client_start_time = time.time()
             result = runtime.invoke(
@@ -327,7 +332,7 @@ def run_node(
             if target.family == "faas" and is_stateful:
                 with state_lock:
                     stateful_tool_num[0] += 1
-                    toclean.add(target.name)
+                    toclean.add(logical_state_domain(resolved, target.name))
 
             session_id = result.provider_metadata.get("session_id")
             analyzer_call(
@@ -354,7 +359,7 @@ def run_node(
         with print_lock:
             print(
                 f"Running node: {current_node_id}, name: {current_node.name}, "
-                f"type: {current_node.node_type}, time: {elapsed_ms}"
+                f"type: {current_node.node_type}, time: {elapsed_ms}", file=log_stream
             )
 
     worker_count = max(1, min(32, len(reachable_nodes)))
@@ -436,6 +441,9 @@ def run_trace(
     raise_on_error: bool = True,
     expected_outputs: Optional[Dict[str, Any]] = None,
     output_comparator: Optional[Callable[[Any, Any], bool]] = None,
+    state_identity: Optional[Dict[str, str]] = None,
+    state_bucket: str = "atsuite",
+    dispatch_guard: Optional[Callable[[],None]] = None,
 ) -> Dict[str, Any]:
     if is_sandbox_config(config_path):
         raise SystemExit("Sandbox configs are no longer supported; use an external MCP-Gateway target instead")
@@ -450,6 +458,16 @@ def run_trace(
     url_map = read_url_map(url_map_path)
     with config_path.open("r", encoding="utf-8") as f:
         config = json.load(f)
+    if state_snapshot_bundle and isinstance(state_snapshot_bundle.get('services'), dict):
+        aliases = {name: logical_state_domain(resolved, name) for name in resolved.targets}
+        aliases.update((config.get('recommender') or {}).get('baseline_state_domains', {}))
+        snapshots = {}
+        for name, snapshot in state_snapshot_bundle['services'].items():
+            domain = aliases.get(name, name)
+            if domain in snapshots and snapshots[domain] != snapshot:
+                raise ValueError('conflicting initial snapshots for logical state domain: ' + domain)
+            snapshots[domain] = snapshot
+        state_snapshot_bundle = {**state_snapshot_bundle, 'services': snapshots}
     selected_trace_file = trace_file if trace_file is not None else config.get("trace_file", "")
 
     if url_map.get("provider") and url_map["provider"] != provider:
@@ -465,7 +483,7 @@ def run_trace(
     correctness_path = log_dir / "correctness.json"
     _log_file = open(log_path, "w", encoding="utf-8")
     _original_stdout = sys.stdout
-    sys.stdout = _TeeWriter(_original_stdout, _log_file)
+    log_stream = _TeeWriter(_original_stdout, _log_file)
 
     toclean: set[str] = set()
     stateful_tool_num = [0]
@@ -500,9 +518,13 @@ def run_trace(
     try:
         toclean.update(
             seed_lambda_state_snapshot_for_uid(
-                provider=provider, uid=uid, state_snapshot_bundle=state_snapshot_bundle,
+                provider=provider, uid=uid, state_snapshot_bundle=state_snapshot_bundle, state_context=state_identity, bucket=state_bucket,
             )
         )
+        toclean.update(seed_alifc_state_snapshot_for_uid(provider=provider, uid=uid,
+            state_snapshot_bundle=state_snapshot_bundle, state_context=state_identity, bucket=state_bucket))
+        toclean.update(seed_gcp_state_snapshot_for_uid(provider=provider, uid=uid,
+            state_snapshot_bundle=state_snapshot_bundle, state_context=state_identity, bucket=state_bucket))
         if resolved.family == "session" and provider == "ali_agentrun" and not skip_scaling_config:
             for target in resolved.targets.values():
                 _create_scaling_configs(provider, f"{target.name}-mcp")
@@ -537,7 +559,7 @@ def run_trace(
             runtime_targets,
             max_workers=max_workers,
             state_snapshot_bundle=state_snapshot_bundle,
-            outputs=call_outputs,
+            outputs=call_outputs, log_stream=log_stream, dispatch_guard=dispatch_guard,
         )
         trace_end_time = time.time()
         trace_perf_end_ns = time.perf_counter_ns()
@@ -552,8 +574,8 @@ def run_trace(
             cleanup_started_at = time.time()
             try:
                 size = cleaner(
-                    provider, BUCKET_NAME, toclean, uid,
-                    url_map=url_map, bench_name=resolved.bench_name,
+                    provider, state_bucket, toclean, uid,
+                    url_map=url_map, bench_name=resolved.bench_name, **({"state_context":state_identity} if state_identity else {}),
                 ) if toclean else 0.0
             finally:
                 if runtime is not None:
@@ -595,7 +617,8 @@ def run_trace(
                     result["summary"].setdefault("run_user_e2e_ms", ((trace_perf_end_ns or time.perf_counter_ns()) - trace_perf_start_ns) / 1_000_000 if trace_perf_start_ns else ((trace_end_time or time.time()) - trace_start_time) * 1000)
                     result["summary"].setdefault("total_compute_time_ms", 0.0)
                     result["summary"].setdefault("total_idle_time_ms", 0.0)
-                    result["summary"].setdefault("total_price", 0.0)
+                    result["summary"].setdefault("total_price", None)
+                    result["summary"].setdefault("metric_availability", {})["total_price"] = "unavailable"
             except (Exception, SystemExit) as exc:
                 result["analysis_error"] = f"{type(exc).__name__}: {exc}"
                 if raise_on_error:
@@ -623,7 +646,6 @@ def run_trace(
                         result["error"] = "correctness validation failed"
                 except Exception as exc:
                     result["output_capture_error"] = f"{type(exc).__name__}: {exc}"
-                sys.stdout = _original_stdout
                 _log_file.close()
                 print(f"[export] Log: {log_path}")
     return result

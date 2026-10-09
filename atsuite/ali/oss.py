@@ -4,17 +4,26 @@ from alibabacloud_oss_v2.exceptions import OperationError
 from atsuite_sdk.storage import StorageBase
 
 class AliOSS(StorageBase):
-    def __init__(self, bucket: str, location: str = "us-east-1"):
+    def __init__(self, bucket: str, location: str = "", *, create_bucket: bool = True):
         self.bucket = bucket
         self.client = self.create_oss_client(location)
-        self.ensure_bucket_exists()
+        if create_bucket: self.ensure_bucket_exists()
 
     def create_oss_client(self, location: str):
         cfg = oss.config.load_default()
         cfg.connect_timeout = 300
         cfg.readwrite_timeout = 300
-        cfg.region = location
-        cfg.credentials_provider = oss.credentials.EnvironmentVariableCredentialsProvider()
+        import os
+        cfg.region = location or os.environ.get("ALI_REGION", "us-east-1")
+        if os.environ.get('OSS_ACCESS_KEY_ID') and not os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_ID'):
+            cfg.credentials_provider = oss.credentials.EnvironmentVariableCredentialsProvider()
+        else:
+            from alibabacloud_credentials.client import Client as CredentialClient
+            credentials = CredentialClient()
+            def resolve():
+                value=credentials.get_credential()
+                return oss.credentials.Credentials(value.access_key_id,value.access_key_secret,value.security_token)
+            cfg.credentials_provider=oss.credentials.CredentialsProviderFunc(resolve)
         return oss.Client(cfg)
 
     def ensure_bucket_exists(self):

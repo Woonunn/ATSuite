@@ -14,8 +14,9 @@ load_dotenv()
 
 class Ali:
     def __init__(
-        self,
+        self, *, region=None,
     ):
+        self.region = region
         self.fc_client: FC20230330Client | None = None
 
     def get_fc_client(self) -> FC20230330Client:
@@ -24,7 +25,7 @@ class Ali:
             config = open_api_models.Config(
                 credential=credential
             )
-            config.endpoint=os.environ["ALI_ENDPOINT"]
+            config.endpoint = f"{os.environ["ALI_ACCOUNT_ID"]}.{self.region}.fc.aliyuncs.com" if self.region else os.environ["ALI_ENDPOINT"]
             self.fc_client = FC20230330Client(config)
         return self.fc_client
     

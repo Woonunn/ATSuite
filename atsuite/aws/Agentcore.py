@@ -28,6 +28,7 @@ class AWSAgentCore:
         memory: int = 1024,
         timeout: int = 30,
         image_ref: str | None = None,
+        runtime_options: dict | None = None,
     ):
         self.node_name = node_name
         self.tag = tag
@@ -38,6 +39,13 @@ class AWSAgentCore:
         self.memory = memory
         self.timeout = timeout
         self.image_ref = image_ref
+        self.runtime_options = dict(runtime_options or {})
+        self.strict_experiment = bool(self.runtime_options.get('strict_experiment'))
+        self.ownership = self.runtime_options.get('ownership', '')
+        if self.runtime_options.get('architecture', 'linux/arm64') != 'linux/arm64':
+            raise ValueError('AgentCore container architecture must be linux/arm64')
+        if self.strict_experiment and not self.ownership:
+            raise ValueError('strict experiment requires ownership')
 
         self.account_id = os.environ["AWS_ACCOUNT_ID"]
         self.repository_name = os.environ["ECR_REPOSITORY_NAME"]
@@ -155,6 +163,10 @@ class AWSAgentCore:
                 "serverProtocol": "MCP",
             },
         }
+        if self.runtime_options.get('environment'):
+            runtime_params['environmentVariables'] = dict(self.runtime_options['environment'])
+        if self.ownership:
+            runtime_params['tags'] = {'atsuite-ownership': self.ownership}
 
         try:
             print(f"[AgentCore] Creating Runtime '{self.runtime_name}'...")
@@ -175,6 +187,13 @@ class AWSAgentCore:
                     f"but cannot be found via list_agent_runtimes"
                 )
             self._runtime_id = runtime_id
+            if self.strict_experiment:
+                existing = self.agentcore_client.get_agent_runtime(agentRuntimeId=runtime_id)
+                tags = self.agentcore_client.list_tags_for_resource(resourceArn=existing['agentRuntimeArn']).get('tags', {})
+                image = existing.get('agentRuntimeArtifact', {}).get('containerConfiguration', {}).get('containerUri')
+                if tags.get('atsuite-ownership') != self.ownership or image != image_uri:
+                    raise RuntimeError('existing AgentCore runtime has different ownership or image; refusing mutation')
+                return
             self.agentcore_client.update_agent_runtime(
                 agentRuntimeId=runtime_id,
                 agentRuntimeArtifact=runtime_params["agentRuntimeArtifact"],

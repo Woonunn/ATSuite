@@ -39,6 +39,7 @@ class AWSLambda(FunctionBase):
         timeout: int = 60,
         disk_size: int = 512,
         image_ref: str | None = None,
+        runtime_options: dict | None = None,
     ):
         self.lambda_client = lambda_client
         self.ecr_client = ecr_client
@@ -54,6 +55,15 @@ class AWSLambda(FunctionBase):
         self.timeout = min(max(timeout, 1), 900)  # Lambda 限制
         self.disk_size = min(max(disk_size, 512), 10240)  # Lambda 限制
         self.image_ref = image_ref
+        self.runtime_options = dict(runtime_options or {})
+        self.strict_experiment = bool(self.runtime_options.get('strict_experiment'))
+        self.ownership = self.runtime_options.get('ownership', '')
+        self.environment = dict(self.runtime_options.get('environment', {}))
+        self.architecture = self.runtime_options.get('architecture', 'linux/amd64')
+        if self.architecture not in ('linux/amd64', 'linux/arm64'):
+            raise ValueError('unsupported Lambda architecture')
+        if self.strict_experiment and (not self.ownership or memory_size != self.memory_size or timeout != self.timeout or disk_size != self.disk_size):
+            raise ValueError('strict experiment requires ownership and legal exact resources')
         
         # 从环境变量获取配置
         self.account_id = os.environ["AWS_ACCOUNT_ID"]
@@ -84,6 +94,8 @@ class AWSLambda(FunctionBase):
 
     def ensure_xray_write_access(self, role_arn: str | None = None) -> None:
         if self.iam_client is None:
+            if self.strict_experiment:
+                raise RuntimeError('strict experiment requires preconfigured execution role permission verification')
             print(
                 "Lambda Warning: iam_client not provided, skipping X-Ray role policy check"
             )
@@ -107,6 +119,14 @@ class AWSLambda(FunctionBase):
 
         if self.xray_policy_arn in attached_policy_arns:
             print(f"Lambda X-Ray policy already attached to role '{role_name}'")
+            return
+
+        if self.strict_experiment:
+            response = self.iam_client.simulate_principal_policy(PolicySourceArn=role_arn or self.lambda_role_arn,
+                ActionNames=['xray:PutTraceSegments', 'xray:PutTelemetryRecords'])
+            decisions = response.get('EvaluationResults', [])
+            if len(decisions) != 2 or any(item.get('EvalDecision') != 'allowed' for item in decisions):
+                raise RuntimeError('preconfigured Lambda role lacks required X-Ray write permissions')
             return
 
         print(f"Lambda Attaching AWSXRayDaemonWriteAccess to role '{role_name}'...")
@@ -207,6 +227,13 @@ class AWSLambda(FunctionBase):
             # 尝试获取现有函数
             print(f"Lambda Checking if function '{self.function_name}' exists...")
             response = self.lambda_client.get_function(FunctionName=self.function_name)
+            if self.strict_experiment:
+                config = response.get('Configuration', {})
+                tags = self.lambda_client.list_tags(Resource=config['FunctionArn']).get('Tags', {})
+                actual_image = response.get('Code', {}).get('ResolvedImageUri') or response.get('Code', {}).get('ImageUri')
+                if tags.get('atsuite-ownership') != self.ownership or actual_image != image_uri:
+                    raise RuntimeError('existing Lambda belongs to another deployment or image; refusing mutation')
+                return
             function_role_arn = (
                 response.get("Configuration", {}).get("Role")
                 or self.lambda_role_arn
@@ -262,7 +289,9 @@ class AWSLambda(FunctionBase):
                 Description=f"{self.function_name}'s Lambda function",
                 MemorySize=self.memory_size,  
                 Timeout=self.timeout,  
-                Architectures=['x86_64'],  
+                Architectures=['arm64' if self.architecture == 'linux/arm64' else 'x86_64'],
+                Environment={'Variables': self.environment},
+                Tags={'atsuite-ownership': self.ownership} if self.ownership else {},
                 EphemeralStorage={
                     'Size': self.disk_size  
                 },

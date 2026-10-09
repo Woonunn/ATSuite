@@ -1,9 +1,10 @@
 import os
+import re
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from atsuite.pipeline import CliOverrides, is_sandbox_config, resolve_benchmark, target_image_tag
+from atsuite.pipeline import CliOverrides, is_sandbox_config, logical_state_domain, resolve_benchmark, target_image_tag
 from atsuite.runtime import GatewayClient
 from atsuite.utils import write_url_map
 
@@ -24,7 +25,7 @@ def _artifact_image_ref(artifact: Any | None) -> str | None:
         return None
     repository = str(data.get("repository") or "").strip()
     digest = str(data.get("digest") or "").strip()
-    if not repository or not digest.startswith("sha256:"):
+    if not repository or not re.fullmatch(r'sha256:[a-f0-9]{64}', digest):
         raise RuntimeError("Deployment artifact requires repository and verified sha256 digest")
     repository = repository.split("@", 1)[0]
     leaf = repository.rsplit("/", 1)[-1]
@@ -72,11 +73,19 @@ def deploy(
     experiment_id: str = "",
     candidate_id: str = "",
     output_dir: Path | None = None,
+    namespace: str = "",
+    region: str = "",
+    on_resource: Any = None,
+    ownership: str = "",
+    tenant: str = "",
+    state_bucket: str = "",
 ) -> Optional[Path]:
     if is_sandbox_config(config_path):
         raise SystemExit("Sandbox configs are no longer supported; use an external MCP-Gateway target instead")
 
     resolved = resolve_benchmark(config_path, provider, CliOverrides())
+    if artifacts is not None and set(artifacts) != set(resolved.targets):
+        raise RuntimeError('artifact map must cover every target exactly')
     endpoint_cache: Dict[str, Dict[str, object]] = {}
 
     if provider == "mcp_gateway":
@@ -96,25 +105,25 @@ def deploy(
     if resolved.family == "faas":
         if provider == "ali_fc":
             from atsuite.faas.function import AliFunctionDeployer
-            function_deployer = AliFunctionDeployer(resolved.bench_name)
+            function_deployer = AliFunctionDeployer(resolved.bench_name, region=region)
         elif provider == "aws_lambda":
             from atsuite.faas.function import AWSFunctionDeployer
-            function_deployer = AWSFunctionDeployer(resolved.bench_name)
+            function_deployer = AWSFunctionDeployer(resolved.bench_name, region=region)
         elif provider == "gcp_faas":
             from atsuite.faas.function import GCPFunctionDeployer
-            function_deployer = GCPFunctionDeployer(resolved.bench_name)
+            function_deployer = GCPFunctionDeployer(resolved.bench_name, region=region)
         else:
             raise SystemExit(f"Unsupported FaaS provider: {provider}")
     else:
         if provider == "ali_agentrun":
             from atsuite.mcp.mcp import AliMCPDeployer
-            mcp_deployer = AliMCPDeployer(resolved.bench_name)
+            mcp_deployer = AliMCPDeployer(resolved.bench_name, region=region)
         elif provider == "aws_agentcore":
             from atsuite.mcp.mcp import AWSAgentCoreMCPDeployer
-            mcp_deployer = AWSAgentCoreMCPDeployer(resolved.bench_name)
+            mcp_deployer = AWSAgentCoreMCPDeployer(resolved.bench_name, region=region)
         elif provider == "gcp_mcp":
             from atsuite.mcp.mcp import GCPMCPDeployer
-            mcp_deployer = GCPMCPDeployer(resolved.bench_name)
+            mcp_deployer = GCPMCPDeployer(resolved.bench_name, region=region)
         else:
             raise SystemExit(f"Unsupported MCP provider: {provider}")
 
@@ -124,19 +133,40 @@ def deploy(
         label = "function" if target.family == "faas" else "mcp"
         print(f"[deploy] Deploying {label} target: '{target.name}'")
         deployer = function_deployer if target.family == "faas" else mcp_deployer
-        result = deployer.deploy_target(target.name, target.runtime, image_ref=image_ref)
+        from atsuite.recommender.identity import digest as identity_digest
+        physical_name = ('at-' + identity_digest({'namespace':namespace, 'experiment':experiment_id,
+            'candidate':candidate_id,'target':target.name},length=40)) if (namespace or experiment_id or candidate_id) else target.name
+        intent_name = physical_name
+        if provider == 'aws_agentcore': intent_name = 'atsuite_' + physical_name.lower().replace('-', '_')
+        elif provider.startswith('ali_'): intent_name += '-function' if target.family == 'faas' else '-mcp'
+        if on_resource:
+            on_resource({'logical_target':target.name,'physical_name':intent_name,'status':'creating','provider':provider,'region':region})
+        options={'strict_experiment':bool(experiment_id), 'ownership':ownership,
+            'environment':{'ATSUITE_TENANT':tenant or 'local','ATSUITE_EXPERIMENT_ID':experiment_id,
+                'ATSUITE_CANDIDATE_ID':candidate_id,'ATSUITE_SCENARIO_ID':'default',
+                'ATSUITE_LOGICAL_STATE_DOMAIN':logical_state_domain(resolved, target.name),
+                **({'PROJECT':state_bucket} if state_bucket else {}),
+                **({'ALI_REGION':region} if provider.startswith('ali_') else {})},
+            'architecture':target.runtime.architecture or artifacts.get(target.name,{}).get('platform','') if artifacts else target.runtime.architecture,
+            'concurrency':target.runtime.concurrency,'billing_mode':target.runtime.billing_mode,'region':region}
+        result = deployer.deploy_target(physical_name, target.runtime, image_ref=image_ref, runtime_options=options) if experiment_id else deployer.deploy_target(physical_name,target.runtime,image_ref=image_ref)
         requested = target.runtime.to_dict()
         if isinstance(result, str):
             result = {"endpoint": result}
         if hasattr(deployer, "readback_target"):
             try:
-                details = deployer.readback_target(target.name)
+                details = deployer.readback_target(physical_name)
                 if details:
                     result = {**result, **details}
             except Exception as exc:
                 result = {**result, "configuration_readback": "unverified",
                           "readback_error": f"{type(exc).__name__}: {exc}"}
         endpoint, effective, readback = _deployment_result(result, requested)
+        if on_resource:
+            on_resource({'logical_target':target.name,'physical_name':physical_name,'status':'created',
+                         'provider':provider,'region':region,'physical_name':str(result.get('physical_name') or physical_name),
+                         'runtime_id':result.get('runtime_id',''), 'resource_type':result.get('resource_type',''),
+                         'physical_resource_id':str(result.get('physical_resource_id') or physical_name)})
         if endpoint:
             endpoint_cache[target.name] = _endpoint_entry(
                 endpoint.rstrip("/"), target,
@@ -145,6 +175,7 @@ def deploy(
                 physical_resource_id=str(result.get("physical_resource_id") or ""),
                 readback_error=str(result.get("readback_error") or ""),
             )
+            endpoint_cache[target.name]['readback']={key:value for key,value in result.items() if key not in {'endpoint','url'}}
 
     return _write_map(config_path, provider, resolved.family, endpoint_cache, experiment_id, candidate_id, output_dir)
 

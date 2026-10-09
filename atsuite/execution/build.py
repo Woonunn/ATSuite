@@ -6,12 +6,26 @@ from typing import Any, Callable
 from atsuite.cli.build_docker_images import build_resolved_targets
 from atsuite.execution.workers import run_parallel
 from atsuite.recommender.identity import digest
+from atsuite.recommender.identity import tree_digest, file_digest
 
 
 def build_key(candidate: dict[str, Any]) -> str:
+    config_path = Path(candidate.get('generated_config', ''))
+    source_digest = candidate.get('bundle_digest') or candidate.get('workload_fingerprint')
+    if config_path.is_file():
+        from atsuite.pipeline import resolve_benchmark
+        resolved = resolve_benchmark(config_path, candidate['provider'])
+        source_digest = digest({'nodes':{name:tree_digest(node.dir)[0] for name,node in resolved.nodes.items()},
+                                'data': tree_digest(resolved.bench_root / 'data')[0] if (resolved.bench_root / 'data').exists() else '',
+                                'bundle':source_digest},length=64)
+    root=Path(__file__).resolve().parents[2]
     return "build-group-" + digest({
         "provider": candidate["provider"], "family": candidate["family"],
         "topology": candidate["logical_topology"], "architecture": candidate["runtime_architecture"],
+        'source':source_digest,'sdk':tree_digest(root / 'atsuite_sdk')[0],
+        'dockerfiles':tree_digest(root / 'dockerfiles')[0],
+        'dependency_lock':file_digest(root / 'uv.lock'),
+        'base_image_digest':candidate.get('base_image_digest',''),
     }, length=24)
 
 

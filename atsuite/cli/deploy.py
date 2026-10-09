@@ -1,33 +1,25 @@
+"""Compatibility deployment entrypoint for an approved immutable experiment."""
 import argparse
-import subprocess
-import sys
 from pathlib import Path
+from atsuite.execution.postgres_store import open_store
+from atsuite.recommender import service
+from atsuite.recommender.identity import file_digest
 
-from atsuite.deploy import deploy
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Deploy nodes on provider.")
-    parser.add_argument("--config", required=True, help="Build config JSON path")
-    parser.add_argument(
-        "--provider",
-        required=True,
-        choices=["ali_fc", "aws_lambda", "gcp_faas", "ali_agentrun", "aws_agentcore", "gcp_mcp", "mcp_gateway"],
-        help="Provider name",
-    )
-    args = parser.parse_args()
-
-    config_path = Path(args.config).resolve()
-    if not config_path.exists():
-        raise SystemExit(f"Config file not found: {config_path}")
-    deploy(config_path, args.provider)
-
-if __name__ == "__main__":
+def main(argv=None):
+    parser=argparse.ArgumentParser(description='Deploy through an explicitly approved experiment job')
+    parser.add_argument('--config',required=True,type=Path);parser.add_argument('--provider',required=True)
+    parser.add_argument('--experiment',help='approved experiment ID')
+    parser.add_argument('--store',default=Path('results/recommender/jobs.sqlite'))
+    args=parser.parse_args(argv)
+    if not args.experiment:parser.error('cloud writes require an approved immutable plan; use atsuite-recommend plan/run then --experiment')
+    store=open_store(args.store)
     try:
-        main()
-    except subprocess.CalledProcessError as exc:
-        print(f"Command failed: {exc.cmd}", file=sys.stderr)
-        if exc.stderr:
-            print(f"Error output: {exc.stderr}", file=sys.stderr)
-        if exc.stdout:
-            print(f"Standard output: {exc.stdout}", file=sys.stderr)
-        raise SystemExit(exc.returncode)
+        record=store.get(args.experiment)
+        service.validate_approval(store,record['plan'],record['approval'],tenant=record['tenant'],project=record['project'])
+        if not any(c['provider']==args.provider and Path(c['generated_config']).resolve()==args.config.resolve()
+                   and c['generated_config_digest']==file_digest(args.config) for c in record['plan']['candidates']):
+            parser.error('config/provider is outside the approved plan')
+        result=service.run(store,args.experiment)
+        return 0 if result['state']=='COMPLETED' else 1
+    finally:store.close()
+if __name__=='__main__':raise SystemExit(main())
