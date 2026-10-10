@@ -68,6 +68,7 @@ class AWSAgentCore:
         """
         image_uri = self.image_ref or self._push_to_ecr()
         self._create_or_update_runtime(image_uri)
+        self._checkpoint_resource()
         self._ensure_endpoint()
         self._wait_for_runtime_active()
         if self.strict_experiment:
@@ -304,14 +305,29 @@ class AWSAgentCore:
         return f"atsuite-usage-source-{suffix}", f"atsuite-usage-destination-{suffix}"
 
     @staticmethod
-    def _ignore_delivery_conflict(action) -> None:
+    def _ignore_delivery_conflict(action):
         try:
-            action()
+            return action()
         except Exception as exc:  # noqa: BLE001 - classify by AWS error code
             markers = {"ConflictException", "ResourceAlreadyExistsException", "AlreadyExists"}
             code = str(getattr(exc, "response", {}).get("Error", {}).get("Code", ""))
             if code in markers or type(exc).__name__ in markers or "already exists" in str(exc).lower():
                 return
+            raise
+
+    def _checkpoint_resource(self, **details) -> None:
+        callback = self.runtime_options.get('on_resource')
+        if callback:
+            callback({'physical_name':self.runtime_name,'runtime_id':self._runtime_id,**details})
+
+    @staticmethod
+    def _read_usage_resource(action):
+        try:
+            return action()
+        except Exception as exc:
+            code = getattr(exc, 'response', {}).get('Error', {}).get('Code', '')
+            if code == 'ResourceNotFoundException' or type(exc).__name__ == 'ResourceNotFoundException':
+                return None
             raise
 
     def _setup_usage_logs(self) -> None:
@@ -326,15 +342,36 @@ class AWSAgentCore:
         log_group_arn = f"arn:aws:logs:{self.region}:{self.account_id}:log-group:{log_group}"
         source_name, destination_name = self.usage_delivery_names(runtime_id)
         destination_arn = f"arn:aws:logs:{self.region}:{self.account_id}:delivery-destination:{destination_name}"
-        self._ignore_delivery_conflict(lambda: logs.create_log_group(logGroupName=log_group))
-        self._ignore_delivery_conflict(lambda: logs.put_delivery_source(name=source_name, resourceArn=runtime_arn, logType="USAGE_LOGS"))
-        self._ignore_delivery_conflict(lambda: logs.put_delivery_destination(
-            name=destination_name,
-            deliveryDestinationConfiguration={"destinationResourceArn": log_group_arn},
-            outputFormat="json",
-        ))
-        self._ignore_delivery_conflict(lambda: logs.create_delivery(
+        resources = {'log_group':log_group,'source_name':source_name,'destination_name':destination_name,
+                     'runtime_arn':runtime_arn,'destination_arn':destination_arn}
+        # Checkpoint intent before creating child resources, including failed deploys.
+        self._checkpoint_resource(usage_logs=resources)
+        tags = {'atsuite-ownership':self.ownership}
+        group = self._read_usage_resource(lambda: logs.list_tags_for_resource(resourceArn=log_group_arn))
+        source = self._read_usage_resource(lambda: logs.get_delivery_source(name=source_name))
+        destination = self._read_usage_resource(lambda: logs.get_delivery_destination(name=destination_name))
+        for existing in (group, source and source['deliverySource'], destination and destination['deliveryDestination']):
+            if existing is not None and existing.get('tags', {}).get('atsuite-ownership') != self.ownership:
+                raise RuntimeError('AgentCore usage logs have different ownership; refusing mutation')
+        if source and (source['deliverySource'].get('logType') != 'USAGE_LOGS' or
+                       source['deliverySource'].get('resourceArns') != [runtime_arn]):
+            raise RuntimeError('AgentCore usage source configuration mismatch')
+        if destination and destination['deliveryDestination'].get('deliveryDestinationConfiguration', {}).get('destinationResourceArn') != log_group_arn:
+            raise RuntimeError('AgentCore usage destination configuration mismatch')
+        if group is None:
+            self._ignore_delivery_conflict(lambda: logs.create_log_group(logGroupName=log_group, tags=tags))
+        if source is None:
+            self._ignore_delivery_conflict(lambda: logs.put_delivery_source(name=source_name, resourceArn=runtime_arn, logType="USAGE_LOGS", tags=tags))
+        if destination is None:
+            self._ignore_delivery_conflict(lambda: logs.put_delivery_destination(
+                name=destination_name,
+                deliveryDestinationConfiguration={"destinationResourceArn": log_group_arn},
+                outputFormat="json", tags=tags,
+            ))
+        delivery = self._ignore_delivery_conflict(lambda: logs.create_delivery(
             deliverySourceName=source_name,
-            deliveryDestinationArn=destination_arn,
+            deliveryDestinationArn=destination_arn, tags=tags,
         ))
+        if delivery:
+            self._checkpoint_resource(usage_logs={**resources,'delivery_id':delivery['delivery']['id']})
         print(f"[AgentCore] USAGE_LOGS delivery configured -> {log_group}")

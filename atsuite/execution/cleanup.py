@@ -15,52 +15,88 @@ def _agentcore_usage_delivery_names(runtime_id):
     return f'atsuite-usage-source-{suffix}',f'atsuite-usage-destination-{suffix}'
 
 
-def _delete_agentcore_usage_logs(logs,runtime_arn,runtime_id):
-    """Remove the per-runtime USAGE_LOGS delivery created at deploy time.
-
-    Delivery resources are additive remote state, so cleanup must not depend on
-    the runtime still existing. Names are deterministic from the runtime id; a
-    live ARN lets us also catch sources created under a different name.
-    """
-    source_names=set();destination_names=set()
-    if runtime_id:
-        source,destination=_agentcore_usage_delivery_names(runtime_id)
-        source_names.add(source);destination_names.add(destination)
-    log_group=f'{AGENTCORE_USAGE_LOG_GROUP_PREFIX}/{runtime_id}' if runtime_id else ''
-    def _paginate(operation,key):
-        args={}
-        while True:
-            page=operation(**args)
-            for row in page.get(key,[]):yield row
-            token=page.get('nextToken')
-            if not token:break
-            args['nextToken']=token
-    if runtime_arn:
-        try:
-            for source in _paginate(logs.describe_delivery_sources,'deliverySources'):
-                if runtime_arn in (source.get('resourceArns') or []):source_names.add(source['name'])
-        except Exception:pass
-    if log_group:
-        try:
-            for destination in _paginate(logs.describe_delivery_destinations,'deliveryDestinations'):
-                conf=destination.get('deliveryDestinationConfiguration') or {}
-                if str(conf.get('destinationResourceArn','')).endswith(log_group):destination_names.add(destination['name'])
-        except Exception:pass
+def _logs_if_present(action):
     try:
-        for delivery in _paginate(logs.describe_deliveries,'deliveries'):
-            if delivery.get('deliverySourceName') in source_names:
-                try:logs.delete_delivery(id=delivery['id'])
-                except Exception:pass
-    except Exception:pass
-    for name in source_names:
-        try:logs.delete_delivery_source(name=name)
-        except Exception:pass
-    for name in destination_names:
-        try:logs.delete_delivery_destination(name=name)
-        except Exception:pass
-    if log_group:
-        try:logs.delete_log_group(logGroupName=log_group)
-        except Exception:pass
+        return action()
+    except Exception as exc:
+        code=getattr(exc,'response',{}).get('Error',{}).get('Code','')
+        if code == 'ResourceNotFoundException' or type(exc).__name__ == 'ResourceNotFoundException':
+            return None
+        raise
+
+
+def _logs_pages(operation,key,**args):
+    while True:
+        page=operation(**args)
+        yield from page.get(key,[])
+        token=page.get('nextToken')
+        if not token:return
+        args['nextToken']=token
+
+
+def _delete_agentcore_usage_logs(logs,runtime_arn,runtime_id,*,ownership):
+    """Validate all child resources before deleting this runtime's owned usage route."""
+    source_name,destination_name=_agentcore_usage_delivery_names(runtime_id)
+    log_group=f'{AGENTCORE_USAGE_LOG_GROUP_PREFIX}/{runtime_id}'
+    arn_prefix=':'.join(runtime_arn.split(':')[:5]).replace(':bedrock-agentcore:',':logs:')
+    group_arn=f'{arn_prefix}:log-group:{log_group}'
+    destination_arn=f'{arn_prefix}:delivery-destination:{destination_name}'
+    source=_logs_if_present(lambda:logs.get_delivery_source(name=source_name))
+    destination=_logs_if_present(lambda:logs.get_delivery_destination(name=destination_name))
+    group=_logs_if_present(lambda:logs.list_tags_for_resource(resourceArn=group_arn))
+    source=source['deliverySource'] if source is not None else None
+    destination=destination['deliveryDestination'] if destination is not None else None
+    for item in (source,destination,group):
+        if item is not None and item.get('tags',{}).get('atsuite-ownership') != ownership:
+            raise ValueError('cleanup_logs_ownership_mismatch')
+    if source is not None and (source.get('logType') != 'USAGE_LOGS' or source.get('resourceArns') != [runtime_arn]):
+        raise ValueError('cleanup_logs_source_mismatch')
+    if destination is not None and destination.get('deliveryDestinationConfiguration',{}).get('destinationResourceArn') != group_arn:
+        raise ValueError('cleanup_logs_destination_mismatch')
+    deliveries=[]
+    for delivery in _logs_pages(logs.describe_deliveries,'deliveries'):
+        if delivery.get('deliverySourceName') != source_name and delivery.get('deliveryDestinationArn') != destination_arn:
+            continue
+        if (delivery.get('deliverySourceName') != source_name or delivery.get('deliveryDestinationArn') != destination_arn or
+                delivery.get('tags',{}).get('atsuite-ownership') != ownership):
+            raise ValueError('cleanup_logs_shared_delivery')
+        deliveries.append(delivery)
+    for item in _logs_pages(logs.describe_delivery_destinations,'deliveryDestinations'):
+        if item['name'] != destination_name and item.get('deliveryDestinationConfiguration',{}).get('destinationResourceArn') == group_arn:
+            raise ValueError('cleanup_logs_shared_log_group')
+    for delivery in deliveries:
+        _logs_if_present(lambda:logs.delete_delivery(id=delivery['id']))
+    if source is not None:
+        _logs_if_present(lambda:logs.delete_delivery_source(name=source_name))
+    if destination is not None:
+        _logs_if_present(lambda:logs.delete_delivery_destination(name=destination_name))
+    if group is not None:
+        _logs_if_present(lambda:logs.delete_log_group(logGroupName=log_group))
+
+
+def _orphan_agentcore_runtime_ids(logs,name,region,account):
+    """Recover older interrupted journals using only the exact experimental runtime name."""
+    name=name[:48]
+    ids=set()
+    def add(runtime_id):
+        if runtime_id == name or runtime_id.startswith(name+'-'):ids.add(runtime_id)
+    runtime_prefix=f'arn:aws:bedrock-agentcore:{region}:{account}:runtime/'
+    group_prefix=f'arn:aws:logs:{region}:{account}:log-group:{AGENTCORE_USAGE_LOG_GROUP_PREFIX}/'
+    for source in _logs_pages(logs.describe_delivery_sources,'deliverySources'):
+        if source.get('logType') != 'USAGE_LOGS':continue
+        for arn in source.get('resourceArns',[]):
+            if arn.startswith(runtime_prefix):
+                runtime_id=arn[len(runtime_prefix):]
+                if source['name'] == _agentcore_usage_delivery_names(runtime_id)[0]:add(runtime_id)
+    for destination in _logs_pages(logs.describe_delivery_destinations,'deliveryDestinations'):
+        arn=destination.get('deliveryDestinationConfiguration',{}).get('destinationResourceArn','')
+        if arn.startswith(group_prefix):
+            runtime_id=arn[len(group_prefix):]
+            if destination['name'] == _agentcore_usage_delivery_names(runtime_id)[1]:add(runtime_id)
+    prefix=f'{AGENTCORE_USAGE_LOG_GROUP_PREFIX}/{name}'
+    for group in _logs_pages(logs.describe_log_groups,'logGroups',logGroupNamePrefix=prefix):
+        add(group['logGroupName'].removeprefix(AGENTCORE_USAGE_LOG_GROUP_PREFIX+'/'))
+    return sorted(ids)
 
 
 def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run):
@@ -90,24 +126,33 @@ def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run)
         client=clients.get('agentcore') or boto3.client('bedrock-agentcore-control',region_name=region)
         logs=clients.get('logs') or boto3.client('logs',region_name=region)
         runtime_id=resource.get('runtime_id')
+        name=name[:48]
         if not runtime_id:
             args={}
             while True:
                 page=client.list_agent_runtimes(**args)
                 matches=[r for r in page.get('agentRuntimes',[]) if r.get('agentRuntimeName')==name]
                 if matches: runtime_id=matches[0]['agentRuntimeId'];break
-                if not page.get('nextToken'):return {'cleanup_status':'success','readback':'not_found'}
+                if not page.get('nextToken'):
+                    for orphan in _orphan_agentcore_runtime_ids(logs,name,region,account):
+                        arn=f'arn:aws:bedrock-agentcore:{region}:{account}:runtime/{orphan}'
+                        _delete_agentcore_usage_logs(logs,arn,orphan,ownership=expected)
+                    return {'cleanup_status':'success','readback':'not_found'}
                 args['nextToken']=page['nextToken']
         try:
             value=client.get_agent_runtime(agentRuntimeId=runtime_id);arn=value['agentRuntimeArn']
-            if arn.split(':')[3:5]!=[region,account]:raise ValueError('cleanup_arn_mismatch')
-            if client.list_tags_for_resource(resourceArn=arn).get('tags',{}).get('atsuite-ownership')!=expected:raise ValueError('cleanup_remote_ownership_mismatch')
-            _delete_agentcore_usage_logs(logs,arn,runtime_id)
-            client.delete_agent_runtime(agentRuntimeId=runtime_id)
-            return {'cleanup_status':'pending','readback':'deleting','runtime_id':runtime_id}
         except client.exceptions.ResourceNotFoundException:
-            _delete_agentcore_usage_logs(logs,None,runtime_id)
-            return {'cleanup_status':'success','readback':'not_found'}
+            arn=f'arn:aws:bedrock-agentcore:{region}:{account}:runtime/{runtime_id}'
+            _delete_agentcore_usage_logs(logs,arn,runtime_id,ownership=expected)
+            return {'cleanup_status':'success','readback':'not_found','runtime_id':runtime_id}
+        if arn.split(':')[3:5]!=[region,account]:raise ValueError('cleanup_arn_mismatch')
+        if client.list_tags_for_resource(resourceArn=arn).get('tags',{}).get('atsuite-ownership')!=expected:raise ValueError('cleanup_remote_ownership_mismatch')
+        _delete_agentcore_usage_logs(logs,arn,runtime_id,ownership=expected)
+        try:
+            client.delete_agent_runtime(agentRuntimeId=runtime_id)
+        except client.exceptions.ResourceNotFoundException:
+            return {'cleanup_status':'success','readback':'not_found','runtime_id':runtime_id}
+        return {'cleanup_status':'pending','readback':'deleting','runtime_id':runtime_id}
     if provider.startswith('gcp_'):
         response=runner(['gcloud','run','services','describe',name,'--project',account,'--region',region,'--format=json'],capture_output=True,text=True)
         if response.returncode:

@@ -137,7 +137,7 @@ def deploy(
         physical_name = ('at-' + identity_digest({'namespace':namespace, 'experiment':experiment_id,
             'candidate':candidate_id,'target':target.name},length=40)) if (namespace or experiment_id or candidate_id) else target.name
         intent_name = physical_name
-        if provider == 'aws_agentcore': intent_name = 'atsuite_' + physical_name.lower().replace('-', '_')
+        if provider == 'aws_agentcore': intent_name = ('atsuite_' + physical_name.lower().replace('-', '_'))[:48]
         elif provider.startswith('ali_'): intent_name += '-function' if target.family == 'faas' else '-mcp'
         if on_resource:
             on_resource({'logical_target':target.name,'physical_name':intent_name,'status':'creating','provider':provider,'region':region})
@@ -149,6 +149,9 @@ def deploy(
                 **({'ALI_REGION':region} if provider.startswith('ali_') else {})},
             'architecture':target.runtime.architecture or artifacts.get(target.name,{}).get('platform','') if artifacts else target.runtime.architecture,
             'concurrency':target.runtime.concurrency,'billing_mode':target.runtime.billing_mode,'region':region}
+        if provider == 'aws_agentcore' and on_resource:
+            options['on_resource'] = lambda details, logical_target=target.name: on_resource({
+                'logical_target':logical_target,'provider':provider,'region':region,'status':'creating',**details})
         result = deployer.deploy_target(physical_name, target.runtime, image_ref=image_ref, runtime_options=options) if experiment_id else deployer.deploy_target(physical_name,target.runtime,image_ref=image_ref)
         requested = target.runtime.to_dict()
         if isinstance(result, str):
@@ -163,9 +166,10 @@ def deploy(
                           "readback_error": f"{type(exc).__name__}: {exc}"}
         endpoint, effective, readback = _deployment_result(result, requested)
         if on_resource:
-            on_resource({'logical_target':target.name,'physical_name':physical_name,'status':'created',
-                         'provider':provider,'region':region,'physical_name':str(result.get('physical_name') or physical_name),
-                         'runtime_id':result.get('runtime_id',''), 'resource_type':result.get('resource_type',''),
+            on_resource({'logical_target':target.name,'status':'created',
+                         'provider':provider,'region':region,'physical_name':str(result.get('physical_name') or (intent_name if provider == 'aws_agentcore' else physical_name)),
+                         **({'runtime_id':result['runtime_id']} if result.get('runtime_id') else {}),
+                         'resource_type':result.get('resource_type',''),
                          'physical_resource_id':str(result.get('physical_resource_id') or physical_name)})
         if endpoint:
             endpoint_cache[target.name] = _endpoint_entry(
