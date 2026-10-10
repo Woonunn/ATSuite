@@ -14,6 +14,19 @@ def run_builder(candidate,output,*,experiment_id,build_id):
     with tempfile.TemporaryDirectory(prefix='atsuite-builder-') as config:
         env['DOCKER_CONFIG']=config
         env['HOME']=config
+        # CLI plugins (buildx) live under the real user config dir. Symlink just
+        # the plugins into the credential-free builder config so cross-platform
+        # builds keep working without exposing registry auth.
+        plugins=Path(config)/'cli-plugins'
+        for source in {Path(os.environ.get('DOCKER_CONFIG') or (Path.home()/'.docker'))/'cli-plugins',Path.home()/'.docker'/'cli-plugins'}:
+            if not source.is_dir():
+                continue
+            plugins.mkdir(exist_ok=True)
+            for entry in source.iterdir():
+                link=plugins/entry.name
+                if not link.exists():
+                    try: link.symlink_to(entry.resolve())
+                    except OSError: pass
         manifest=Path(output)/experiment_id/(build_id+'.json')
         manifest.parent.mkdir(parents=True,exist_ok=True)
         command=[sys.executable,'-m','atsuite.execution.safe_process','--config',candidate['generated_config'],'--provider',candidate['provider'],

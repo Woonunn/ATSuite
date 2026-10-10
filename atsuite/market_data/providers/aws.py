@@ -61,9 +61,12 @@ class AWSPriceAdapter:
                 rate_codes = [item[3] for item in dimensions]
                 data = {"sku": sku, "term": term_code, "rate_codes": rate_codes, "region": actual_region,
                         "unit": unit, "currency": currency, "effective": effective, "tiers": [(str(t.up_to), str(t.unit_price)) for t in tiers], "source": self.name, "version": "1", "attributes": attributes}
+                observed = utc_now()
                 cards.append(RateCard(
                     "rate-" + digest(data, length=24), "aws", str(product.get("productFamily") or payload.get("serviceCode") or ""),
-                    f"{sku}:{term_code}", actual_region, "on_demand", unit, currency, tiers, utc_now(), effective, self.name, "fresh",
-                    {"descriptions": [item[4] for item in dimensions], "attributes": attributes, "rate_codes": rate_codes},
+                    f"{sku}:{term_code}", actual_region, "on_demand", unit, currency, tiers,
+                    fetched_at=observed, observed_at=observed, source=self.name, freshness="fresh",
+                    metadata={"descriptions": [item[4] for item in dimensions], "attributes": attributes, "rate_codes": rate_codes},
+                    effective_from=effective,
                 ))
         return cards

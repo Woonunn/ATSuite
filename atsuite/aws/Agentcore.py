@@ -53,7 +53,11 @@ class AWSAgentCore:
             "AWS_AGENTCORE_ROLE_ARN",
             f"arn:aws:iam::{self.account_id}:role/atsuite-agentcore-execution-role",
         )
-        self.runtime_name = f"atsuite_{node_name.lower().replace('-', '_')}"
+        # AgentCore requires [a-zA-Z][a-zA-Z0-9_]{0,47} (48 chars max). Isolated
+        # experiments prefix a 40-char namespace digest, so bound the whole name
+        # while keeping the atsuite_at_ prefix that cleanup recognizes.
+        node_slug = node_name.lower().replace('-', '_')
+        self.runtime_name = f"atsuite_{node_slug}"[:48]
         self._runtime_id: Optional[str] = None
 
     def deploy(self) -> str:
