@@ -29,11 +29,13 @@ class AWSAgentCore:
         timeout: int = 30,
         image_ref: str | None = None,
         runtime_options: dict | None = None,
+        logs_client=None,
     ):
         self.node_name = node_name
         self.tag = tag
         self.ecr_client = ecr_client
         self.agentcore_client = agentcore_client
+        self.logs_client = logs_client
         self.region = region
         self.cpu = cpu
         self.memory = memory
@@ -68,6 +70,8 @@ class AWSAgentCore:
         self._create_or_update_runtime(image_uri)
         self._ensure_endpoint()
         self._wait_for_runtime_active()
+        if self.strict_experiment:
+            self._setup_usage_logs()
         url = self._get_invoke_url()
         print(f"\n\n Success deploy on AWS Bedrock AgentCore\n")
         print(f"AgentCore Invoke URL: {url}\n")
@@ -276,3 +280,61 @@ class AWSAgentCore:
             f"https://bedrock-agentcore.{self.region}.amazonaws.com"
             f"/runtimes/{encoded_arn}/invocations?qualifier=DEFAULT"
         )
+
+    # AgentCore bills the runtime from USAGE_LOGS, which are only delivered to
+    # CloudWatch once a delivery source/destination/delivery exists. ATSuite's
+    # analyzer reads that log group for session cost, so an experiment runtime
+    # without it produces no usage evidence and the ingestion wait just times
+    # out. Set it up before the first invocation.
+    USAGE_LOG_GROUP_PREFIX = "/aws/vendedlogs/bedrock-agentcore/runtime/USAGE_LOGS"
+
+    @staticmethod
+    def _usage_delivery_suffix(runtime_id: str) -> str:
+        import hashlib
+
+        return hashlib.sha256(runtime_id.encode("utf-8")).hexdigest()[:16]
+
+    @classmethod
+    def usage_log_group(cls, runtime_id: str) -> str:
+        return f"{cls.USAGE_LOG_GROUP_PREFIX}/{runtime_id}"
+
+    @classmethod
+    def usage_delivery_names(cls, runtime_id: str) -> Tuple[str, str]:
+        suffix = cls._usage_delivery_suffix(runtime_id)
+        return f"atsuite-usage-source-{suffix}", f"atsuite-usage-destination-{suffix}"
+
+    @staticmethod
+    def _ignore_delivery_conflict(action) -> None:
+        try:
+            action()
+        except Exception as exc:  # noqa: BLE001 - classify by AWS error code
+            markers = {"ConflictException", "ResourceAlreadyExistsException", "AlreadyExists"}
+            code = str(getattr(exc, "response", {}).get("Error", {}).get("Code", ""))
+            if code in markers or type(exc).__name__ in markers or "already exists" in str(exc).lower():
+                return
+            raise
+
+    def _setup_usage_logs(self) -> None:
+        import boto3
+
+        runtime_id = self._runtime_id
+        if not runtime_id:
+            raise RuntimeError("AgentCore usage logs require a created runtime")
+        logs = self.logs_client or boto3.client("logs", region_name=self.region)
+        runtime_arn = self.agentcore_client.get_agent_runtime(agentRuntimeId=runtime_id)["agentRuntimeArn"]
+        log_group = self.usage_log_group(runtime_id)
+        log_group_arn = f"arn:aws:logs:{self.region}:{self.account_id}:log-group:{log_group}"
+        source_name, destination_name = self.usage_delivery_names(runtime_id)
+        destination_arn = f"arn:aws:logs:{self.region}:{self.account_id}:delivery-destination:{destination_name}"
+        self._ignore_delivery_conflict(lambda: logs.create_log_group(logGroupName=log_group))
+        self._ignore_delivery_conflict(lambda: logs.put_delivery_source(name=source_name, resourceArn=runtime_arn, logType="USAGE_LOGS"))
+        self._ignore_delivery_conflict(lambda: logs.put_delivery_destination(
+            name=destination_name,
+            deliveryDestinationConfiguration={"destinationResourceArn": log_group_arn},
+            outputFormat="json",
+        ))
+        self._ignore_delivery_conflict(lambda: logs.create_delivery(
+            deliverySourceName=source_name,
+            deliveryDestinationArn=destination_arn,
+        ))
+        print(f"[AgentCore] USAGE_LOGS delivery configured -> {log_group}")

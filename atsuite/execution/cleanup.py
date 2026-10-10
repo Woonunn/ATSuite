@@ -1,9 +1,66 @@
 """Ownership-checked cleanup and resumable TTL reconciliation; never delete shared stores."""
 from __future__ import annotations
+import hashlib
 import json
 import subprocess
 from .publish import require_digest
 from atsuite.recommender.identity import digest
+
+
+AGENTCORE_USAGE_LOG_GROUP_PREFIX='/aws/vendedlogs/bedrock-agentcore/runtime/USAGE_LOGS'
+
+
+def _agentcore_usage_delivery_names(runtime_id):
+    suffix=hashlib.sha256(runtime_id.encode('utf-8')).hexdigest()[:16]
+    return f'atsuite-usage-source-{suffix}',f'atsuite-usage-destination-{suffix}'
+
+
+def _delete_agentcore_usage_logs(logs,runtime_arn,runtime_id):
+    """Remove the per-runtime USAGE_LOGS delivery created at deploy time.
+
+    Delivery resources are additive remote state, so cleanup must not depend on
+    the runtime still existing. Names are deterministic from the runtime id; a
+    live ARN lets us also catch sources created under a different name.
+    """
+    source_names=set();destination_names=set()
+    if runtime_id:
+        source,destination=_agentcore_usage_delivery_names(runtime_id)
+        source_names.add(source);destination_names.add(destination)
+    log_group=f'{AGENTCORE_USAGE_LOG_GROUP_PREFIX}/{runtime_id}' if runtime_id else ''
+    def _paginate(operation,key):
+        args={}
+        while True:
+            page=operation(**args)
+            for row in page.get(key,[]):yield row
+            token=page.get('nextToken')
+            if not token:break
+            args['nextToken']=token
+    if runtime_arn:
+        try:
+            for source in _paginate(logs.describe_delivery_sources,'deliverySources'):
+                if runtime_arn in (source.get('resourceArns') or []):source_names.add(source['name'])
+        except Exception:pass
+    if log_group:
+        try:
+            for destination in _paginate(logs.describe_delivery_destinations,'deliveryDestinations'):
+                conf=destination.get('deliveryDestinationConfiguration') or {}
+                if str(conf.get('destinationResourceArn','')).endswith(log_group):destination_names.add(destination['name'])
+        except Exception:pass
+    try:
+        for delivery in _paginate(logs.describe_deliveries,'deliveries'):
+            if delivery.get('deliverySourceName') in source_names:
+                try:logs.delete_delivery(id=delivery['id'])
+                except Exception:pass
+    except Exception:pass
+    for name in source_names:
+        try:logs.delete_delivery_source(name=name)
+        except Exception:pass
+    for name in destination_names:
+        try:logs.delete_delivery_destination(name=name)
+        except Exception:pass
+    if log_group:
+        try:logs.delete_log_group(logGroupName=log_group)
+        except Exception:pass
 
 
 def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run):
@@ -31,6 +88,7 @@ def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run)
                 except client.exceptions.ResourceNotFoundException: return {'cleanup_status':'success','readback':'not_found'}
             except client.exceptions.ResourceNotFoundException: return {'cleanup_status':'success','readback':'not_found'}
         client=clients.get('agentcore') or boto3.client('bedrock-agentcore-control',region_name=region)
+        logs=clients.get('logs') or boto3.client('logs',region_name=region)
         runtime_id=resource.get('runtime_id')
         if not runtime_id:
             args={}
@@ -44,9 +102,12 @@ def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run)
             value=client.get_agent_runtime(agentRuntimeId=runtime_id);arn=value['agentRuntimeArn']
             if arn.split(':')[3:5]!=[region,account]:raise ValueError('cleanup_arn_mismatch')
             if client.list_tags_for_resource(resourceArn=arn).get('tags',{}).get('atsuite-ownership')!=expected:raise ValueError('cleanup_remote_ownership_mismatch')
+            _delete_agentcore_usage_logs(logs,arn,runtime_id)
             client.delete_agent_runtime(agentRuntimeId=runtime_id)
             return {'cleanup_status':'pending','readback':'deleting','runtime_id':runtime_id}
-        except client.exceptions.ResourceNotFoundException:return {'cleanup_status':'success','readback':'not_found'}
+        except client.exceptions.ResourceNotFoundException:
+            _delete_agentcore_usage_logs(logs,None,runtime_id)
+            return {'cleanup_status':'success','readback':'not_found'}
     if provider.startswith('gcp_'):
         response=runner(['gcloud','run','services','describe',name,'--project',account,'--region',region,'--format=json'],capture_output=True,text=True)
         if response.returncode:
