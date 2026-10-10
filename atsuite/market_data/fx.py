@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import ssl
 import urllib.request
+from functools import partial
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+
+from requests.certs import where as requests_ca_bundle
 
 from atsuite.recommender.identity import digest
 from atsuite.recommender.contracts import utc_now
@@ -40,7 +44,12 @@ class ECBFxProvider(FxProvider):
     url = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 
     def __init__(self, opener=None):
-        self.opener = opener or urllib.request.urlopen
+        if opener is None:
+            context = ssl.create_default_context()
+            # Include application CAs when the system bundle lacks ECB's issuer.
+            context.load_verify_locations(cafile=requests_ca_bundle())
+            opener = partial(urllib.request.urlopen, context=context)
+        self.opener = opener
 
     def fetch(self, base_currency: str = "EUR") -> FxSnapshot:
         request = urllib.request.Request(self.url, headers={"User-Agent": "ATSuite/1"})

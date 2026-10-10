@@ -43,7 +43,12 @@ def _bind_billing_policy(snapshot,candidate_specs):
         from atsuite.market_data.usage import FC_CU_RULE
         policies=snapshot.setdefault('billing_rules',{})
         policies.setdefault('fc_cu_conversion',dict(FC_CU_RULE))
-        policies.setdefault('compute_units',dict(FC_AGGREGATE_RULE))
+        aggregate_rule=dict(FC_AGGREGATE_RULE)
+        for card in snapshot.get('rate_cards',[]):
+            if card.get('source') == 'aliyun_fc_public_tariff':
+                # The mainland BSS catalog uses CNY, including the hourly floor.
+                aggregate_rule.update(card['metadata']['billing_rule'])
+        policies.setdefault('compute_units',aggregate_rule)
 
 def _value(obj,name,default=None):
     return obj.get(name,default) if isinstance(obj,dict) else getattr(obj,name,default)
@@ -51,6 +56,15 @@ def _value(obj,name,default=None):
 def _serializable(card):
     row=asdict(card)
     row['tiers']=[{'up_to':str(t.up_to) if t.up_to is not None else None,'unit_price':str(t.unit_price)} for t in card.tiers]
+    return row
+
+
+def _price_content(card):
+    # Snapshot identity is content-derived; fetch timestamps vary per query and
+    # must not turn an identical price card into an immutable-id collision.
+    row=_serializable(card)
+    row.pop('fetched_at',None)
+    row.pop('observed_at',None)
     return row
 
 class OnlineMarketData:
@@ -120,9 +134,10 @@ def freeze_market_data(candidate_specs, policy, approved_accounts=(), *, service
         try:
             rows=service.fetch_candidate(candidate)
             for card in rows:
-                if card.snapshot_id in cards and cards[card.snapshot_id]!=card:
+                existing=cards.get(card.snapshot_id)
+                if existing is not None and _price_content(existing)!=_price_content(card):
                     raise ValueError('immutable_price_snapshot_collision')
-                cards[card.snapshot_id]=card
+                cards.setdefault(card.snapshot_id,card)
             coverage.append({'candidate_id':cid,'provider':provider,'status':'catalog_fetched','snapshot_ids':[c.snapshot_id for c in rows],'required_meters':list(SERVICE_SELECTORS.get(provider,{}).get('meters',())),'usage_match_status':'pending_usage_ledger'})
         except Exception as exc:
             coverage.append({'candidate_id':cid,'provider':provider,'status':'missing','reason_code':str(exc) if isinstance(exc,ValueError) else type(exc).__name__})
