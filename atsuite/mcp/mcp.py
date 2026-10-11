@@ -384,6 +384,21 @@ class AgentCoreMCPClient:
         session = BotocoreSession()
         self._credentials = session.get_credentials().get_frozen_credentials()
 
+    def close(self):
+        """Stop this replay's microVM before waiting for its final usage logs."""
+        if not self.session_id:
+            return
+        from urllib.parse import parse_qs, unquote, urlparse
+        import boto3
+
+        parsed = urlparse(self.url)
+        runtime_arn = unquote(parsed.path.split('/runtimes/', 1)[1].split('/', 1)[0])
+        qualifier = parse_qs(parsed.query).get('qualifier', ['DEFAULT'])[0]
+        boto3.client('bedrock-agentcore', region_name=self.region).stop_runtime_session(
+            agentRuntimeArn=runtime_arn, runtimeSessionId=self.session_id, qualifier=qualifier,
+        )
+        self.session_id = None
+
     def initialize(self, request_id: Optional[str] = None):
         """保持旧的简化路径：不单独发送 initialize，请求时再复用服务端返回的 session。"""
         if self._initialized:

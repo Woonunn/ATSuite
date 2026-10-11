@@ -51,13 +51,20 @@ class FakeLogs:
 
     def get_delivery_source(self, name):
         if name not in self.sources:raise self.exceptions.ResourceNotFoundException(name)
-        return {'deliverySource':self.sources[name]}
+        return {'deliverySource':{k:v for k,v in self.sources[name].items() if k!='tags'}}
 
     def get_delivery_destination(self, name):
         if name not in self.destinations:raise self.exceptions.ResourceNotFoundException(name)
-        return {'deliveryDestination':self.destinations[name]}
+        return {'deliveryDestination':{k:v for k,v in self.destinations[name].items() if k!='tags'}}
 
     def list_tags_for_resource(self, resourceArn):
+        for kind,items in (('delivery-source',self.sources),('delivery-destination',self.destinations),
+                           ('delivery',{d['id']:d for d in self.deliveries})):
+            marker=':'+kind+':'
+            if marker in resourceArn:
+                name=resourceArn.split(marker,1)[1]
+                if name not in items:raise self.exceptions.ResourceNotFoundException(name)
+                return {'tags':items[name].get('tags',{})}
         name=resourceArn.split(':log-group:',1)[1]
         if name not in self.groups:raise self.exceptions.ResourceNotFoundException(name)
         return {'tags':self.group_tags[name]}
@@ -69,7 +76,7 @@ class FakeLogs:
         return {"deliverySources": list(self.sources.values())}
 
     def describe_deliveries(self, **kwargs):
-        return {"deliveries": list(self.deliveries)}
+        return {"deliveries": [{k:v for k,v in d.items() if k!='tags'} for d in self.deliveries]}
 
     def describe_delivery_destinations(self, **kwargs):
         return {"deliveryDestinations": list(self.destinations.values())}
@@ -241,6 +248,14 @@ class AgentCoreUsageLogRecoveryTests(unittest.TestCase):
                     result=self.cleanup(logs,control,record,resource)
                     self.assertEqual(result['cleanup_status'],'success')
                     self.assertFalse(logs.groups or logs.sources or logs.destinations or logs.deliveries)
+
+    def test_runtime_already_deleting_remains_pending_without_second_delete(self):
+        logs,control,record,resource=self.make_case()
+        control.get_agent_runtime=mock.Mock(return_value={'agentRuntimeArn':control.arn,'status':'DELETING'})
+        result=self.cleanup(logs,control,record,resource)
+        self.assertEqual(result['cleanup_status'],'pending')
+        self.assertEqual(control.deleted,[])
+        self.assertEqual(logs.deleted,[])
 
     def test_unrelated_application_trace_and_usage_routes_are_preserved(self):
         logs,control,record,resource=self.make_case()

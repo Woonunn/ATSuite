@@ -350,8 +350,12 @@ class AWSAgentCore:
         group = self._read_usage_resource(lambda: logs.list_tags_for_resource(resourceArn=log_group_arn))
         source = self._read_usage_resource(lambda: logs.get_delivery_source(name=source_name))
         destination = self._read_usage_resource(lambda: logs.get_delivery_destination(name=destination_name))
-        for existing in (group, source and source['deliverySource'], destination and destination['deliveryDestination']):
-            if existing is not None and existing.get('tags', {}).get('atsuite-ownership') != self.ownership:
+        source_arn = f"arn:aws:logs:{self.region}:{self.account_id}:delivery-source:{source_name}"
+        for existing, arn in ((group, log_group_arn), (source, source_arn), (destination, destination_arn)):
+            if existing is None:
+                continue
+            observed_tags = group if arn == log_group_arn else logs.list_tags_for_resource(resourceArn=arn)
+            if observed_tags.get('tags', {}).get('atsuite-ownership') != self.ownership:
                 raise RuntimeError('AgentCore usage logs have different ownership; refusing mutation')
         if source and (source['deliverySource'].get('logType') != 'USAGE_LOGS' or
                        source['deliverySource'].get('resourceArns') != [runtime_arn]):

@@ -41,13 +41,17 @@ def _delete_agentcore_usage_logs(logs,runtime_arn,runtime_id,*,ownership):
     arn_prefix=':'.join(runtime_arn.split(':')[:5]).replace(':bedrock-agentcore:',':logs:')
     group_arn=f'{arn_prefix}:log-group:{log_group}'
     destination_arn=f'{arn_prefix}:delivery-destination:{destination_name}'
+    source_arn=f'{arn_prefix}:delivery-source:{source_name}'
     source=_logs_if_present(lambda:logs.get_delivery_source(name=source_name))
     destination=_logs_if_present(lambda:logs.get_delivery_destination(name=destination_name))
     group=_logs_if_present(lambda:logs.list_tags_for_resource(resourceArn=group_arn))
     source=source['deliverySource'] if source is not None else None
     destination=destination['deliveryDestination'] if destination is not None else None
-    for item in (source,destination,group):
-        if item is not None and item.get('tags',{}).get('atsuite-ownership') != ownership:
+    # Get/Describe delivery APIs omit tags; use the dedicated tagging API.
+    for item,arn in ((source,source_arn),(destination,destination_arn),(group,group_arn)):
+        if item is None:continue
+        tags=group if arn == group_arn else _logs_if_present(lambda:logs.list_tags_for_resource(resourceArn=arn))
+        if (tags or {}).get('tags',{}).get('atsuite-ownership') != ownership:
             raise ValueError('cleanup_logs_ownership_mismatch')
     if source is not None and (source.get('logType') != 'USAGE_LOGS' or source.get('resourceArns') != [runtime_arn]):
         raise ValueError('cleanup_logs_source_mismatch')
@@ -57,8 +61,10 @@ def _delete_agentcore_usage_logs(logs,runtime_arn,runtime_id,*,ownership):
     for delivery in _logs_pages(logs.describe_deliveries,'deliveries'):
         if delivery.get('deliverySourceName') != source_name and delivery.get('deliveryDestinationArn') != destination_arn:
             continue
-        if (delivery.get('deliverySourceName') != source_name or delivery.get('deliveryDestinationArn') != destination_arn or
-                delivery.get('tags',{}).get('atsuite-ownership') != ownership):
+        if delivery.get('deliverySourceName') != source_name or delivery.get('deliveryDestinationArn') != destination_arn:
+            raise ValueError('cleanup_logs_shared_delivery')
+        tags=logs.list_tags_for_resource(resourceArn=f"{arn_prefix}:delivery:{delivery['id']}")
+        if tags.get('tags',{}).get('atsuite-ownership') != ownership:
             raise ValueError('cleanup_logs_shared_delivery')
         deliveries.append(delivery)
     for item in _logs_pages(logs.describe_delivery_destinations,'deliveryDestinations'):
@@ -147,6 +153,8 @@ def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run)
             return {'cleanup_status':'success','readback':'not_found','runtime_id':runtime_id}
         if arn.split(':')[3:5]!=[region,account]:raise ValueError('cleanup_arn_mismatch')
         if client.list_tags_for_resource(resourceArn=arn).get('tags',{}).get('atsuite-ownership')!=expected:raise ValueError('cleanup_remote_ownership_mismatch')
+        if value.get('status') == 'DELETING':
+            return {'cleanup_status':'pending','readback':'deleting','runtime_id':runtime_id}
         _delete_agentcore_usage_logs(logs,arn,runtime_id,ownership=expected)
         try:
             client.delete_agent_runtime(agentRuntimeId=runtime_id)
@@ -168,7 +176,7 @@ def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run)
     if provider.startswith('ali_'):
         from atsuite.ali.ali import Ali
         from alibabacloud_tea_util.models import RuntimeOptions
-        from alibabacloud_fc20230330.models import GetFunctionRequest
+        from alibabacloud_fc20230330.models import GetFunctionRequest,ListTriggersRequest
         client=clients.get('fc') or Ali(region=region).get_fc_client()
         try:
             response=client.get_function_with_options(name,GetFunctionRequest(),{},RuntimeOptions());body=response.body
@@ -176,6 +184,15 @@ def cleanup_owned_resource(resource,record,*,clients=None,runner=subprocess.run)
             if tags.get('atsuite-ownership')!=expected:raise ValueError('cleanup_remote_ownership_mismatch')
             arn=str(getattr(body,'function_arn',''))
             if arn and (account not in arn or region not in arn):raise ValueError('cleanup_arn_mismatch')
+            next_token=None
+            triggers=[]
+            while True:
+                page=client.list_triggers_with_options(name,ListTriggersRequest(next_token=next_token),{},RuntimeOptions()).body
+                triggers.extend(t.trigger_name for t in (page.triggers or []))
+                next_token=page.next_token
+                if not next_token:break
+            for trigger in triggers:
+                client.delete_trigger_with_options(name,trigger,{},RuntimeOptions())
             client.delete_function_with_options(name,{},RuntimeOptions())
             return {'cleanup_status':'pending','readback':'deleting'}
         except Exception as exc:

@@ -10,6 +10,9 @@ def run_parallel(items: Iterable[Any], worker: Callable[[Any], Any], *, max_work
     values = list(items)
     if not values:
         return []
+    if max_workers == 1:
+        # Serial provider SDK calls may require main-thread signal handlers.
+        return [worker(value) for value in values]
     # Preserve input order while still isolating each worker's result.
     with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="atsuite-worker") as pool:
         futures = [pool.submit(worker, value) for value in values]

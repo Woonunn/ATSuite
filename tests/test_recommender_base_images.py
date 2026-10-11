@@ -5,6 +5,14 @@ from atsuite.execution.base_images import freeze_base_image
 from atsuite.execution.build import build_key
 
 class BaseImages(unittest.TestCase):
+    def test_ali_python_312_uses_available_official_base(self):
+        from atsuite.pipeline import get_provider_spec
+        for provider in ('ali_fc', 'ali_agentrun'):
+            spec = get_provider_spec(provider)
+            self.assertEqual(spec.base_image('3.12'), 'python:3.12-slim')
+            self.assertEqual(spec.base_image('3.12.4'), 'python:3.12.4-slim')
+            self.assertEqual(spec.base_image('3.11.1'), 'alibaba-cloud-linux-3-registry.cn-hangzhou.cr.aliyuncs.com/alinux3/python:3.11.1')
+
     def runner(self,arch='amd64'):
         def run(command,**kwargs):
             if '--format' in command:return SimpleNamespace(stdout=json.dumps({'digest':'sha256:'+'a'*64}))

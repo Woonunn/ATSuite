@@ -100,6 +100,10 @@ class ProviderSpec:
 
     def base_image(self, python_version: str) -> str:
         if self.docker_provider == "ali":
+            # Alinux's Python registry does not publish Python 3.12; FC custom
+            # containers can use the official Python image for this version.
+            if python_version.split('.')[:2] == ['3', '12']:
+                return f"python:{python_version}-slim"
             return f"alibaba-cloud-linux-3-registry.cn-hangzhou.cr.aliyuncs.com/alinux3/python:{python_version}"
         if self.docker_provider == "aws_lambda":
             return f"public.ecr.aws/lambda/python:{python_version}"

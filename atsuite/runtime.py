@@ -256,6 +256,16 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
             observability=observability,
         )
 
+    def cleanup_run(self, uid: str) -> None:
+        if self.provider != 'aws_agentcore':
+            return
+        for target_id in self.targets:
+            key = f'{target_id}:{uid}'
+            client = self._clients.get(key)
+            if client is not None:
+                client.close()
+                del self._clients[key]
+
     def _client(self, target: RuntimeTarget, uid: str):
         key = f"{target.target_id}:{uid}"
         if key in self._clients:
