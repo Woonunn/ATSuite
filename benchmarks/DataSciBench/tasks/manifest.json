@@ -1,0 +1,1609 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/THUDM/DataSciBench",
+    "commit_sha": "84ef3d4d94d7362a5149cf14a73dc168fc4f2f33",
+    "content_source": "git_commit_blobs"
+  },
+  "hash_definitions": {
+    "prompt_sha256": "SHA256 of original decoded prompt encoded as UTF-8, without normalization",
+    "prompt_file_sha256": "SHA256 of exact prompt.json bytes at source commit"
+  },
+  "task_count": 6,
+  "tasks": [
+    {
+      "task_id": "human_15",
+      "prompt": "\"Using the dataset provided :\n\n```\nMonth,Year,Sales,Category\nJanuary,2022,1500,Electronics\nFebruary,2022,1600,Electronics\nMarch,2022,1700,Electronics\nJanuary,2023,1800,Furniture\nFebruary,2023,1900,Furniture\nMarch,2023,2000,Furniture\nDecember,2023,2100,Clothing\n```\n\nPlease complete the following subtasks and produce the corresponding outputs:\n\n1. **Bar Chart Visualization**\n**Output**: A bar chart saved as \"\"bar_chart.png\"\".\n- **Requirements**: \n- x-axis: Year\n- y-axis: Sales\n- Each bar represents the total sales of each year.\n- Bar color: Red\n- Edge color: Black\n- Ensure there are intervals between each bar.\n\n2. **Line Chart Visualization**\n- **Output**: A line chart saved as \"\"line_chart.png\"\".\n- **Requirements**: \n- x-axis: Month\n- y-axis: Total Sales for each category.\n- Line style: Dash-dot.\n- Each line should have a different legend and color according to the category.\n\n3. **Scatter Chart Visualization**\n- **Output**: A scatter chart saved as \"\"scatter_chart.png\"\".\n- **Requirements**: \n- x-axis: Time\n- y-axis: Sales.\n- Different categories should have different colors.\n- Size of each point should be proportional to the sales.\n- Transparency of each point should be set to 0.5.\"",
+      "data_source_type": "1=no dependency",
+      "prompt_sha256": "b0d7b1d7d473dcac930c1a3f5231572c787d4ae70e417dc2622cbbb74990018a",
+      "prompt_file_sha256": "fd5fc96c4d82b0eac61853a541137fa76d0ddc80f3d5dcf6415847fad05ad490",
+      "source_path": "data/human_15/prompt.json",
+      "source_blob": "a8fe0d8f0f63a9a0a9a0e8be76b2489136bf3a56",
+      "task_type": "human",
+      "task_type_source": "task_id_prefix",
+      "input_files": [],
+      "output_files": [
+        "bar_chart.png",
+        "line_chart.png",
+        "scatter_chart.png"
+      ],
+      "intermediate_files": [],
+      "subtasks": [
+        {
+          "step_id": "1",
+          "title": "Bar Chart Visualization",
+          "input_files": [],
+          "output_files": [
+            "bar_chart.png"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "2",
+          "title": "Line Chart Visualization",
+          "input_files": [],
+          "output_files": [
+            "line_chart.png"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "3",
+          "title": "Scatter Chart Visualization",
+          "input_files": [],
+          "output_files": [
+            "scatter_chart.png"
+          ],
+          "depends_on": []
+        }
+      ],
+      "dependencies": {
+        "python_imports": [],
+        "library_mentions": [],
+        "data_urls": [],
+        "missing_from_upstream": []
+      },
+      "file_references": [
+        {
+          "path": "bar_chart.png",
+          "mentions": [
+            {
+              "line": 17,
+              "role": "output",
+              "step_id": "1",
+              "text": "**Output**: A bar chart saved as \"\"bar_chart.png\"\"."
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "line_chart.png",
+          "mentions": [
+            {
+              "line": 27,
+              "role": "output",
+              "step_id": "2",
+              "text": "- **Output**: A line chart saved as \"\"line_chart.png\"\"."
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "scatter_chart.png",
+          "mentions": [
+            {
+              "line": 35,
+              "role": "output",
+              "step_id": "3",
+              "text": "- **Output**: A scatter chart saved as \"\"scatter_chart.png\"\"."
+            }
+          ],
+          "upstream_path": null
+        }
+      ],
+      "metadata_extraction": {
+        "method": "literal_paths_labels_context_and_static_imports_v1",
+        "unresolved_file_references": [],
+        "warnings": [],
+        "requires_review": false,
+        "complete": false
+      },
+      "readiness": {
+        "status": "offline_reference_validated",
+        "metadata_review": "Original prompt and required files manually reconciled; static extraction warnings remain as diagnostics",
+        "execution": "existing ATSuite datasci_run_code in Docker; no LLM trajectory",
+        "inputs": {
+          "status": "prepared",
+          "source_url": "https://github.com/THUDM/DataSciBench",
+          "source_commit_sha": "84ef3d4d94d7362a5149cf14a73dc168fc4f2f33",
+          "prompt_sha256": "b0d7b1d7d473dcac930c1a3f5231572c787d4ae70e417dc2622cbbb74990018a",
+          "derivation": "Exact fenced CSV block from original human_15 prompt, plus trailing newline",
+          "files": [
+            {
+              "name": "sales.csv",
+              "path": "benchmarks/DataSciBench/data/human_15/sales.csv",
+              "sha256": "6bdb3be234be2e0c5d09c3c6c6017a1e387fdab9d1bc6308295f51105c7cd821",
+              "bytes": 226
+            }
+          ]
+        },
+        "expected_outputs": [
+          "bar_chart.png",
+          "line_chart.png",
+          "scatter_chart.png"
+        ]
+      },
+      "task_classification": {
+        "compute_class": "light",
+        "basis": "median measured compute wall seconds: light <5, medium 5–15, heavy >=15; no synthetic padding",
+        "memory_class": "ordinary"
+      },
+      "profiling": {
+        "compute_wall_seconds_median": 0.49294780287891626,
+        "compute_wall_seconds_runs": [
+          0.49044562806375325,
+          0.49398352298885584,
+          0.49294780287891626
+        ],
+        "cpu_seconds_median": 0.4985500000000006,
+        "peak_rss_bytes_max": 232337408,
+        "shared_state_bytes_max": 977,
+        "workspace_bytes_max": 93418,
+        "max_step_wall_seconds_median": 0.2026603538542986,
+        "state_encoding": "actual live reference state serialized with pickle protocol 5; not SDK JSON or a FaaS storage cost",
+        "parameters": {
+          "input": "exact CSV embedded in original Prompt"
+        },
+        "subtask_dag": {
+          "prepare": [],
+          "bar": [
+            "prepare"
+          ],
+          "line": [
+            "prepare"
+          ],
+          "scatter": [
+            "prepare"
+          ]
+        },
+        "parallelism": "DAG identifies potential independent consumers of prepared immutable inputs; measurements execute serially",
+        "validation_checks": [
+          "exact embedded sales totals",
+          "bar heights equal yearly totals",
+          "dash-dot line per category",
+          "one plotted point for each real observation",
+          "nonempty expected output bar_chart.png",
+          "valid PNG bar_chart.png",
+          "nonempty expected output line_chart.png",
+          "valid PNG line_chart.png",
+          "nonempty expected output scatter_chart.png",
+          "valid PNG scatter_chart.png"
+        ],
+        "all_output_hashes_reproduce": true,
+        "output_sha256": {
+          "bar_chart.png": "a29852177bc4dca2c06a633690b57f46184d9bdbfe8d72a65d94d8cde81c2917",
+          "line_chart.png": "7c56af3695cfa559db0a610a77d6bb4cddb08c696e019c61a5fc5925b4d3aac0",
+          "scatter_chart.png": "344f3d1bc26b780bd93cf1d14b9970eb947569c96084c4f64c0ad7603a562962"
+        },
+        "evidence": [
+          "results/phase1/20261025T151515Z-6035e855299c/human_15-0-139f0687d0e84d9191ba2287fae09b6b",
+          "results/phase1/20261025T151515Z-6035e855299c/human_15-1-2cbc4e84af784c10831aa1eaec3a3bac",
+          "results/phase1/20261025T151515Z-6035e855299c/human_15-2-8dd5e80015744a17a47fea2c7139e110"
+        ]
+      }
+    },
+    {
+      "task_id": "csv_excel_34",
+      "prompt": "Please use the public microdata sample from the 2000 U.S. Census (refer to the 'data_pums_2000.csv' file) to perform the following subtasks:\n\n1. Data Preparation  \n   - Input: 'data_pums_2000.csv'  \n   - Output: 'cleaned_data.csv' (This file should contain the cleaned and preprocessed data, suitable for further analysis.)\n\n2. Plot the Lorenz Curve  \n   - Input: 'cleaned_data.csv'  \n   - Output: 'lorenz_curve.png' (This image should visually represent the Lorenz curve based on the income distribution in the dataset.)\n\n3. Calculate the Gini Coefficient  \n   - Input: 'cleaned_data.csv'  \n   - Output: 'gini_coefficient.txt' (This text file should contain the calculated Gini coefficient value, formatted as a simple numeric output.)",
+      "data_source_type": "2=open source data",
+      "prompt_sha256": "5973c8a006c53dbf4cde1d3fc34cad61870c677a3dbeb17a550e6e5c84828dda",
+      "prompt_file_sha256": "b364f30865df2e59bff1fefffff22237f2a035e409f03d93f56e9e51dd6049be",
+      "source_path": "data/csv_excel_34/prompt.json",
+      "source_blob": "c9c51b4921d0fead6810840513ebce1ee436d637",
+      "task_type": "csv_excel",
+      "task_type_source": "task_id_prefix",
+      "input_files": [
+        "data_pums_2000.csv"
+      ],
+      "output_files": [
+        "cleaned_data.csv",
+        "gini_coefficient.txt",
+        "lorenz_curve.png"
+      ],
+      "intermediate_files": [
+        "cleaned_data.csv"
+      ],
+      "subtasks": [
+        {
+          "step_id": "1",
+          "title": "Data Preparation",
+          "input_files": [
+            "data_pums_2000.csv"
+          ],
+          "output_files": [
+            "cleaned_data.csv"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "2",
+          "title": "Plot the Lorenz Curve",
+          "input_files": [
+            "cleaned_data.csv"
+          ],
+          "output_files": [
+            "lorenz_curve.png"
+          ],
+          "depends_on": [
+            "1"
+          ]
+        },
+        {
+          "step_id": "3",
+          "title": "Calculate the Gini Coefficient",
+          "input_files": [
+            "cleaned_data.csv"
+          ],
+          "output_files": [
+            "gini_coefficient.txt"
+          ],
+          "depends_on": [
+            "1"
+          ]
+        }
+      ],
+      "dependencies": {
+        "python_imports": [],
+        "library_mentions": [],
+        "data_urls": [],
+        "missing_from_upstream": [
+          "data_pums_2000.csv"
+        ]
+      },
+      "file_references": [
+        {
+          "path": "data_pums_2000.csv",
+          "mentions": [
+            {
+              "line": 1,
+              "role": "input",
+              "step_id": null,
+              "text": "Please use the public microdata sample from the 2000 U.S. Census (refer to the 'data_pums_2000.csv' file) to perform the following subtasks:"
+            },
+            {
+              "line": 4,
+              "role": "input",
+              "step_id": "1",
+              "text": "   - Input: 'data_pums_2000.csv'  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "cleaned_data.csv",
+          "mentions": [
+            {
+              "line": 5,
+              "role": "output",
+              "step_id": "1",
+              "text": "   - Output: 'cleaned_data.csv' (This file should contain the cleaned and preprocessed data, suitable for further analysis.)"
+            },
+            {
+              "line": 8,
+              "role": "input",
+              "step_id": "2",
+              "text": "   - Input: 'cleaned_data.csv'  "
+            },
+            {
+              "line": 12,
+              "role": "input",
+              "step_id": "3",
+              "text": "   - Input: 'cleaned_data.csv'  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "lorenz_curve.png",
+          "mentions": [
+            {
+              "line": 9,
+              "role": "output",
+              "step_id": "2",
+              "text": "   - Output: 'lorenz_curve.png' (This image should visually represent the Lorenz curve based on the income distribution in the dataset.)"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "gini_coefficient.txt",
+          "mentions": [
+            {
+              "line": 13,
+              "role": "output",
+              "step_id": "3",
+              "text": "   - Output: 'gini_coefficient.txt' (This text file should contain the calculated Gini coefficient value, formatted as a simple numeric output.)"
+            }
+          ],
+          "upstream_path": null
+        }
+      ],
+      "metadata_extraction": {
+        "method": "literal_paths_labels_context_and_static_imports_v1",
+        "unresolved_file_references": [],
+        "warnings": [],
+        "requires_review": false,
+        "complete": false
+      },
+      "readiness": {
+        "status": "offline_reference_validated",
+        "metadata_review": "Original prompt and required files manually reconciled; static extraction warnings remain as diagnostics",
+        "execution": "existing ATSuite datasci_run_code in Docker; no LLM trajectory",
+        "inputs": {
+          "status": "prepared",
+          "source_url": "https://yutatoyama.github.io/AppliedEconometrics2020/03_Stat/data_pums_2000.csv",
+          "source_sha256": "1ecd8561b89d3091339943e2392d9b79293d98b77154b47260e7de9bfb393096",
+          "provenance": "Census 2000 5% PUMS; Yuta Toyama course distribution CC BY-NC-SA 4.0",
+          "derivation": null,
+          "files": [
+            {
+              "name": "data_pums_2000.csv",
+              "path": "benchmarks/DataSciBench/data/csv_excel_34/data_pums_2000.csv",
+              "sha256": "1ecd8561b89d3091339943e2392d9b79293d98b77154b47260e7de9bfb393096",
+              "bytes": 1495949
+            }
+          ]
+        },
+        "expected_outputs": [
+          "cleaned_data.csv",
+          "gini_coefficient.txt",
+          "lorenz_curve.png"
+        ]
+      },
+      "task_classification": {
+        "compute_class": "light",
+        "basis": "median measured compute wall seconds: light <5, medium 5–15, heavy >=15; no synthetic padding",
+        "memory_class": "ordinary"
+      },
+      "profiling": {
+        "compute_wall_seconds_median": 0.40927934902720153,
+        "compute_wall_seconds_runs": [
+          0.4152024919167161,
+          0.40927934902720153,
+          0.4084825769532472
+        ],
+        "cpu_seconds_median": 0.4137390000000003,
+        "peak_rss_bytes_max": 262369280,
+        "shared_state_bytes_max": 5462261,
+        "workspace_bytes_max": 1530507,
+        "max_step_wall_seconds_median": 0.2835443471558392,
+        "state_encoding": "actual live reference state serialized with pickle protocol 5; not SDK JSON or a FaaS storage cost",
+        "parameters": {
+          "cleaning": "drop NA/negative income; preserve nonnegative observations"
+        },
+        "subtask_dag": {
+          "prepare": [],
+          "lorenz": [
+            "prepare"
+          ],
+          "gini": [
+            "prepare"
+          ]
+        },
+        "parallelism": "DAG identifies potential independent consumers of prepared immutable inputs; measurements execute serially",
+        "validation_checks": [
+          "authentic census schema and nontrivial population",
+          "Lorenz integration independently matches rank Gini",
+          "Gini lies between zero and one",
+          "CSV preserves all valid observed incomes",
+          "nonempty expected output cleaned_data.csv",
+          "nonempty expected output lorenz_curve.png",
+          "valid PNG lorenz_curve.png",
+          "nonempty expected output gini_coefficient.txt"
+        ],
+        "all_output_hashes_reproduce": true,
+        "output_sha256": {
+          "cleaned_data.csv": "1ecd8561b89d3091339943e2392d9b79293d98b77154b47260e7de9bfb393096",
+          "gini_coefficient.txt": "4897d8c94bd0b0ac10b8a304e42d5f8f1c8b158142060f4b44c9db0acfe5ee80",
+          "lorenz_curve.png": "a1085847fb1ff1efa0785f80515bfc7b0ae9e90aaed44903f0b774c1b74eb8df"
+        },
+        "evidence": [
+          "results/phase1/20261025T151515Z-6035e855299c/csv_excel_34-0-2edd1397a4094ec197fb17f622fc6bbf",
+          "results/phase1/20261025T151515Z-6035e855299c/csv_excel_34-1-abc3e3296897405292395c3d29db8504",
+          "results/phase1/20261025T151515Z-6035e855299c/csv_excel_34-2-fc3cb9ddc62c46e885e19a6b226eb365"
+        ]
+      }
+    },
+    {
+      "task_id": "human_142",
+      "prompt": "You are required to analyze the \"Credit Card Default\" dataset from the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/default+of+credit+card+clients), which contains information on Taiwanese customers' credit card payment defaults. Your tasks are as follows:\r\n\r\n1. **Data Mining**:\r\n   - Conduct association rule mining to discover relationships between different features and the default status.  \r\n     Input: \"default of credit card clients.xls\"  \r\n     Output: \"association_rules.csv\" (format: csv)\r\n\r\n   - Identify frequent itemsets and association rules that reveal how certain combinations of features are related to higher default rates.  \r\n     Input: \"default of credit card clients.xls\"  \r\n     Output: \"frequent_itemsets.csv\" (format: csv)\r\n\r\n2. **Clustering**:\r\n   - Apply K-means clustering to group clients into distinct segments based on features such as credit limit, bill amounts, and payment history.  \r\n     Input: \"default of credit card clients.xls\"  \r\n     Output: \"kmeans_clusters.csv\" (format: csv)\r\n\r\n   - Determine the optimal number of clusters using the Elbow method and present the results.  \r\n     Input: \"default of credit card clients.xls\"  \r\n     Output: \"elbow_method.png\" (format: image)\r\n\r\n4. **Pattern Analysis and Interpretation**:\r\n   - Analyze and interpret the identified patterns, discussing features most strongly associated with defaults, notable trends, and outliers.  \r\n     Output: \"pattern_analysis_report.pdf\" (format: pdf)\r\n\r\n   - Describe the characteristics of different client segments identified through clustering and their potential risk levels.  \r\n     Output: \"client_segments_analysis.pdf\" (format: pdf)\r\n\r\nEnsure the outputs reflect the quality of your analysis and allow for further evaluation of the results.",
+      "data_source_type": "2=open source data",
+      "prompt_sha256": "5ea3a897eb5a1e5f34c79ebd42e6513ac3a67c9f52fb6e0b2b1c70a01ec54746",
+      "prompt_file_sha256": "1b5ded7a8110b9a549188150b27480cd4cf65b48aab3052ba8cfbf7c777f056d",
+      "source_path": "data/human_142/prompt.json",
+      "source_blob": "555c478147e38e57700058338f450b7b85473562",
+      "task_type": "human",
+      "task_type_source": "task_id_prefix",
+      "input_files": [
+        "default of credit card clients.xls"
+      ],
+      "output_files": [
+        "association_rules.csv",
+        "client_segments_analysis.pdf",
+        "elbow_method.png",
+        "frequent_itemsets.csv",
+        "kmeans_clusters.csv",
+        "pattern_analysis_report.pdf"
+      ],
+      "intermediate_files": [],
+      "subtasks": [
+        {
+          "step_id": "1",
+          "title": "Data Mining:",
+          "input_files": [
+            "default of credit card clients.xls"
+          ],
+          "output_files": [
+            "association_rules.csv",
+            "frequent_itemsets.csv"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "2",
+          "title": "Clustering:",
+          "input_files": [
+            "default of credit card clients.xls"
+          ],
+          "output_files": [
+            "kmeans_clusters.csv",
+            "elbow_method.png"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "4",
+          "title": "Pattern Analysis and Interpretation:",
+          "input_files": [],
+          "output_files": [
+            "pattern_analysis_report.pdf",
+            "client_segments_analysis.pdf"
+          ],
+          "depends_on": []
+        }
+      ],
+      "dependencies": {
+        "python_imports": [],
+        "library_mentions": [],
+        "data_urls": [
+          "https://archive.ics.uci.edu/ml/datasets/default+of+credit+card+clients"
+        ],
+        "missing_from_upstream": [
+          "default of credit card clients.xls"
+        ]
+      },
+      "file_references": [
+        {
+          "path": "default of credit card clients.xls",
+          "mentions": [
+            {
+              "line": 5,
+              "role": "input",
+              "step_id": "1",
+              "text": "     Input: \"default of credit card clients.xls\"  "
+            },
+            {
+              "line": 9,
+              "role": "input",
+              "step_id": "1",
+              "text": "     Input: \"default of credit card clients.xls\"  "
+            },
+            {
+              "line": 14,
+              "role": "input",
+              "step_id": "2",
+              "text": "     Input: \"default of credit card clients.xls\"  "
+            },
+            {
+              "line": 18,
+              "role": "input",
+              "step_id": "2",
+              "text": "     Input: \"default of credit card clients.xls\"  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "association_rules.csv",
+          "mentions": [
+            {
+              "line": 6,
+              "role": "output",
+              "step_id": "1",
+              "text": "     Output: \"association_rules.csv\" (format: csv)"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "frequent_itemsets.csv",
+          "mentions": [
+            {
+              "line": 10,
+              "role": "output",
+              "step_id": "1",
+              "text": "     Output: \"frequent_itemsets.csv\" (format: csv)"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "kmeans_clusters.csv",
+          "mentions": [
+            {
+              "line": 15,
+              "role": "output",
+              "step_id": "2",
+              "text": "     Output: \"kmeans_clusters.csv\" (format: csv)"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "elbow_method.png",
+          "mentions": [
+            {
+              "line": 19,
+              "role": "output",
+              "step_id": "2",
+              "text": "     Output: \"elbow_method.png\" (format: image)"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "pattern_analysis_report.pdf",
+          "mentions": [
+            {
+              "line": 23,
+              "role": "output",
+              "step_id": "4",
+              "text": "     Output: \"pattern_analysis_report.pdf\" (format: pdf)"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "client_segments_analysis.pdf",
+          "mentions": [
+            {
+              "line": 26,
+              "role": "output",
+              "step_id": "4",
+              "text": "     Output: \"client_segments_analysis.pdf\" (format: pdf)"
+            }
+          ],
+          "upstream_path": null
+        }
+      ],
+      "metadata_extraction": {
+        "method": "literal_paths_labels_context_and_static_imports_v1",
+        "unresolved_file_references": [],
+        "warnings": [],
+        "requires_review": false,
+        "complete": false
+      },
+      "readiness": {
+        "status": "offline_reference_validated",
+        "metadata_review": "Original prompt and required files manually reconciled; static extraction warnings remain as diagnostics",
+        "execution": "existing ATSuite datasci_run_code in Docker; no LLM trajectory",
+        "inputs": {
+          "status": "prepared",
+          "source_url": "https://archive.ics.uci.edu/static/public/350/default+of+credit+card+clients.zip",
+          "source_sha256": "56c885f84457f6680f8438f02bfcdac9579323d8a94465ee5f26e32baa727602",
+          "provenance": "UCI Default of Credit Card Clients; CC BY 4.0",
+          "derivation": null,
+          "files": [
+            {
+              "name": "default of credit card clients.xls",
+              "path": "benchmarks/DataSciBench/data/human_142/default of credit card clients.xls",
+              "sha256": "30c6be3abd8dcfd3e6096c828bad8c2f011238620f5369220bd60cfc82700933",
+              "bytes": 5539328
+            }
+          ]
+        },
+        "expected_outputs": [
+          "association_rules.csv",
+          "client_segments_analysis.pdf",
+          "elbow_method.png",
+          "frequent_itemsets.csv",
+          "kmeans_clusters.csv",
+          "pattern_analysis_report.pdf"
+        ]
+      },
+      "task_classification": {
+        "compute_class": "medium",
+        "basis": "median measured compute wall seconds: light <5, medium 5–15, heavy >=15; no synthetic padding",
+        "memory_class": "ordinary"
+      },
+      "profiling": {
+        "compute_wall_seconds_median": 5.7382820141501725,
+        "compute_wall_seconds_runs": [
+          5.768824624828994,
+          5.7382820141501725,
+          5.709958462277427
+        ],
+        "cpu_seconds_median": 5.774621,
+        "peak_rss_bytes_max": 342351872,
+        "shared_state_bytes_max": 12683966,
+        "workspace_bytes_max": 3059141,
+        "max_step_wall_seconds_median": 4.18970508989878,
+        "state_encoding": "actual live reference state serialized with pickle protocol 5; not SDK JSON or a FaaS storage cost",
+        "parameters": {
+          "elbow_k": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "n_init": 10,
+          "apriori_min_support": 0.05,
+          "max_itemset_length": 3,
+          "min_confidence": 0.6
+        },
+        "subtask_dag": {
+          "prepare": [],
+          "mine": [
+            "prepare"
+          ],
+          "cluster_elbow": [
+            "prepare"
+          ],
+          "reports": [
+            "mine",
+            "cluster_elbow"
+          ]
+        },
+        "parallelism": "DAG identifies potential independent consumers of prepared immutable inputs; measurements execute serially",
+        "validation_checks": [
+          "30000 original clients and complete features",
+          "nonempty frequent itemsets and rules",
+          "all itemset supports match transaction counts",
+          "all rule confidences match transaction counts",
+          "all clients clustered and nonempty segments",
+          "cluster risk profile matches persisted observations",
+          "selected elbow recomputes from actual inertia",
+          "nonempty expected output association_rules.csv",
+          "nonempty expected output frequent_itemsets.csv",
+          "nonempty expected output kmeans_clusters.csv",
+          "nonempty expected output elbow_method.png",
+          "valid PNG elbow_method.png",
+          "nonempty expected output pattern_analysis_report.pdf",
+          "readable PDF with actual report content pattern_analysis_report.pdf",
+          "nonempty expected output client_segments_analysis.pdf",
+          "readable PDF with actual report content client_segments_analysis.pdf"
+        ],
+        "all_output_hashes_reproduce": true,
+        "output_sha256": {
+          "association_rules.csv": "92295e510cef746acbb988a76ba2d609d3c8b8aab160a2f80a3094842f326a96",
+          "client_segments_analysis.pdf": "d5ca00667a92cdfeb22de33a9b4abe63cbbb8699a0da5f4f08987d927619667b",
+          "cluster_profiles.csv": "5d12d27de1f852baf8573b3b19c957d7ad0edcff425e5d8088f986f47df6fcdf",
+          "elbow_method.png": "817791b3f2a937c9ab92712efb7229a0600fd6358862e9dd74cdec4fb4418e65",
+          "elbow_values.csv": "3604462a943bc13b43363164b89ec592d8b6a2b853ab684958efa6a405c2c3e9",
+          "frequent_itemsets.csv": "7dcb358c5eb27dce0a5e9d3851665f7ab87fcd89ccaa9115dae82e6e4f40f97a",
+          "kmeans_clusters.csv": "6cd168ba8210d54d68073494f448d92db8ccd0e779b69a64c7e5eb173a3d8467",
+          "pattern_analysis_report.pdf": "e445dbb2e21e3a2ef371d527f4cbd2fa42d68cda3c88b042d1c7b59b41a71881"
+        },
+        "evidence": [
+          "results/phase1/20261025T151515Z-6035e855299c/human_142-0-cde25dbe63624af1bb7298b26bef0089",
+          "results/phase1/20261025T151515Z-6035e855299c/human_142-1-ac1780b04f164998afeb43fed77c78db",
+          "results/phase1/20261025T151515Z-6035e855299c/human_142-2-6d1da6f1ef70410a872d39890c8e01d4"
+        ]
+      }
+    },
+    {
+      "task_id": "human_12",
+      "prompt": "Undertake an in-depth analysis of the UCI Adult Income dataset (https://archive.ics.uci.edu/ml/datasets/adult) with the objective of developing a predictive model to ascertain whether an individual's income surpasses $50,000 annually.\r\n\r\n1. **Data Import and Cleaning**  \r\n   - Input: `adult.data` and ``adult.test` (UCI Adult Income dataset)  \r\n   - Output: `cleaned_data.csv` (cleaned dataset)  \r\n   Begin the process by importing the dataset and executing a thorough data cleaning routine. Systematically identify and address any missing or anomalous values through imputation or exclusion. Transform categorical variables into a format suitable for machine learning and normalize numerical attributes to standardize their scale.\r\n\r\n2. **Model Development**  \r\n   - Input: `cleaned_data.csv`  \r\n   - Output: `model_predictions.csv` (predictions and performance metrics)  \r\n   - Model Checkpoint: `model_checkpoint.pkl` (saved model)  \r\n   Employ a robust machine learning algorithm, such as Logistic Regression or Random Forest, to construct a classification model capable of predicting whether a person's income exceeds the $50K threshold. Assess the model's efficacy using a comprehensive suite of evaluation metrics, including accuracy, precision, recall, F1-score, and ROC-AUC. Document the model's predictions and performance metrics in a CSV file, and preserve the trained model as a checkpoint.\r\n\r\n3. **Data Mining and Clustering Analysis**  \r\n   - Input: `cleaned_data.csv`  \r\n   - Output: `clustering_results.csv` (clustering outcomes and profiles)  \r\n   Engage in data mining to uncover latent patterns and insights. Apply clustering algorithms like K-means or DBSCAN to reveal underlying structures within the dataset. Interrogate the clustering outcomes to delineate the distinct profiles of each cluster and their correlation with the target variable of income exceeding $50K.\r\n\r\n4. **Final Report Compilation**  \r\n   - Output: `analysis_report.pdf` (comprehensive report)  \r\n   Conclude your analysis by compiling a detailed report that encapsulates the data cleaning steps, exploratory data analysis, visual representations, discovered patterns, and the model's predictive outcomes. The report should also highlight any notable trends or anomalies observed during the analysis. Ensure this comprehensive document is formatted and saved as a PDF file at the specified location.",
+      "data_source_type": "2=open source data",
+      "prompt_sha256": "6957e18188b519ea68c962cd50162edc5455edab56d0b50f94f79456a35917e2",
+      "prompt_file_sha256": "b456ca6b008366385758115e0f0e92009707c40f9edfb4fac0b94d11fd6fb50e",
+      "source_path": "data/human_12/prompt.json",
+      "source_blob": "62820f5d11c3067113136e9c79e2fe91e46b8e64",
+      "task_type": "human",
+      "task_type_source": "task_id_prefix",
+      "input_files": [
+        "adult.data",
+        "adult.test"
+      ],
+      "output_files": [
+        "analysis_report.pdf",
+        "cleaned_data.csv",
+        "clustering_results.csv",
+        "model_checkpoint.pkl",
+        "model_predictions.csv"
+      ],
+      "intermediate_files": [
+        "cleaned_data.csv"
+      ],
+      "subtasks": [
+        {
+          "step_id": "1",
+          "title": "Data Import and Cleaning",
+          "input_files": [
+            "adult.data",
+            "adult.test"
+          ],
+          "output_files": [
+            "cleaned_data.csv"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "2",
+          "title": "Model Development",
+          "input_files": [
+            "cleaned_data.csv"
+          ],
+          "output_files": [
+            "model_predictions.csv",
+            "model_checkpoint.pkl"
+          ],
+          "depends_on": [
+            "1"
+          ]
+        },
+        {
+          "step_id": "3",
+          "title": "Data Mining and Clustering Analysis",
+          "input_files": [
+            "cleaned_data.csv"
+          ],
+          "output_files": [
+            "clustering_results.csv"
+          ],
+          "depends_on": [
+            "1"
+          ]
+        },
+        {
+          "step_id": "4",
+          "title": "Final Report Compilation",
+          "input_files": [],
+          "output_files": [
+            "analysis_report.pdf"
+          ],
+          "depends_on": []
+        }
+      ],
+      "dependencies": {
+        "python_imports": [],
+        "library_mentions": [],
+        "data_urls": [
+          "https://archive.ics.uci.edu/ml/datasets/adult"
+        ],
+        "missing_from_upstream": [
+          "adult.data",
+          "adult.test"
+        ]
+      },
+      "file_references": [
+        {
+          "path": "adult.data",
+          "mentions": [
+            {
+              "line": 4,
+              "role": "input",
+              "step_id": "1",
+              "text": "   - Input: `adult.data` and ``adult.test` (UCI Adult Income dataset)  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "adult.test",
+          "mentions": [
+            {
+              "line": 4,
+              "role": "input",
+              "step_id": "1",
+              "text": "   - Input: `adult.data` and ``adult.test` (UCI Adult Income dataset)  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "cleaned_data.csv",
+          "mentions": [
+            {
+              "line": 5,
+              "role": "output",
+              "step_id": "1",
+              "text": "   - Output: `cleaned_data.csv` (cleaned dataset)  "
+            },
+            {
+              "line": 9,
+              "role": "input",
+              "step_id": "2",
+              "text": "   - Input: `cleaned_data.csv`  "
+            },
+            {
+              "line": 15,
+              "role": "input",
+              "step_id": "3",
+              "text": "   - Input: `cleaned_data.csv`  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "model_predictions.csv",
+          "mentions": [
+            {
+              "line": 10,
+              "role": "output",
+              "step_id": "2",
+              "text": "   - Output: `model_predictions.csv` (predictions and performance metrics)  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "model_checkpoint.pkl",
+          "mentions": [
+            {
+              "line": 11,
+              "role": "output",
+              "step_id": "2",
+              "text": "   - Model Checkpoint: `model_checkpoint.pkl` (saved model)  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "clustering_results.csv",
+          "mentions": [
+            {
+              "line": 16,
+              "role": "output",
+              "step_id": "3",
+              "text": "   - Output: `clustering_results.csv` (clustering outcomes and profiles)  "
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "analysis_report.pdf",
+          "mentions": [
+            {
+              "line": 20,
+              "role": "output",
+              "step_id": "4",
+              "text": "   - Output: `analysis_report.pdf` (comprehensive report)  "
+            }
+          ],
+          "upstream_path": null
+        }
+      ],
+      "metadata_extraction": {
+        "method": "literal_paths_labels_context_and_static_imports_v1",
+        "unresolved_file_references": [],
+        "warnings": [],
+        "requires_review": false,
+        "complete": false
+      },
+      "readiness": {
+        "status": "offline_reference_validated",
+        "metadata_review": "Original prompt and required files manually reconciled; static extraction warnings remain as diagnostics",
+        "execution": "existing ATSuite datasci_run_code in Docker; no LLM trajectory",
+        "inputs": {
+          "status": "prepared",
+          "source_url": "https://archive.ics.uci.edu/static/public/2/adult.zip",
+          "source_sha256": "7537312dd56c2b98035880805ce99e68183a30ee468aa5329d6df0fbb3cc21bb",
+          "provenance": "UCI Adult; CC BY 4.0",
+          "derivation": null,
+          "files": [
+            {
+              "name": "adult.data",
+              "path": "benchmarks/DataSciBench/data/human_12/adult.data",
+              "sha256": "5b00264637dbfec36bdeaab5676b0b309ff9eb788d63554ca0a249491c86603d",
+              "bytes": 3974305
+            },
+            {
+              "name": "adult.test",
+              "path": "benchmarks/DataSciBench/data/human_12/adult.test",
+              "sha256": "a2a9044bc167a35b2361efbabec64e89d69ce82d9790d2980119aac5fd7e9c05",
+              "bytes": 2003153
+            },
+            {
+              "name": "adult.names",
+              "path": "benchmarks/DataSciBench/data/human_12/adult.names",
+              "sha256": "c248284c0b5de30c9e1958d6cdd168a34a654758b620e68f46aefa83fc0a576a",
+              "bytes": 5229
+            }
+          ]
+        },
+        "expected_outputs": [
+          "analysis_report.pdf",
+          "cleaned_data.csv",
+          "clustering_results.csv",
+          "model_checkpoint.pkl",
+          "model_predictions.csv"
+        ]
+      },
+      "task_classification": {
+        "compute_class": "heavy",
+        "basis": "median measured compute wall seconds: light <5, medium 5–15, heavy >=15; no synthetic padding",
+        "memory_class": "high"
+      },
+      "profiling": {
+        "compute_wall_seconds_median": 16.82991954195313,
+        "compute_wall_seconds_runs": [
+          16.334312085062265,
+          16.82991954195313,
+          16.85986608779058
+        ],
+        "cpu_seconds_median": 16.962939000000002,
+        "peak_rss_bytes_max": 973479936,
+        "shared_state_bytes_max": 266873451,
+        "workspace_bytes_max": 212036624,
+        "max_step_wall_seconds_median": 9.696074082981795,
+        "state_encoding": "actual live reference state serialized with pickle protocol 5; not SDK JSON or a FaaS storage cost",
+        "parameters": {
+          "random_forest_trees": 200,
+          "kmeans_clusters": 6,
+          "n_init": 10,
+          "holdout": "official adult.test; fit all preprocessing on adult.data only"
+        },
+        "subtask_dag": {
+          "prepare": [],
+          "predict": [
+            "prepare"
+          ],
+          "cluster": [
+            "prepare"
+          ],
+          "report": [
+            "predict",
+            "cluster"
+          ]
+        },
+        "parallelism": "DAG identifies potential independent consumers of prepared immutable inputs; measurements execute serially",
+        "validation_checks": [
+          "official train/test sizes",
+          "no missing cleaned values",
+          "checkpoint reproduces all held-out probabilities",
+          "held-out accuracy >= .80",
+          "all five metrics recompute from saved predictions",
+          "cluster profiles equal actual label income rates",
+          "nonempty expected output cleaned_data.csv",
+          "nonempty expected output model_predictions.csv",
+          "nonempty expected output model_checkpoint.pkl",
+          "nonempty expected output clustering_results.csv",
+          "nonempty expected output analysis_report.pdf",
+          "readable PDF with actual report content analysis_report.pdf"
+        ],
+        "all_output_hashes_reproduce": true,
+        "output_sha256": {
+          "adult_age.png": "0231bf05ef8d1ee2fc651f0244e8b9c4c2c26f43a906de13c7ede4e34f660678",
+          "analysis_report.pdf": "9331c40abe5c8b864b50648634c1f34a084ee79f420fe89fe8bb788196573a75",
+          "cleaned_data.csv": "6ca0154886ba804fa238c86a41d38eb5a7af68c51af41c1059cb4fea6fa3f1dd",
+          "cluster_income_rates.png": "0e289431547c373c10ef915e6fdd11d9bbe1e09a85ba1aed26adababd07342f1",
+          "clustering_results.csv": "3e354e573eb24c9d6c6fa0e8dcdd9855c4da90fc09233d8bde3197d6636ff044",
+          "model_checkpoint.pkl": "f112234406c2c68d82a57bc63407a49a571288368112734c8c129450c54a1784",
+          "model_metrics.png": "e5a67e58ebf11df90faace26dc0313eb94ad0b2f24a8d6c024d344e7a46e76f2",
+          "model_predictions.csv": "5d0e8e226797a2b695e538b5d78631077fbedf7bf318dbd637e3ad8b13e65ca1"
+        },
+        "evidence": [
+          "results/phase1/20261025T151515Z-6035e855299c/human_12-0-3cd86f96ef5d4c60a20547a3ace7b339",
+          "results/phase1/20261025T151515Z-6035e855299c/human_12-1-95a1badf7b664006b5213ef891899341",
+          "results/phase1/20261025T151515Z-6035e855299c/human_12-2-49e3d3a041094eb8824583e1bf8fae53"
+        ]
+      }
+    },
+    {
+      "task_id": "human_7",
+      "prompt": "\"You are required to perform a comprehensive analysis on the \"\"Online Retail II\"\" dataset from UCI Machine Learning Repository \n- **Input file:** online_retail_II.xlsx\n1. **Data Visualization:**\n- Conduct data visualizations to understand the dataset better. \n- Create the following visualizations:\n- A bar chart showing the distribution of transactions by country.\n- **Output filename:** distribution_by_country.png\n- A time series plot displaying sales trends over time.\n- **Output filename:** sales_trends_over_time.png\n- A heatmap illustrating the correlation between different features.\n- **Output filename:** correlation_heatmap.png\n\n2. **Data Mining:**\n- Use data mining techniques to uncover valuable insights from the dataset.\n- Perform market basket analysis using the Apriori algorithm to find frequent itemsets and association rules.\n- **Output filename:** frequent_itemsets.csv\n- Identify the most popular products and analyze customer purchasing patterns.\n- **Output filename:** popular_products_analysis.csv\n\n3. **Comprehensive Report:**\n- Generate a comprehensive report detailing the data visualizations and insights gained from data mining.\n- Include all visualizations, discuss the identified patterns, and their potential business implications.\n- **Output filename:** comprehensive_report.pdf\n\nAll outputs should reflect the quality of completion for each subtask, allowing for further evaluation of the analysis performed.\"",
+      "data_source_type": "2=open source data",
+      "prompt_sha256": "9b84ae4068ab58d0727aebfda78b366b7521afc2b91b337e1393ceb0d7932251",
+      "prompt_file_sha256": "0f3cf7982236e3fc44f3b1f1abf2051cb89f0f92df1854799869b1c9d9d78539",
+      "source_path": "data/human_7/prompt.json",
+      "source_blob": "d191dc3b993febd3853b22350b7744bbe73e0a01",
+      "task_type": "human",
+      "task_type_source": "task_id_prefix",
+      "input_files": [
+        "online_retail_II.xlsx"
+      ],
+      "output_files": [
+        "comprehensive_report.pdf",
+        "correlation_heatmap.png",
+        "distribution_by_country.png",
+        "frequent_itemsets.csv",
+        "popular_products_analysis.csv",
+        "sales_trends_over_time.png"
+      ],
+      "intermediate_files": [],
+      "subtasks": [
+        {
+          "step_id": "1",
+          "title": "Data Visualization:",
+          "input_files": [],
+          "output_files": [
+            "distribution_by_country.png",
+            "sales_trends_over_time.png",
+            "correlation_heatmap.png"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "2",
+          "title": "Data Mining:",
+          "input_files": [],
+          "output_files": [
+            "frequent_itemsets.csv",
+            "popular_products_analysis.csv"
+          ],
+          "depends_on": []
+        },
+        {
+          "step_id": "3",
+          "title": "Comprehensive Report:",
+          "input_files": [],
+          "output_files": [
+            "comprehensive_report.pdf"
+          ],
+          "depends_on": []
+        }
+      ],
+      "dependencies": {
+        "python_imports": [],
+        "library_mentions": [],
+        "data_urls": [],
+        "missing_from_upstream": [
+          "online_retail_II.xlsx"
+        ]
+      },
+      "file_references": [
+        {
+          "path": "online_retail_II.xlsx",
+          "mentions": [
+            {
+              "line": 2,
+              "role": "input",
+              "step_id": null,
+              "text": "- **Input file:** online_retail_II.xlsx"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "distribution_by_country.png",
+          "mentions": [
+            {
+              "line": 7,
+              "role": "output",
+              "step_id": "1",
+              "text": "- **Output filename:** distribution_by_country.png"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "sales_trends_over_time.png",
+          "mentions": [
+            {
+              "line": 9,
+              "role": "output",
+              "step_id": "1",
+              "text": "- **Output filename:** sales_trends_over_time.png"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "correlation_heatmap.png",
+          "mentions": [
+            {
+              "line": 11,
+              "role": "output",
+              "step_id": "1",
+              "text": "- **Output filename:** correlation_heatmap.png"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "frequent_itemsets.csv",
+          "mentions": [
+            {
+              "line": 16,
+              "role": "output",
+              "step_id": "2",
+              "text": "- **Output filename:** frequent_itemsets.csv"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "popular_products_analysis.csv",
+          "mentions": [
+            {
+              "line": 18,
+              "role": "output",
+              "step_id": "2",
+              "text": "- **Output filename:** popular_products_analysis.csv"
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "comprehensive_report.pdf",
+          "mentions": [
+            {
+              "line": 23,
+              "role": "output",
+              "step_id": "3",
+              "text": "- **Output filename:** comprehensive_report.pdf"
+            }
+          ],
+          "upstream_path": null
+        }
+      ],
+      "metadata_extraction": {
+        "method": "literal_paths_labels_context_and_static_imports_v1",
+        "unresolved_file_references": [],
+        "warnings": [],
+        "requires_review": false,
+        "complete": false
+      },
+      "readiness": {
+        "status": "offline_reference_validated",
+        "metadata_review": "Original prompt and required files manually reconciled; static extraction warnings remain as diagnostics",
+        "execution": "existing ATSuite datasci_run_code in Docker; no LLM trajectory",
+        "inputs": {
+          "status": "prepared",
+          "source_url": "https://raw.githubusercontent.com/DiogoRibeiro7/data/1f46e1e6cba984f739095b8117f375500edf2638/datasets/online-retail-ii/raw/online_retail_II.xlsx",
+          "source_sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980",
+          "provenance": "UCI Online Retail II (DOI 10.24432/C5CG6D); CC BY 4.0; unmodified public mirror pinned by Git commit",
+          "derivation": null,
+          "files": [
+            {
+              "name": "online_retail_II.xlsx",
+              "path": "benchmarks/DataSciBench/data/human_7/online_retail_II.xlsx",
+              "sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980",
+              "bytes": 45622278
+            }
+          ]
+        },
+        "expected_outputs": [
+          "comprehensive_report.pdf",
+          "correlation_heatmap.png",
+          "distribution_by_country.png",
+          "frequent_itemsets.csv",
+          "popular_products_analysis.csv",
+          "sales_trends_over_time.png"
+        ]
+      },
+      "task_classification": {
+        "compute_class": "heavy",
+        "basis": "median measured compute wall seconds: light <5, medium 5–15, heavy >=15; no synthetic padding",
+        "memory_class": "high"
+      },
+      "profiling": {
+        "compute_wall_seconds_median": 68.001396890264,
+        "compute_wall_seconds_runs": [
+          68.001396890264,
+          68.37856897595339,
+          67.38875837484375
+        ],
+        "cpu_seconds_median": 68.42311399999998,
+        "peak_rss_bytes_max": 1072975872,
+        "shared_state_bytes_max": 92827172,
+        "workspace_bytes_max": 438307,
+        "max_step_wall_seconds_median": 63.53030157601461,
+        "state_encoding": "actual live reference state serialized with pickle protocol 5; not SDK JSON or a FaaS storage cost",
+        "parameters": {
+          "apriori_min_support": 0.03,
+          "max_itemset_length": 3,
+          "min_confidence": 0.5,
+          "scope": "both years; all countries; positive quantity/price, noncancelled invoices"
+        },
+        "subtask_dag": {
+          "prepare": [],
+          "visualize": [
+            "prepare"
+          ],
+          "mine": [
+            "prepare"
+          ],
+          "products": [
+            "prepare"
+          ],
+          "report": [
+            "visualize",
+            "mine",
+            "products"
+          ]
+        },
+        "parallelism": "DAG identifies potential independent consumers of prepared immutable inputs; measurements execute serially",
+        "validation_checks": [
+          "both authentic retail years loaded",
+          "product revenue conserved",
+          "nonempty frequent itemsets and rules",
+          "all itemset supports match transaction counts",
+          "all rule confidences match transaction counts",
+          "country counts equal all retained lines",
+          "monthly revenue conserves transaction revenue",
+          "most popular product quantity and buyers independently recompute",
+          "nonempty expected output distribution_by_country.png",
+          "valid PNG distribution_by_country.png",
+          "nonempty expected output sales_trends_over_time.png",
+          "valid PNG sales_trends_over_time.png",
+          "nonempty expected output correlation_heatmap.png",
+          "valid PNG correlation_heatmap.png",
+          "nonempty expected output frequent_itemsets.csv",
+          "nonempty expected output popular_products_analysis.csv",
+          "nonempty expected output comprehensive_report.pdf",
+          "readable PDF with actual report content comprehensive_report.pdf"
+        ],
+        "all_output_hashes_reproduce": true,
+        "output_sha256": {
+          "association_rules.csv": "85ac2d4c9f5cb7a0df7b11d9c490542d62b0aac21bb717da986971bda35bed9f",
+          "comprehensive_report.pdf": "918fdd3d9bb9803706068a762aa81b15d7c576481dfa9e49b947dba286b4b705",
+          "correlation_heatmap.png": "a3069f7e548bd91ac86b753e7aa98fc2a840dbc7978c152685f9bf96aa05b99f",
+          "country_counts.csv": "5a234b07d6e41ea84020213198ac7c1b12d350be084c1cf87842d34aa8966997",
+          "distribution_by_country.png": "e85a52871a7d486009cab52af3eadecc55035456efe3954db06c5c589248a5a5",
+          "frequent_itemsets.csv": "abfa67166ef43cd9380a2b6d05c94511466d0a84473cd4557e42f9e900dfe2ab",
+          "monthly_sales.csv": "87f6d1cb40ad16f2199da27d6a92a79b8748e531dc1d5668cf8575a8d65ae93c",
+          "popular_products_analysis.csv": "54679d46c213a2527232ad9c5586fcb48912e6e677462f2514c21e83e5c47e45",
+          "sales_trends_over_time.png": "32c5d5fc8efebe032440771cc67fb2fb17d0bd6a08c2823fb2b8d0af18deebc8"
+        },
+        "evidence": [
+          "results/phase1/20261025T151515Z-6035e855299c/human_7-0-8ab22609fd2242058788de39193b8482",
+          "results/phase1/20261025T151515Z-6035e855299c/human_7-1-d8632affb138487780dc4ee6e85a3999",
+          "results/phase1/20261025T151515Z-6035e855299c/human_7-2-c63be1a9f00b4125a6d108001acaa2cc"
+        ]
+      }
+    },
+    {
+      "task_id": "csv_excel_29",
+      "prompt": "Please complete the following task:\nWrite a complete LSTM (Long Short-Term Memory) neural network for time series prediction based on PyTorch. Use 'data.csv' as the dataset for this task. Implement the actual training and prediction of the LSTM model. Use data from column \"Value1\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model. Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv' and visualize it with a image 'predictions_chart.png'.\n",
+      "data_source_type": "3=human written data",
+      "prompt_sha256": "1cb3c178d2fbadd65ba689edc5a33a22d57aa6b54bf2c1572164bac617332a74",
+      "prompt_file_sha256": "3694bd2a995a6a3d1f795e8255670a664c56858cbb4f9d12fbd40033aa82b5d2",
+      "source_path": "data/csv_excel_29/prompt.json",
+      "source_blob": "6125a9357744504ce9c9df2e6b2d9d53045bc6f9",
+      "task_type": "csv_excel",
+      "task_type_source": "task_id_prefix",
+      "input_files": [
+        "data.csv"
+      ],
+      "output_files": [
+        "predictions.csv",
+        "predictions_chart.png"
+      ],
+      "intermediate_files": [],
+      "subtasks": [],
+      "dependencies": {
+        "python_imports": [],
+        "library_mentions": [
+          "PyTorch"
+        ],
+        "data_urls": [],
+        "missing_from_upstream": [
+          "data.csv"
+        ]
+      },
+      "file_references": [
+        {
+          "path": "data.csv",
+          "mentions": [
+            {
+              "line": 2,
+              "role": "input",
+              "step_id": null,
+              "text": "Write a complete LSTM (Long Short-Term Memory) neural network for time series prediction based on PyTorch. Use 'data.csv' as the dataset for this task. Implement the actual training and prediction of the LSTM model. Use data from column \"Value1\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model. Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv' and visualize it with a image 'predictions_chart.png'."
+            },
+            {
+              "line": 2,
+              "role": "input",
+              "step_id": null,
+              "text": "Write a complete LSTM (Long Short-Term Memory) neural network for time series prediction based on PyTorch. Use 'data.csv' as the dataset for this task. Implement the actual training and prediction of the LSTM model. Use data from column \"Value1\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model. Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv' and visualize it with a image 'predictions_chart.png'."
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "predictions.csv",
+          "mentions": [
+            {
+              "line": 2,
+              "role": "output",
+              "step_id": null,
+              "text": "Write a complete LSTM (Long Short-Term Memory) neural network for time series prediction based on PyTorch. Use 'data.csv' as the dataset for this task. Implement the actual training and prediction of the LSTM model. Use data from column \"Value1\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model. Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv' and visualize it with a image 'predictions_chart.png'."
+            }
+          ],
+          "upstream_path": null
+        },
+        {
+          "path": "predictions_chart.png",
+          "mentions": [
+            {
+              "line": 2,
+              "role": "output",
+              "step_id": null,
+              "text": "Write a complete LSTM (Long Short-Term Memory) neural network for time series prediction based on PyTorch. Use 'data.csv' as the dataset for this task. Implement the actual training and prediction of the LSTM model. Use data from column \"Value1\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model. Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv' and visualize it with a image 'predictions_chart.png'."
+            }
+          ],
+          "upstream_path": null
+        }
+      ],
+      "metadata_extraction": {
+        "method": "literal_paths_labels_context_and_static_imports_v1",
+        "unresolved_file_references": [],
+        "warnings": [],
+        "requires_review": false,
+        "complete": false
+      },
+      "readiness": {
+        "status": "offline_reference_validated",
+        "metadata_review": "Original prompt and required files manually reconciled; static extraction warnings remain as diagnostics",
+        "execution": "existing ATSuite datasci_run_code in Docker; no LLM trajectory",
+        "inputs": {
+          "status": "prepared",
+          "source_url": "https://huggingface.co/datasets/zd21/DataSciBench/resolve/f15d3e4043498febc26d7bcb7562b7e344b514f2/DataSciBench-data/csv_excel_29/data.csv",
+          "source_sha256": "5c26a06faffc1438e79ed3e8a74bad42f6889c13eb4e36ed44994823650c28b3",
+          "hf_revision": "f15d3e4043498febc26d7bcb7562b7e344b514f2",
+          "provenance": "Official DataSciBench gated release; original human-written data (data_source_type=3), not a real-world production time series",
+          "derivation": null,
+          "files": [
+            {
+              "name": "data.csv",
+              "path": "benchmarks/DataSciBench/data/csv_excel_29/data.csv",
+              "sha256": "5c26a06faffc1438e79ed3e8a74bad42f6889c13eb4e36ed44994823650c28b3",
+              "bytes": 13981
+            }
+          ]
+        },
+        "expected_outputs": [
+          "predictions.csv",
+          "predictions_chart.png"
+        ]
+      },
+      "task_classification": {
+        "compute_class": "light",
+        "basis": "median measured compute wall seconds: light <5, medium 5–15, heavy >=15; no synthetic padding",
+        "memory_class": "ordinary"
+      },
+      "profiling": {
+        "compute_wall_seconds_median": 1.28617416578345,
+        "compute_wall_seconds_runs": [
+          1.28617416578345,
+          1.31770133622922,
+          1.1926292723510414
+        ],
+        "cpu_seconds_median": 1.2954630000000027,
+        "peak_rss_bytes_max": 483635200,
+        "shared_state_bytes_max": 23819,
+        "workspace_bytes_max": 90938,
+        "max_step_wall_seconds_median": 0.9745353441685438,
+        "state_encoding": "actual live reference state serialized with pickle protocol 5; not SDK JSON or a FaaS storage cost",
+        "parameters": {
+          "lookback": 14,
+          "hidden_size": 32,
+          "layers": 1,
+          "learning_rate": 0.01,
+          "max_epochs": 200,
+          "patience": 20,
+          "validation_days": 28,
+          "min_delta": 1e-05,
+          "selection": "chronological last 28 training days; scaler fit on earlier training days only",
+          "final_fit": "refit selected epoch count on all 151 Jan–May days; scaler refit on these days only",
+          "forecast": "49 recursive daily predictions; future actuals excluded from fitting and inference",
+          "independent_parallel_subtasks": false,
+          "device": "cpu",
+          "torch_version": "2.5.1+cpu"
+        },
+        "subtask_dag": {
+          "prepare": [],
+          "select_epochs": [
+            "prepare"
+          ],
+          "fit": [
+            "select_epochs"
+          ],
+          "forecast": [
+            "fit"
+          ]
+        },
+        "parallelism": "DAG identifies potential independent consumers of prepared immutable inputs; measurements execute serially",
+        "validation_checks": [
+          "fixed CPU PyTorch environment",
+          "151 required training days",
+          "real LSTM parameters changed through optimization",
+          "training loss decreased",
+          "exactly 49 required daily prediction dates",
+          "all forecasts finite",
+          "checkpoint reproduces all saved predictions",
+          "independent LSTM gate calculation matches first forecast",
+          "nonempty expected output predictions.csv",
+          "nonempty expected output predictions_chart.png",
+          "valid PNG predictions_chart.png"
+        ],
+        "all_output_hashes_reproduce": true,
+        "output_sha256": {
+          "model_checkpoint.pt": "b4d16c930436630b0d388416d55a3b3bc113dafe068530308a029bdd9231b9be",
+          "predictions.csv": "2beca4381584fc0f9303f495effd2fcf68f561a95b805d4d5981871b340e9946",
+          "predictions_chart.png": "2ffec379b219de9ba3a38dde69ae6cd10b32f79d78db9b06efb074a10ad9fc27",
+          "training_metrics.json": "0a5b49ce01c57e876731221101c0d5d2e74e991c98affdbdd843b44ef77c723b"
+        },
+        "evidence": [
+          "results/phase1/20261025T151515Z-6035e855299c/csv_excel_29-0-a6ce25b019aa466491d5038719fcf195",
+          "results/phase1/20261025T151515Z-6035e855299c/csv_excel_29-1-fd865b38b4804f248c17ac8a2702ab0f",
+          "results/phase1/20261025T151515Z-6035e855299c/csv_excel_29-2-492f7dc8fe0e48419c5794985f1f1dff"
+        ]
+      }
+    }
+  ],
+  "selection": {
+    "source_task_count": 172,
+    "upstream_task_count": 222,
+    "catalog_excluded_task_count": 50,
+    "restored_verified_tasks": [
+      "csv_excel_29",
+      "csv_excel_34",
+      "human_12",
+      "human_142",
+      "human_7"
+    ],
+    "pending_task_count": 166,
+    "rule": "Use the screened catalog; only measured successful offline reference tasks enter the active manifest.",
+    "excluded": [],
+    "batch_evidence": "results/phase1/20261025T151515Z-6035e855299c"
+  },
+  "environment": {
+    "image_id": "sha256:2ff27b3d2fdb85cb0ec0389b0f92df9ec9ef6ad042609364666c6ef4e833f437",
+    "base_image_id": "sha256:ea74677bfad3a05f5eacbd61d2bf719ab896d1a9e552a77dd36a6cfbda0e56a0",
+    "cpu_model": "Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz",
+    "cpu_limit": 2,
+    "memory_limit_bytes": 4294967296,
+    "threads": 1,
+    "network": "none",
+    "seed": 0,
+    "repetitions": 3,
+    "packages": [
+      "aiofile==3.11.1",
+      "annotated-types==0.7.0",
+      "anyio==4.14.0",
+      "attrs==26.1.0",
+      "Authlib==1.7.2",
+      "backports.tarfile==1.2.0",
+      "beartype==0.22.9",
+      "cachetools==7.1.4",
+      "caio==0.9.25",
+      "certifi==2026.6.17",
+      "cffi==2.0.0",
+      "chardet==7.7.0",
+      "charset-normalizer==3.4.7",
+      "click==8.4.1",
+      "contourpy==1.3.3",
+      "cryptography==49.0.0",
+      "cycler==0.12.1",
+      "cyclopts==4.18.0",
+      "dnspython==2.8.0",
+      "docstring_parser==0.18.0",
+      "email-validator==2.3.0",
+      "et_xmlfile==2.0.0",
+      "exceptiongroup==1.3.1",
+      "fastmcp==3.4.2",
+      "fastmcp-slim==3.4.2",
+      "filelock==3.32.3",
+      "fonttools==4.63.0",
+      "fsspec==2026.7.0",
+      "google-api-core==2.31.0",
+      "google-auth==2.55.0",
+      "google-cloud-core==2.6.0",
+      "google-cloud-storage==3.12.0",
+      "google-crc32c==1.8.0",
+      "google-resumable-media==2.10.0",
+      "googleapis-common-protos==1.75.0",
+      "griffelib==2.1.0",
+      "h11==0.16.0",
+      "httpcore==1.0.9",
+      "httpx==0.28.1",
+      "httpx-sse==0.4.3",
+      "idna==3.18",
+      "importlib_metadata==9.0.0",
+      "jaraco.classes==3.4.0",
+      "jaraco.context==6.1.2",
+      "jaraco.functools==4.5.0",
+      "jeepney==0.9.0",
+      "Jinja2==3.1.3",
+      "joblib==1.5.3",
+      "joserfc==1.7.1",
+      "jsonref==1.1.0",
+      "jsonschema==4.26.0",
+      "jsonschema-path==0.5.0",
+      "jsonschema-specifications==2025.9.1",
+      "keyring==25.7.0",
+      "kiwisolver==1.5.0",
+      "markdown-it-py==4.2.0",
+      "MarkupSafe==3.0.3",
+      "matplotlib==3.11.0",
+      "mcp==1.28.0",
+      "mdurl==0.1.2",
+      "mlxtend==0.22.0",
+      "more-itertools==11.1.0",
+      "mpmath==1.3.0",
+      "networkx==3.6.1",
+      "numpy==1.26.4",
+      "openapi-pydantic==0.5.1",
+      "openpyxl==3.1.5",
+      "opentelemetry-api==1.42.1",
+      "packaging==26.2",
+      "pandas==2.3.3",
+      "pathable==0.6.0",
+      "pillow==12.2.0",
+      "platformdirs==4.10.0",
+      "proto-plus==1.28.0",
+      "protobuf==7.35.1",
+      "psutil==5.9.8",
+      "py-key-value-aio==0.4.5",
+      "pyasn1==0.6.3",
+      "pyasn1_modules==0.4.2",
+      "pycparser==3.0",
+      "pydantic==2.13.4",
+      "pydantic-settings==2.14.2",
+      "pydantic_core==2.46.4",
+      "Pygments==2.20.0",
+      "PyJWT==2.13.0",
+      "pyparsing==3.3.2",
+      "pypdf==5.1.0",
+      "pyperclip==1.11.0",
+      "python-dateutil==2.9.0.post0",
+      "python-dotenv==1.2.2",
+      "python-multipart==0.0.32",
+      "pytz==2026.2",
+      "PyYAML==6.0.3",
+      "referencing==0.37.0",
+      "reportlab==4.2.5",
+      "requests==2.34.2",
+      "rich==15.0.0",
+      "rich-rst==2.0.1",
+      "rpds-py==2026.5.1",
+      "scikit-learn==1.3.2",
+      "scipy==1.17.1",
+      "seaborn==0.13.2",
+      "SecretStorage==3.5.0",
+      "six==1.17.0",
+      "sse-starlette==3.4.5",
+      "starlette==1.3.1",
+      "sympy==1.13.1",
+      "threadpoolctl==3.6.0",
+      "torch==2.5.1+cpu",
+      "typing-inspection==0.4.2",
+      "typing_extensions==4.15.0",
+      "tzdata==2026.2",
+      "uncalled-for==0.3.2",
+      "urllib3==2.7.0",
+      "uvicorn==0.49.0",
+      "watchfiles==1.2.0",
+      "websockets==16.0",
+      "xlrd==2.0.1",
+      "zipp==4.1.0"
+    ],
+    "code_sha256": {
+      "experiments/exp1/profile/lstm_reference.py": "9b9c417b1065dfd17bfeeb1c4850e88be0fd024026fc6e23eeba1b43778da631",
+      "experiments/exp1/profile/profile_tasks.py": "852ff63e1d19f60cb058726ac1b29f617b939fd312269bf1b541347397125b5f",
+      "experiments/exp1/profile/reference_tasks.py": "ee757974e485f9a0e2df2993ceb9c88df6f31b9a3dc7c71c7c5521b8ec38f69b",
+      "experiments/exp1/profile/task_worker.py": "c01fb252df8dcbb542e8a2dffe7a6f7d13db01fb451108bdd71caae4556e5b56",
+      "experiments/exp1/profile/Dockerfile": "f28c2e0498e96caab7f9e3a11889fa678b6c5fd2335441eb3e827b963a95f1b5",
+      "benchmarks/DataSciBench/nodes/DataSci/implementation.py": "91f8bbda6109e5d6fd72d04be08be77c090a713ad2ca00148d6c26e10e8f7247",
+      "benchmarks/DataSciBench/nodes/DataSci/worker.py": "06bb9fd5c3e8dfd13acfe26a116475345fe5849015f951c435ea78a0a7fd4354",
+      "atsuite_sdk/state.py": "0158f769278cf824b83b393a28c1f4a38f064d053134cd66ab91a1bdd2953ac4",
+      "atsuite_sdk/abstract.py": "3a29a12f3eb19f16995948c49cc20ae7eca8f169dc4d7ab477c7cc08bfe36939"
+    }
+  }
+}

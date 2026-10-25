@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "tasks": {
+    "human_12": {
+      "status": "prepared",
+      "source_url": "https://archive.ics.uci.edu/static/public/2/adult.zip",
+      "source_sha256": "7537312dd56c2b98035880805ce99e68183a30ee468aa5329d6df0fbb3cc21bb",
+      "provenance": "UCI Adult; CC BY 4.0",
+      "derivation": null,
+      "files": [
+        {
+          "name": "adult.data",
+          "path": "benchmarks/DataSciBench/data/human_12/adult.data",
+          "sha256": "5b00264637dbfec36bdeaab5676b0b309ff9eb788d63554ca0a249491c86603d",
+          "bytes": 3974305
+        },
+        {
+          "name": "adult.test",
+          "path": "benchmarks/DataSciBench/data/human_12/adult.test",
+          "sha256": "a2a9044bc167a35b2361efbabec64e89d69ce82d9790d2980119aac5fd7e9c05",
+          "bytes": 2003153
+        },
+        {
+          "name": "adult.names",
+          "path": "benchmarks/DataSciBench/data/human_12/adult.names",
+          "sha256": "c248284c0b5de30c9e1958d6cdd168a34a654758b620e68f46aefa83fc0a576a",
+          "bytes": 5229
+        }
+      ]
+    },
+    "csv_excel_34": {
+      "status": "prepared",
+      "source_url": "https://yutatoyama.github.io/AppliedEconometrics2020/03_Stat/data_pums_2000.csv",
+      "source_sha256": "1ecd8561b89d3091339943e2392d9b79293d98b77154b47260e7de9bfb393096",
+      "provenance": "Census 2000 5% PUMS; Yuta Toyama course distribution CC BY-NC-SA 4.0",
+      "derivation": null,
+      "files": [
+        {
+          "name": "data_pums_2000.csv",
+          "path": "benchmarks/DataSciBench/data/csv_excel_34/data_pums_2000.csv",
+          "sha256": "1ecd8561b89d3091339943e2392d9b79293d98b77154b47260e7de9bfb393096",
+          "bytes": 1495949
+        }
+      ]
+    },
+    "human_142": {
+      "status": "prepared",
+      "source_url": "https://archive.ics.uci.edu/static/public/350/default+of+credit+card+clients.zip",
+      "source_sha256": "56c885f84457f6680f8438f02bfcdac9579323d8a94465ee5f26e32baa727602",
+      "provenance": "UCI Default of Credit Card Clients; CC BY 4.0",
+      "derivation": null,
+      "files": [
+        {
+          "name": "default of credit card clients.xls",
+          "path": "benchmarks/DataSciBench/data/human_142/default of credit card clients.xls",
+          "sha256": "30c6be3abd8dcfd3e6096c828bad8c2f011238620f5369220bd60cfc82700933",
+          "bytes": 5539328
+        }
+      ]
+    },
+    "human_7": {
+      "status": "prepared",
+      "source_url": "https://raw.githubusercontent.com/DiogoRibeiro7/data/1f46e1e6cba984f739095b8117f375500edf2638/datasets/online-retail-ii/raw/online_retail_II.xlsx",
+      "source_sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980",
+      "provenance": "UCI Online Retail II (DOI 10.24432/C5CG6D); CC BY 4.0; unmodified public mirror pinned by Git commit",
+      "derivation": null,
+      "files": [
+        {
+          "name": "online_retail_II.xlsx",
+          "path": "benchmarks/DataSciBench/data/human_7/online_retail_II.xlsx",
+          "sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980",
+          "bytes": 45622278
+        }
+      ]
+    },
+    "human_15": {
+      "status": "prepared",
+      "source_url": "https://github.com/THUDM/DataSciBench",
+      "source_commit_sha": "84ef3d4d94d7362a5149cf14a73dc168fc4f2f33",
+      "prompt_sha256": "b0d7b1d7d473dcac930c1a3f5231572c787d4ae70e417dc2622cbbb74990018a",
+      "derivation": "Exact fenced CSV block from original human_15 prompt, plus trailing newline",
+      "files": [
+        {
+          "name": "sales.csv",
+          "path": "benchmarks/DataSciBench/data/human_15/sales.csv",
+          "sha256": "6bdb3be234be2e0c5d09c3c6c6017a1e387fdab9d1bc6308295f51105c7cd821",
+          "bytes": 226
+        }
+      ]
+    },
+    "csv_excel_29": {
+      "status": "prepared",
+      "source_url": "https://huggingface.co/datasets/zd21/DataSciBench/resolve/f15d3e4043498febc26d7bcb7562b7e344b514f2/DataSciBench-data/csv_excel_29/data.csv",
+      "source_sha256": "5c26a06faffc1438e79ed3e8a74bad42f6889c13eb4e36ed44994823650c28b3",
+      "hf_revision": "f15d3e4043498febc26d7bcb7562b7e344b514f2",
+      "provenance": "Official DataSciBench gated release; original human-written data (data_source_type=3), not a real-world production time series",
+      "derivation": null,
+      "files": [
+        {
+          "name": "data.csv",
+          "path": "benchmarks/DataSciBench/data/csv_excel_29/data.csv",
+          "sha256": "5c26a06faffc1438e79ed3e8a74bad42f6889c13eb4e36ed44994823650c28b3",
+          "bytes": 13981
+        }
+      ]
+    }
+  }
+}

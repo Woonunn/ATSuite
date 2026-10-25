@@ -1,6 +1,6 @@
-# Phase 0：实验基础
+# DataSciBench 实验准备
 
-当前只实现和验证 Phase 0；尚未开始 LangGraph、DeepSeek、真实任务准备、到达时序或正式 E1 实验。
+已完成 Phase 0 和 Task 1.1 Prompt 导入；尚未开始输入数据准备、LangGraph、DeepSeek、到达时序或正式 E1 实验。
 本地隔离测试的数值输入用于检查基础设施正确性，不代表真实 DataSciBench 工作负载。
 
 ## Tool Response 和执行记录
@@ -91,3 +91,62 @@ ATSUITE_TEST_ARTIFACT_DIR=results/phase0/<唯一标识> \
 - FaaS：同一真实 HTTP 服务的 16 个 UID，以及独立实例目录与共享条件存储模型下的写入冲突测试。后者是本地存储模型，不是云存储验收。
 
 结果与撤销/保留清单见 `PHASE0_VALIDATION.md`。本轮只在 wlh-190 测试，不部署云资源，不采集账单。
+
+
+## Phase 1：真实输入与离线参考 Profiling
+
+`tasks/catalog.json` 现保留 **172 条 Prompt**：固定上游 Commit `84ef3d4d94d7362a5149cf14a73dc168fc4f2f33` 共 222 条；13 条需审核、45 条上游缺文件，重叠 3 条，合计标记 55 条。保留未触发标记的 167 条，加回已经补齐数据且通过断网 Docker 验证的 `human_12`、`human_142`、`csv_excel_34`、`human_7`、`csv_excel_29`；其余 50 条排除。`human_15` 本来就在 167 条中，六个实测候选全部保留。
+
+导入器默认应用此筛选规则，记录排除 ID/原因；五项例外同时核对上游 Commit 和 Prompt SHA256，原文变化后不会沿用旧验证结论。仅解析 Git 中的标准 JSON，保留 Commit、Git blob 和 SHA256；不执行上游脚本。172 条是筛选后的候选数量，其中 6 条已完成 Profiling，166 条未完成运行验证。
+
+`tasks/datasets.lock.json` 固定真实输入的来源、许可说明、字节数、SHA256 和必要格式转换。下载发生在准备阶段。再次准备时验证已有文件；缺失文件从同一来源重建并核对锁定哈希，上游内容变更会失败。原始数据位于 `benchmarks/DataSciBench/data/`，不纳入 Git。零售 XLSX 从固定 Commit 的公开原始文件镜像取得，SHA256 与镜像元数据一致，Git blob SHA1 也与另一独立归档一致；UCI 原始来源和 CC BY 4.0 归属保留在锁文件。
+
+本次实测任务、耗时及证据索引见 [PHASE1_VALIDATION.md](PHASE1_VALIDATION.md)。
+
+`tasks/manifest.json` 保留 6 个已在 wlh-190 Docker 中通过完整参考执行和输出校验的任务。自动提取结果及 missing_from_upstream 保留为来源诊断；本地是否齐备以 readiness.inputs 的哈希核验为准。其余 166 条仍在 catalog 中待验证。`csv_excel_29` 在取得 Hugging Face 数据集访问权限后补回，其他被排除任务不会自动恢复。准备脚本只处理 catalog 中的任务。
+
+```bash
+uv run python -m experiments.exp1.data.import_prompts \
+  --repo results/upstream/DataSciBench \
+  --revision 84ef3d4d94d7362a5149cf14a73dc168fc4f2f33
+uv run python -m experiments.exp1.data.prepare_datasets
+
+docker build -t wabber-phase1-reference:20261025-cpu-lstm \
+  -f experiments/exp1/profile/Dockerfile experiments/exp1/profile
+uv run python -m experiments.exp1.profile.profile_tasks
+# 用上一步实际输出的目录替换下列路径；只有三次全部成功才发布活动清单。
+uv run python -m experiments.exp1.profile.profile_tasks --publish results/phase1/<batch-id>
+uv run python -m unittest discover -s tests -q
+```
+
+参考环境基于 wlh-190 已有的 DataSci 镜像，仅在本机构建补充依赖。每次测量固定最终 image ID、2 CPU 配额、4 GiB 内存、单线程数值库、seed=0、无 GPU；容器设置 `--network none`、只读根文件系统、只读输入与唯一输出目录。镜像构建阶段可以安装依赖，测量中不下载数据或安装依赖。镜像标识、软件包版本和参考代码哈希写入结果；相同标签重建后 image ID 变化，应视作新环境。
+
+人工编写的参考实现位于 `profile/reference_tasks.py`，由现有 `datasci_run_code.execute_from_dict` 调入 ATSuite Tool 的 Python worker 执行全部数值计算。这是对真实任务可行性与资源需求的 Profiling，**不是 LLM Agent 轨迹，也不保证模型解题成功率**。
+
+每个任务独立运行三次，记录：
+
+- 以 `perf_counter` 测量各实际步骤耗时（包含步骤自身文件 I/O）；CPU user+system 时间、单核和配额归一化利用率。
+- 10ms 采样各步骤 RSS；Linux `ru_maxrss` 记录整个计算进程峰值，包含 Python、库、校验和仪器开销。不是容器 cgroup 峰值；ATSuite 父进程与文件缓存不在该 RSS 中。
+- 真实中间状态以 pickle protocol 5 序列化的字节数、哈希和单独计时的序列化开销；这是参考解法的共享状态大小，不能充当 SDK JSON 快照大小、FaaS 传输成本或账单。另记工作目录文件大小。
+- 每步 UTC 时间戳、唯一 run/request ID、状态、失败栈和超时/OOM 诊断；缺失记录保留 null，失败不发布清单。
+- 原 Prompt 对应的文件和数值校验：Adult 官方留出集指标、模型重载重现预测、聚类统计；Gini 两种独立公式；信用卡/零售全部 itemset support 与 rule confidence 直接对交易重算，以及销量、收入和聚类一致性；PNG 解码、PDF 解析和报告内容检查。
+
+数据清洗与分析参数显式记录，不添加合成行、无意义循环或等待。信用卡的 k=2..8 重复拟合用于 Prompt 要求的 Elbow 选 k，拟合结果被复用。零售的频繁单项预筛选遵循 Apriori 的 downward closure，不以任意 top-N 截断替代完整交易集。
+
+分类使用三次计算总耗时中位数：<5 秒为轻量，5–15 秒为中等，>=15 秒为重计算；峰值 RSS >=512 MiB 另标内存较高。清单还给出最重要步骤的实测耗时，5–45 秒是选择偏好，不给轻量原任务填充计算。子任务 DAG 表示基于不可变输入可独立处理的工作；当前测量按序执行，未声称测得并行加速。宿主机页面缓存与其他用户负载未隔离，因此耗时不是专用硬件上的保证值。
+
+数据分批准备时，可将同一环境下、任务不重叠的完整批次合并发布，禁止混合环境或重复任务：
+
+```bash
+uv run python -m experiments.exp1.analysis.aggregate \
+  results/phase1/<batch-a> results/phase1/<batch-b>
+```
+
+所有原始证据位于 `results/phase1/<batch-id>/`：输入校验后产生独立容器、事件 JSONL、真实输出、输出哈希、资源记录、错误和环境信息。该目录不纳入 Git；活动清单保留证据路径。未部署 AWS 或任何云资源，未推送镜像或生成模拟账单。
+
+
+csv_excel_29 的官方输入位于 `zd21/DataSciBench` 数据集固定修订 `f15d3e4043498febc26d7bcb7562b7e344b514f2` 下的 `DataSciBench-data/csv_excel_29/data.csv`。需要先在 Hugging Face 登录并获得该数据集自身访问权限；仅登录账号可能仍返回 403。令牌只在数据准备阶段使用，不写入镜像、清单或容器环境。原文件共 200 行，data_source_type=3（上游人工编写数据），不称作真实生产时间序列。
+
+CPU 镜像固定 `torch==2.5.1+cpu`，安装只在构建阶段进行。LSTM 参考代码独立放在 `profile/lstm_reference.py`，通过现有 ATSuite Tool 执行；其他任务不加载 PyTorch。使用 1–5 月 151 天的 Value1，按时间留出最后 28 天选择 epoch，再用全部 151 天重训；递归预测 6 月 1 日至 7 月 19 日的 49 天。检查真实权重更新、损失下降、模型重载复现、独立 NumPy 门公式、精确输出日期及 PNG。另用独立断网容器改写全部未来 Value1 和未使用列，验证模型及预测不变。该任务当前约 1.2 秒，归为轻量任务；报告中保留真实预测误差及末值基线，不以格式校验代替预测质量比较。
+
+PyTorch CPU 安装方式参照官方说明：https://pytorch.org/get-started/previous-versions/ 。加入 PyTorch 后六项在同一个新镜像 ID 中重新测量，不将不同镜像环境的耗时直接合并。

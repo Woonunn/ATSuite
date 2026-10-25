@@ -20,3 +20,6 @@ docs/plans/
 /test_result/
 
 .codex
+
+# Recreated and checksum-verified by Phase 1 dataset preparation.
+/benchmarks/DataSciBench/data/
