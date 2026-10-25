@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -29,6 +31,7 @@ class RunContext:
     trace: str
     family: str
     config_path: str
+    run_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     start_time: float = 0.0
     end_time: float = 0.0
     targets: Dict[str, Dict[str, Any]] = field(default_factory=dict)
@@ -41,6 +44,7 @@ class RunContext:
     def from_dict(cls, payload: Dict[str, Any]) -> "RunContext":
         return cls(
             uid=str(payload.get("uid", "")),
+            run_id=str(payload.get("run_id") or uuid.uuid4().hex),
             provider=str(payload.get("provider", "")),
             observability_provider=str(payload.get("observability_provider", "")),
             benchmark=str(payload.get("benchmark", "")),

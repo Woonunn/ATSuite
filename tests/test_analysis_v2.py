@@ -1067,7 +1067,7 @@ class InvokerAnalyzerBoundaryTests(unittest.TestCase):
         self.assertEqual(result["run"]["uid"], "u1")
         self.assertEqual(result["run"]["provider"], "mcp_gateway")
         self.assertIn("summary", result)
-        self.assertEqual(result["summary"]["total_price"], 0.0)
+        self.assertIsNone(result["summary"]["total_price"])
         self.assertIn("trace_path", result)
         self.assertEqual(len(fake_runtime.seen_call_ids), 1)
         self.assertTrue(fake_runtime.seen_call_ids[0].startswith("u1_1_"))

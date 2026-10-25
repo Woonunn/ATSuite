@@ -240,9 +240,9 @@ def _metric_from_invocation(
         "error": invocation.error,
         "cpu": _cpu_from_node(node),
         "memory": _memory_from_node(node),
-        "memory_usage_mb": _memory_from_node(node),
+        "memory_usage_mb": None,
         "disk": _disk_from_node(node),
-        "is_cold_start": "false",
+        "is_cold_start": None,
         "time_source": "client_only",
         "confidence": "client_only",
     }
@@ -1012,7 +1012,7 @@ class AWSCloudWatchCollector:
                 "client_e2e_ms": invocation.client_elapsed_ms,
                 "duration_ms": invocation.client_elapsed_ms,
                 "elapsed_time_ms": invocation.client_elapsed_ms,
-                "is_cold_start": "false",
+                "is_cold_start": None,
             }
             if session_id:
                 fields["session_id"] = session_id

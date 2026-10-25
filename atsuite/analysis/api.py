@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from datetime import datetime
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -58,7 +58,7 @@ def analyze_recorder(
     )
     costs = pricing_policy.price(
         context,
-        metrics=collection.metrics,
+        metrics=[metric for metric in collection.metrics if metric.fields.get("confidence") != "client_only"],
         state=recorder.state,
     )
     report = ReportAggregator().aggregate(
@@ -70,7 +70,7 @@ def analyze_recorder(
         diagnostics=collection.diagnostics,
         evidence=collection.evidence,
     )
-    timestamp = options.timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = options.timestamp or uuid.uuid4().hex
     trace_payload = TimelineBuilder().build(
         context,
         nodes=recorder.nodes,

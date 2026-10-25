@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 import time
+import uuid
+import threading
+from dataclasses import replace
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Protocol
@@ -45,16 +48,10 @@ class InvocationRequest:
     call_id: str = ""
     session: Optional[RuntimeSession] = None
     timeout: Optional[float] = None
+    run_id: str = ""
 
 
-@dataclass(frozen=True)
-class InvocationResult:
-    provider_request_id: str = ""
-    status: str = "ok"
-    result: Any = None
-    error: str = ""
-    client_elapsed_ms: float = 0.0
-    provider_metadata: Dict[str, Any] = field(default_factory=dict)
+from atsuite_sdk.response import ToolResponse as InvocationResult
 
 
 @dataclass(frozen=True)
@@ -124,6 +121,7 @@ class _BaseRuntimeAdapter:
         self.provider = provider
         self.endpoint_map: EndpointMap = {}
         self.targets: Dict[str, RuntimeTarget] = {}
+        self._clients_lock = threading.RLock()
 
     def connect(self, endpoint_map: EndpointMap) -> None:
         self.endpoint_map = endpoint_map
@@ -186,33 +184,42 @@ class FunctionRuntimeAdapter(_BaseRuntimeAdapter):
         return RuntimeSession(uid=uid, target_id=target.target_id)
 
     def _client(self, target: RuntimeTarget):
-        if target.target_id not in self._clients:
-            from atsuite.faas.function import FunctionClient
+        with self._clients_lock:
+            if target.target_id not in self._clients:
+                from atsuite.faas.function import FunctionClient
 
-            self._clients[target.target_id] = FunctionClient(target.endpoint)
-        return self._clients[target.target_id]
+                self._clients[target.target_id] = FunctionClient(target.endpoint)
+            return self._clients[target.target_id]
 
     def invoke(self, request: InvocationRequest) -> InvocationResult:
         target = self._target(request.target_id)
-        client = self._client(target)
-        start = time.time()
+        request_id = request.call_id or uuid.uuid4().hex
+        run_id = request.run_id or uuid.uuid4().hex
+        args = dict(request.args)
+        if args.get("uid") not in (None, request.uid):
+            raise ValueError("Invocation uid does not match Tool arguments")
+        args["uid"] = request.uid
+        start = time.perf_counter()
         try:
-            provider_request_id, is_stateful = client.invoke(
-                request.tool_name,
-                request.args,
-                request_id=request.call_id or None,
-            )
+            client = self._client(target)
+            if hasattr(client, "invoke_result"):
+                result = client.invoke_result(
+                    request.tool_name, args, request_id=request_id,
+                    timeout=request.timeout, run_id=run_id,
+                )
+                return replace(result, provider_metadata={**result.provider_metadata, "runtime_provider": self.provider})
+            provider_request_id, is_stateful = client.invoke(request.tool_name, args, request_id=request_id)
         except Exception as exc:
-            elapsed_ms = (time.time() - start) * 1000
             return InvocationResult(
-                status="error",
-                error=str(exc),
-                client_elapsed_ms=elapsed_ms,
+                request_id=request_id, run_id=run_id,
+                status="timeout" if isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower() else "error",
+                error=f"{type(exc).__name__}: {exc}",
+                client_elapsed_ms=(time.perf_counter() - start) * 1000,
+                provider_metadata={"exception_type": type(exc).__name__},
             )
-        elapsed_ms = (time.time() - start) * 1000
         return InvocationResult(
-            provider_request_id=provider_request_id or "",
-            client_elapsed_ms=elapsed_ms,
+            provider_request_id=provider_request_id or "", request_id=request_id, run_id=run_id,
+            client_elapsed_ms=(time.perf_counter() - start) * 1000,
             provider_metadata={"is_stateful": bool(is_stateful)},
         )
 
@@ -237,19 +244,20 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
         )
 
     def _client(self, target: RuntimeTarget, uid: str):
-        key = f"{target.target_id}:{uid}"
-        if key in self._clients:
-            return self._clients[key]
-        if "bedrock-agentcore" in target.endpoint or self.provider == "aws_agentcore":
-            from atsuite.mcp.mcp import AgentCoreMCPClient
+        with self._clients_lock:
+            key = f"{target.target_id}:{uid}"
+            if key in self._clients:
+                return self._clients[key]
+            if "bedrock-agentcore" in target.endpoint or self.provider == "aws_agentcore":
+                from atsuite.mcp.mcp import AgentCoreMCPClient
 
-            client = AgentCoreMCPClient(target.endpoint)
-        else:
-            from atsuite.mcp.mcp import MCPClient
+                client = AgentCoreMCPClient(target.endpoint)
+            else:
+                from atsuite.mcp.mcp import MCPClient
 
-            client = MCPClient(target.endpoint, uid)
-        self._clients[key] = client
-        return client
+                client = MCPClient(target.endpoint, uid)
+            self._clients[key] = client
+            return client
 
     def open_session(self, target: RuntimeTarget, uid: str) -> RuntimeSession:
         client = self._client(target, uid)
@@ -263,27 +271,45 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
             metadata={"initialize_request_id": initialize_request_id or ""},
         )
 
+    def close_session(self, session: RuntimeSession) -> None:
+        with self._clients_lock:
+            client = self._clients.pop(f"{session.target_id}:{session.uid}", None)
+        if client is not None and hasattr(client, "close"):
+            client.close()
+
+    def cleanup_run(self, uid: str) -> None:
+        for target_id in self.targets:
+            self.close_session(RuntimeSession(uid=uid, target_id=target_id))
+
     def invoke(self, request: InvocationRequest) -> InvocationResult:
         target = self._target(request.target_id)
-        client = self._client(target, request.uid)
-        start = time.time()
+        request_id = request.call_id or uuid.uuid4().hex
+        run_id = request.run_id or uuid.uuid4().hex
+        args = dict(request.args)
+        if args.get("uid") not in (None, request.uid):
+            raise ValueError("Invocation uid does not match Tool arguments")
+        args["uid"] = request.uid
+        start = time.perf_counter()
         try:
-            provider_request_id = client.invoke(
-                request.tool_name,
-                request.args,
-                request_id=request.call_id or None,
-            )
+            client = self._client(target, request.uid)
+            if hasattr(client, "invoke_result"):
+                result = client.invoke_result(
+                    request.tool_name, args, request_id=request_id,
+                    timeout=request.timeout, run_id=run_id,
+                )
+                return replace(result, provider_metadata={**result.provider_metadata, "runtime_provider": self.provider})
+            provider_request_id = client.invoke(request.tool_name, args, request_id=request_id)
         except Exception as exc:
-            elapsed_ms = (time.time() - start) * 1000
             return InvocationResult(
-                status="error",
-                error=str(exc),
-                client_elapsed_ms=elapsed_ms,
+                request_id=request_id, run_id=run_id,
+                status="timeout" if isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower() else "error",
+                error=f"{type(exc).__name__}: {exc}",
+                client_elapsed_ms=(time.perf_counter() - start) * 1000,
+                provider_metadata={"exception_type": type(exc).__name__},
             )
-        elapsed_ms = (time.time() - start) * 1000
         return InvocationResult(
-            provider_request_id=provider_request_id or "",
-            client_elapsed_ms=elapsed_ms,
+            provider_request_id=provider_request_id or "", request_id=request_id, run_id=run_id,
+            client_elapsed_ms=(time.perf_counter() - start) * 1000,
             provider_metadata={"session_id": str(getattr(client, "session_id", "") or "")},
         )
 

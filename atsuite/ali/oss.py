@@ -33,6 +33,18 @@ class AliOSS(StorageBase):
             else:
                 raise
     
+    def put(self, key: str, data: bytes) -> None:
+        self.client.put_object(oss.PutObjectRequest(bucket=self.bucket, key=key, body=data))
+
+    def try_create(self, key: str, data: bytes) -> bool:
+        try:
+            self.client.put_object(oss.PutObjectRequest(bucket=self.bucket, key=key, body=data, forbid_overwrite=True))
+            return True
+        except OperationError as exc:
+            if exc._error.code == "FileAlreadyExists":
+                return False
+            raise
+
     def upload(self, key: str, filepath: str):
         result = self.client.put_object_from_file(
             oss.PutObjectRequest(

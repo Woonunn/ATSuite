@@ -35,8 +35,7 @@ class TensorWorkspace:
         self.tensors.pop(name)
 
 
-tensor_workspace = TensorWorkspace()
-register_state_object("tensor_workspace", tensor_workspace)
+tensor_workspace = register_state_object("tensor_workspace", TensorWorkspace(), session_scoped=True)
 
 
 def _to_jsonable(value: Any) -> Any:
@@ -243,7 +242,7 @@ def scicom_create_tensor(
         return _error("scicom_create_tensor", exc, tensor_name=name)
 
 
-@registry.tool()
+@registry.tool(access="r")
 def scicom_view_tensor(name: str, uid: Optional[str] = None) -> str:
     try:
         return _success(tensor_workspace.load(name), tensor_name=name)
@@ -251,7 +250,7 @@ def scicom_view_tensor(name: str, uid: Optional[str] = None) -> str:
         return _error("scicom_view_tensor", exc, tensor_name=name)
 
 
-@registry.tool()
+@registry.tool(access="r")
 def scicom_list_tensor_names(uid: Optional[str] = None) -> str:
     try:
         tensor_names = tensor_workspace.names()
@@ -373,7 +372,7 @@ def scicom_transpose(
         return _error("scicom_transpose", exc)
 
 
-@registry.tool()
+@registry.tool(access="r")
 def scicom_determinant(name: str, uid: Optional[str] = None) -> str:
     try:
         return _success(
@@ -383,7 +382,7 @@ def scicom_determinant(name: str, uid: Optional[str] = None) -> str:
         return _error("scicom_determinant", exc)
 
 
-@registry.tool()
+@registry.tool(access="r")
 def scicom_rank(name: str, uid: Optional[str] = None) -> str:
     try:
         matrix = tensor_workspace.load(name)
@@ -541,7 +540,7 @@ def scicom_vector_project(
         return _error("scicom_vector_project", exc)
 
 
-@registry.tool()
+@registry.tool(access="r")
 def scicom_vector_dot_product(
     name_a: str, name_b: str, uid: Optional[str] = None
 ) -> str:

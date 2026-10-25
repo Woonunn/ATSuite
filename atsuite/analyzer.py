@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, Iterable, Optional
@@ -75,6 +75,7 @@ class Analyzer:
         self._timestamp = ""
 
     def start(self, uid: str = "", start_time: Optional[float] = None) -> None:
+        self._timestamp = ""
         self.report = None
         self.events_path = ""
         self.recorder.start_run(uid, start_time=start_time)
@@ -189,7 +190,7 @@ class Analyzer:
         timestamp: Optional[str] = None,
     ) -> AnalysisReport:
         self.recorder.finish_run(end_time=end_time)
-        self._timestamp = timestamp or self._timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._timestamp = timestamp or self._timestamp or uuid.uuid4().hex
         events_dir = self.output_dir / self.provider / self.bench_name
         self.events_path = self.recorder.save_events(events_dir / f"{self._timestamp}.events.json")
         self.report = analyze_recorder(
@@ -229,20 +230,20 @@ class Analyzer:
     def get_overall_stats(self):
         summary = self.report.summary if self.report is not None else {}
         return SimpleNamespace(
-            total_compute_time_ms=float(summary.get("total_compute_time_ms", 0.0) or 0.0),
-            total_initialize_time_ms=float(summary.get("total_initialize_time_ms", 0.0) or 0.0),
-            total_idle_time_ms=float(summary.get("total_idle_time_ms", 0.0) or 0.0),
-            total_client_e2e_ms=float(summary.get("total_client_e2e_ms", 0.0) or 0.0),
-            total_app_e2e_ms=float(summary.get("total_app_e2e_ms", 0.0) or 0.0),
-            total_tool_exec_ms=float(summary.get("total_tool_exec_ms", 0.0) or 0.0),
-            total_state_sync_overhead_ms=float(summary.get("total_state_sync_overhead_ms", 0.0) or 0.0),
-            total_framework_overhead_ms=float(summary.get("total_framework_overhead_ms", 0.0) or 0.0),
-            total_client_platform_overhead_ms=float(summary.get("total_platform_time_ms", 0.0) or 0.0),
-            total_platform_time_ms=float(summary.get("total_platform_time_ms", 0.0) or 0.0),
-            total_network_time_ms=float(summary.get("total_network_time_ms", 0.0) or 0.0),
-            total_price=float(summary.get("total_price", 0.0) or 0.0),
-            total_cpu_price=float(summary.get("total_cpu_price", 0.0) or 0.0),
-            total_memory_price=float(summary.get("total_memory_price", 0.0) or 0.0),
-            cold_start_total=int(summary.get("cold_start_total", 0) or 0),
-            avg_memory_usage_mb=float(summary.get("avg_memory_usage_mb", 0.0) or 0.0),
+            total_compute_time_ms=summary.get("total_compute_time_ms"),
+            total_initialize_time_ms=summary.get("total_initialize_time_ms"),
+            total_idle_time_ms=summary.get("total_idle_time_ms"),
+            total_client_e2e_ms=summary.get("total_client_e2e_ms"),
+            total_app_e2e_ms=summary.get("total_app_e2e_ms"),
+            total_tool_exec_ms=summary.get("total_tool_exec_ms"),
+            total_state_sync_overhead_ms=summary.get("total_state_sync_overhead_ms"),
+            total_framework_overhead_ms=summary.get("total_framework_overhead_ms"),
+            total_client_platform_overhead_ms=summary.get("total_platform_time_ms"),
+            total_platform_time_ms=summary.get("total_platform_time_ms"),
+            total_network_time_ms=summary.get("total_network_time_ms"),
+            total_price=summary.get("total_price"),
+            total_cpu_price=summary.get("total_cpu_price"),
+            total_memory_price=summary.get("total_memory_price"),
+            cold_start_total=summary.get("cold_start_total"),
+            avg_memory_usage_mb=summary.get("avg_memory_usage_mb"),
         )

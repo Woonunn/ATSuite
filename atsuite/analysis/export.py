@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+import uuid
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -21,7 +21,7 @@ class AnalysisExporter:
         benchmark: str,
         timestamp: Optional[str] = None,
     ) -> AnalysisReport:
-        ts = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = timestamp or uuid.uuid4().hex
         output_dir = self.base_dir / provider / benchmark
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -47,19 +47,15 @@ def print_summary(report: AnalysisReport) -> None:
     print("=" * 60)
     print(f"Provider: {report.run.get('provider')} ({report.run.get('observability_provider')})")
     print(f"Benchmark: {report.run.get('benchmark')} / {report.run.get('trace')}")
-    print(f"Run User E2E: {summary.get('run_user_e2e_ms', 0):.2f}ms")
-    print(f"Total Compute: {summary.get('total_compute_time_ms', 0):.2f}ms")
-    print(f"Total Initialize: {summary.get('total_initialize_time_ms', 0):.2f}ms")
-    print(f"Total Idle: {summary.get('total_idle_time_ms', 0):.2f}ms")
-    print(f"Total Client E2E: {summary.get('total_client_e2e_ms', 0):.2f}ms")
-    print(f"Total App E2E: {summary.get('total_app_e2e_ms', 0):.2f}ms")
-    print(f"Total Tool Exec: {summary.get('total_tool_exec_ms', 0):.2f}ms")
-    print(f"Cold Starts: {summary.get('cold_start_total', 0)}")
-    print(f"Avg Memory: {summary.get('avg_memory_usage_mb', 0):.2f}MB")
-    print(
-        f"Total Price: {summary.get('total_price', 0):.10f} "
-        f"{summary.get('currency', 'USD')}"
-    )
+    for label, key, unit in (
+        ("Run User E2E", "run_user_e2e_ms", "ms"), ("Total Compute", "total_compute_time_ms", "ms"),
+        ("Total Initialize", "total_initialize_time_ms", "ms"), ("Total Idle", "total_idle_time_ms", "ms"),
+        ("Total Client E2E", "total_client_e2e_ms", "ms"), ("Total App E2E", "total_app_e2e_ms", "ms"),
+        ("Total Tool Exec", "total_tool_exec_ms", "ms"), ("Cold Starts", "cold_start_total", ""),
+        ("Avg Memory", "avg_memory_usage_mb", "MB"), ("Estimated Price", "total_price", summary.get("currency", "USD")),
+    ):
+        value = summary.get(key)
+        print(f"{label}: {'unavailable' if value is None else f'{value:.10g}{unit}'}")
     if report.diagnostics:
         print(f"Diagnostics: {len(report.diagnostics)} issue(s)")
     print(f"Report: {report.report_path}")

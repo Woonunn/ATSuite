@@ -13,6 +13,7 @@ from atsuite.utils import normalize_node_name
 from atsuite.mcp.config import load_mcp_config, mcp_config_path
 from atsuite.pipeline import RuntimeConfig
 import logging
+from atsuite_sdk.response import mcp_response
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -52,6 +53,9 @@ def _log_mcp_tool_error(
 
 
 class MCPClient:
+    def invoke_result(self, tool_name, args, request_id=None, *, timeout=None, run_id=""):
+        return self.invoke(tool_name, args, request_id, full_response=True, timeout=timeout, run_id=run_id)
+
     def __init__(self, url: str, uid: str = ""):
         self.url = url.rstrip("/")
         self.uid = uid
@@ -65,6 +69,9 @@ class MCPClient:
         )
         print(f"[MCPClient] Created instance for url={self.url}, uid={uid}")
 
+    def close(self):
+        self._http_client.close()
+
     @staticmethod
     def _raise_if_mcp_error(response_payload: Optional[dict]) -> None:
         if not isinstance(response_payload, dict):
@@ -72,7 +79,10 @@ class MCPClient:
         if "error" in response_payload:
             raise RuntimeError(f"MCP error: {response_payload['error']}")
 
-    def invoke(self, tool_name: str, arguments: dict, request_id: Optional[str] = None):
+    def invoke(self, tool_name: str, arguments: dict, request_id: Optional[str] = None, *, full_response=False, timeout=None, run_id=""):
+        start = time.perf_counter()
+        request_id = request_id or uuid.uuid4().hex
+        client_request_id = request_id
         if not self._initialized:
             with self._init_lock:
                 if not self._initialized:
@@ -82,6 +92,7 @@ class MCPClient:
 
         headers = {
             "Content-Type": "application/json",
+            "X-Run-Id": run_id,
             "Accept": "application/json, text/event-stream",
         }
         if self.session_id:
@@ -90,16 +101,16 @@ class MCPClient:
             headers["X-Request-Id"] = request_id
 
         thread_id = threading.current_thread().ident
-        call_time = int(time.time() * 1000)
         print(
             f"[MCPClient] Invoke tool={tool_name}, url={self.url}, session_id={self.session_id}, thread={thread_id}"
         )
         resp = self._http_client.post(
             f"{self.url}/mcp",
             headers=headers,
+            timeout=timeout if timeout is not None else _MCP_CLIENT_TIMEOUT_SECONDS,
             json={
                 "jsonrpc": "2.0",
-                "id": f"call-{call_time}-{thread_id}",
+                "id": request_id,
                 "method": "tools/call",
                 "params": {
                     "name": tool_name,
@@ -119,7 +130,8 @@ class MCPClient:
         resp.raise_for_status()
 
         response_payload = self._read_streamable_response(resp)
-        self._raise_if_mcp_error(response_payload)
+        if not full_response:
+            self._raise_if_mcp_error(response_payload)
         _log_mcp_tool_error(
             response_payload,
             client_name=self.__class__.__name__,
@@ -131,6 +143,8 @@ class MCPClient:
             or resp.headers.get("x-amzn-requestid")
             or request_id
         )
+        if full_response:
+            return mcp_response(response_payload, request_id=client_request_id, provider_request_id=request_id, run_id=run_id, elapsed_ms=(time.perf_counter() - start) * 1000)
         return request_id
 
     def _read_streamable_response(self, response) -> Optional[dict]:
@@ -195,6 +209,8 @@ class MCPClient:
                 f"[MCPClient._init] Server error {resp.status_code}, body={resp.text[:200]}, url={self.url}, uid={self.uid}"
             )
         resp.raise_for_status()
+        payload = self._read_streamable_response(resp)
+        self._raise_if_mcp_error(payload)
         self.initialize_request_id = resp.headers.get(
             "X-Fc-Request-Id"
         ) or resp.headers.get("x-amzn-requestid")
@@ -202,6 +218,14 @@ class MCPClient:
         print(
             f"[MCPClient._init] Success session_id={self.session_id}, url={self.url}, uid={self.uid}, thread={thread_id}"
         )
+        notification_headers = dict(headers)
+        if self.session_id:
+            notification_headers["mcp-session-id"] = self.session_id
+        initialized = self._http_client.post(
+            f"{self.url}/mcp", headers=notification_headers,
+            json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+        )
+        initialized.raise_for_status()
         self._initialized = True
 
     def initialize(self, request_id: Optional[str] = None):
@@ -259,14 +283,17 @@ class LocalMCPClient(MCPClient):
         )
         resp.raise_for_status()
 
-    def invoke(self, tool_name: str, arguments: dict, request_id: Optional[str] = None):
+    def invoke(self, tool_name: str, arguments: dict, request_id: Optional[str] = None, *, full_response=False, timeout=None, run_id=""):
+        start = time.perf_counter()
+        request_id = request_id or uuid.uuid4().hex
+        client_request_id = request_id
         if not self._initialized:
             self.initialize(request_id=request_id)
 
         with httpx.stream(
             "POST",
             f"{self.url}/mcp",
-            headers=self._build_headers(request_id=request_id),
+            headers={**self._build_headers(request_id=request_id), "X-Run-Id": run_id},
             json={
                 "jsonrpc": "2.0",
                 "id": f"call-{uuid.uuid4().hex}",
@@ -276,11 +303,12 @@ class LocalMCPClient(MCPClient):
                     "arguments": arguments,
                 },
             },
-            timeout=60.0,
+            timeout=timeout if timeout is not None else 60.0,
         ) as resp:
             resp.raise_for_status()
             response_payload = self._read_streamable_response(resp)
-            MCPClient._raise_if_mcp_error(response_payload)
+            if not full_response:
+                MCPClient._raise_if_mcp_error(response_payload)
             _log_mcp_tool_error(
                 response_payload,
                 client_name=self.__class__.__name__,
@@ -291,6 +319,8 @@ class LocalMCPClient(MCPClient):
                 or resp.headers.get("x-amzn-requestid")
                 or request_id
             )
+        if full_response:
+            return mcp_response(response_payload, request_id=client_request_id, provider_request_id=request_id, run_id=run_id, elapsed_ms=(time.perf_counter() - start) * 1000)
         return request_id
 
     def initialize(self, request_id: Optional[str] = None):
@@ -330,6 +360,9 @@ class LocalMCPClient(MCPClient):
 
 class AgentCoreMCPClient:
     """由于agentcore不能公开访问，需要客户端进行签名访问"""
+
+    def invoke_result(self, tool_name, args, request_id=None, *, timeout=None, run_id=""):
+        return self.invoke(tool_name, args, request_id, full_response=True, timeout=timeout, run_id=run_id)
 
     def __init__(self, url: str, region: str = None):
         self.url = url.rstrip("/")
@@ -433,6 +466,8 @@ class AgentCoreMCPClient:
         *,
         include_session: bool = True,
         request_id: Optional[str] = None,
+        timeout: Optional[float] = None,
+        run_id: str = "",
     ):
         from botocore.auth import SigV4Auth
         from botocore.awsrequest import AWSRequest
@@ -440,6 +475,7 @@ class AgentCoreMCPClient:
         sign_headers = {
             "Content-Type": "application/json",
             "Accept": accept,
+            "X-Run-Id": run_id,
         }
         if request_id:
             sign_headers["X-Request-Id"] = request_id
@@ -459,9 +495,11 @@ class AgentCoreMCPClient:
         return requests.post(
             self.url,
             data=payload,
+            timeout=timeout if timeout is not None else _MCP_CLIENT_TIMEOUT_SECONDS,
             headers={
                 "Content-Type": "application/json",
                 "Accept": accept,
+                "X-Run-Id": run_id,
                 **({"X-Request-Id": request_id} if request_id else {}),
                 "X-Amz-Date": aws_request.headers["X-Amz-Date"],
                 "Authorization": aws_request.headers["Authorization"],
@@ -489,6 +527,8 @@ class AgentCoreMCPClient:
         *,
         include_session: bool = True,
         request_id: Optional[str] = None,
+        timeout: Optional[float] = None,
+        run_id: str = "",
     ):
         from botocore.auth import SigV4Auth
         from botocore.awsrequest import AWSRequest
@@ -496,6 +536,7 @@ class AgentCoreMCPClient:
         sign_headers = {
             "Content-Type": "application/json",
             "Accept": accept,
+            "X-Run-Id": run_id,
         }
         if request_id:
             sign_headers["X-Request-Id"] = request_id
@@ -516,9 +557,11 @@ class AgentCoreMCPClient:
             "POST",
             self.url,
             data=payload,
+            timeout=timeout if timeout is not None else _MCP_CLIENT_TIMEOUT_SECONDS,
             headers={
                 "Content-Type": "application/json",
                 "Accept": accept,
+                "X-Run-Id": run_id,
                 **({"X-Request-Id": request_id} if request_id else {}),
                 "X-Amz-Date": aws_request.headers["X-Amz-Date"],
                 "Authorization": aws_request.headers["Authorization"],
@@ -539,13 +582,11 @@ class AgentCoreMCPClient:
             },
         )
 
-    def invoke(self, tool_name: str, args: dict, request_id: Optional[str] = None):
-        """
-        使用 SigV4 对请求进行签名。
-        关键改动：支持session_id复用，避免每次请求都创建新session
-        """
-        self._request_id += 1
-        rpc_id = request_id if request_id is not None else self._request_id
+    def invoke(self, tool_name: str, args: dict, request_id: Optional[str] = None, *, full_response=False, timeout=None, run_id=""):
+        start = time.perf_counter()
+        request_id = request_id or uuid.uuid4().hex
+        client_request_id = request_id
+        rpc_id = request_id
         payload = json.dumps(
             {
                 "jsonrpc": "2.0",
@@ -561,23 +602,28 @@ class AgentCoreMCPClient:
                 payload,
                 accept="text/event-stream, application/json",
                 request_id=request_id,
+                timeout=timeout, run_id=run_id,
             ) as response:
                 response.raise_for_status()
                 request_id = response.headers.get("x-amzn-RequestId")
                 self.session_id = response.headers.get("Mcp-Session-Id")
                 response_payload = self._read_streamable_response(response)
-                self._raise_if_mcp_error(response_payload)
+                if not full_response:
+                    self._raise_if_mcp_error(response_payload)
                 _log_mcp_tool_error(
                     response_payload,
                     client_name=self.__class__.__name__,
                     tool_name=tool_name,
                 )
+                if full_response:
+                    return mcp_response(response_payload, request_id=client_request_id, provider_request_id=request_id, run_id=run_id, elapsed_ms=(time.perf_counter() - start) * 1000)
                 return request_id
 
         response = self._post_signed_request(
             payload,
             accept="application/json, text/event-stream",
             request_id=request_id,
+            timeout=timeout, run_id=run_id,
         )
         response.raise_for_status()
 
@@ -587,13 +633,16 @@ class AgentCoreMCPClient:
         self.session_id = response.headers.get("Mcp-Session-Id")
 
         response_payload = self._read_response_payload(response)
-        self._raise_if_mcp_error(response_payload)
+        if not full_response:
+            self._raise_if_mcp_error(response_payload)
         _log_mcp_tool_error(
             response_payload,
             client_name=self.__class__.__name__,
             tool_name=tool_name,
         )
 
+        if full_response:
+            return mcp_response(response_payload, request_id=client_request_id, provider_request_id=request_id, run_id=run_id, elapsed_ms=(time.perf_counter() - start) * 1000)
         return request_id
 
 

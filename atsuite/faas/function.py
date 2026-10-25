@@ -1,6 +1,9 @@
 import json
 import os
 import requests
+import time
+import uuid
+from atsuite_sdk.response import ToolResponse
 
 from pathlib import Path
 from typing import Optional
@@ -29,7 +32,9 @@ class FunctionClient:
         # Use a plain session: no client-side timeout and no automatic retries.
         self.session = requests.Session()
 
-    def invoke(self, tool_name: str, args: dict, request_id: Optional[str] = None):
+    def invoke(self, tool_name: str, args: dict, request_id: Optional[str] = None, *, full_response=False, timeout=None, run_id=""):
+        start = time.perf_counter()
+        request_id = request_id or uuid.uuid4().hex
         tool_name_safe = tool_name.replace(".", "_")
         payload = {
             "tool": tool_name_safe,
@@ -47,7 +52,8 @@ class FunctionClient:
             response = self.session.post(
                 invoke_url,
                 data=body,
-                headers=headers,
+                headers={**headers, "X-Run-Id": run_id},
+                timeout=timeout if timeout is not None else self.timeout,
             )
         else:
             headers = {}
@@ -56,12 +62,26 @@ class FunctionClient:
             response = self.session.post(
                 invoke_url,
                 json=payload,
-                headers=headers or None,
+                headers={**headers, "X-Run-Id": run_id},
+                timeout=timeout if timeout is not None else self.timeout,
             )
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
+            if full_response:
+                try:
+                    body = response.json()
+                except ValueError:
+                    body = {"error": response.text}
+                return ToolResponse(
+                    provider_request_id=response.headers.get("X-Fc-Request-Id") or response.headers.get("x-amzn-requestid") or "",
+                    request_id=request_id, run_id=run_id, status=body.get("status", "error"),
+                    result=body.get("result"), error=str(body.get("error") or body),
+                    client_elapsed_ms=(time.perf_counter() - start) * 1000,
+                    execution_elapsed_ms=body.get("execution_elapsed_ms"),
+                    provider_metadata={"http_status": response.status_code, **body.get("metadata", {})},
+                )
             raise RuntimeError(
                 self._format_response_error(
                     response,
@@ -82,16 +102,7 @@ class FunctionClient:
             ) from err
 
         result = rsp.get("result")
-        if isinstance(result, str):
-            stripped = result.strip()
-            if stripped and stripped[0] in "[{":
-                try:
-                    result = json.loads(stripped)
-                except json.JSONDecodeError:
-                    pass
-        if isinstance(result, dict) and result.get("isError"):
-            print(result)
-
+        client_request_id = request_id
         # Ali Cloud: X-Fc-Request-Id
         # AWS Lambda: x-amzn-requestid
         request_id = (
@@ -102,7 +113,18 @@ class FunctionClient:
 
         is_stateful = response.headers.get("X-Tool-Stateful", "false").lower() == "true"
 
+        if full_response:
+            return ToolResponse(
+                provider_request_id=request_id or "", request_id=client_request_id, run_id=run_id or rsp.get("run_id", ""),
+                status=rsp.get("status", "ok"), result=result, error=rsp.get("error", ""),
+                client_elapsed_ms=(time.perf_counter() - start) * 1000,
+                execution_elapsed_ms=rsp.get("execution_elapsed_ms"),
+                provider_metadata={"is_stateful": is_stateful, **rsp.get("metadata", {})},
+            )
         return request_id, is_stateful
+
+    def invoke_result(self, tool_name, args, request_id=None, *, timeout=None, run_id=""):
+        return self.invoke(tool_name, args, request_id, full_response=True, timeout=timeout, run_id=run_id)
 
     @staticmethod
     def _format_response_error(

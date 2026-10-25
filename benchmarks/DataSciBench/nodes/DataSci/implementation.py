@@ -1,9 +1,13 @@
 import importlib
-import io
+import atexit
+import select
+import threading
+import json
 import os
 import shutil
-import traceback
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+import signal
+import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Optional
@@ -26,6 +30,7 @@ class DataSciWorkspace:
     def __init__(self) -> None:
         self.variables: dict[str, Any] = {}
         self.imported_modules: dict[str, str] = {}
+        self._worker = None
 
     def namespace(self) -> dict[str, Any]:
         ns: dict[str, Any] = {"__builtins__": __builtins__}
@@ -59,6 +64,9 @@ class DataSciWorkspace:
         self.imported_modules = imported_modules
 
     def reset(self) -> None:
+        if self._worker is not None:
+            self._worker.close()
+            self._worker = None
         self.variables = {}
         self.imported_modules = {}
 
@@ -66,8 +74,7 @@ class DataSciWorkspace:
         return sorted(set(self.imported_modules.keys()) | set(self.variables.keys()))
 
 
-datasci_workspace = DataSciWorkspace()
-register_state_object("datasci_workspace", datasci_workspace)
+datasci_workspace = register_state_object("datasci_workspace", DataSciWorkspace(), session_scoped=True)
 
 
 def _to_state_value(value: Any) -> Any:
@@ -190,46 +197,124 @@ def _is_series_like(value: Any) -> bool:
 
 
 def _ensure_workspace(uid: Optional[str]) -> Path:
-    runtime = get_state_runtime()
-    workspace = runtime.session_dir(uid)
+    workspace = get_state_runtime().session_dir(uid)
     workspace.mkdir(parents=True, exist_ok=True)
-
     for src_rel, dst_name in _SESSION_PARENT_SEED_FILES:
         src = _NODE_DIR / src_rel
-        dst = workspace.parent / dst_name
-        if src.exists() and not dst.exists():
-            shutil.copy2(src, dst)
-
+        # Legacy prompts use ../adult.data; the parent belongs to this Session.
+        for dst in (workspace / dst_name, workspace.parent / dst_name):
+            if src.exists() and not dst.exists():
+                shutil.copy2(src, dst)
     return workspace
 
 
-@contextmanager
-def _workspace_cwd(uid: Optional[str]):
-    workspace = _ensure_workspace(uid)
-    prev_cwd = Path.cwd()
-    os.chdir(workspace)
-    try:
-        yield workspace
-    finally:
-        os.chdir(prev_cwd)
+class DataSciExecutionError(RuntimeError):
+    def __init__(self, message, output=""):
+        super().__init__(message)
+        self.result = output
+
+
+class DataSciTimeoutError(TimeoutError):
+    def __init__(self, message, output):
+        super().__init__(message)
+        self.result = output
+
+
+class _ResidentPython:
+    """One persistent Python namespace per MCP execution environment/Session."""
+    def __init__(self, workspace, env):
+        self.lock = threading.Lock()
+        self.workspace = workspace
+        self.seeded = False
+        self.output_path = workspace.parent / "python-output.txt"
+        self.error_path = workspace.parent / "python-worker-errors.txt"
+        read_fd, write_fd = os.pipe()
+        try:
+            with self.error_path.open("a") as errors:
+                self.process = subprocess.Popen(
+                    [sys.executable, "-u", str(_NODE_DIR / "worker.py"), "--resident", str(write_fd)],
+                    cwd=workspace, env=env, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                    stderr=errors, text=True, pass_fds=(write_fd,), start_new_session=True,
+                )
+        except BaseException:
+            os.close(read_fd)
+            raise
+        finally:
+            os.close(write_fd)
+        self.response = os.fdopen(read_fd, "r", encoding="utf-8")
+        atexit.register(self.close)
+
+    def close(self):
+        with self.lock:
+            if self.process.poll() is None:
+                try:
+                    os.killpg(self.process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            self.process.wait()
+            self.process.stdin.close()
+            self.response.close()
+
+    def execute(self, code):
+        with self.lock:
+            if self.process.poll() is not None:
+                raise DataSciExecutionError("MCP Python worker stopped; create a new Session (resident state is unavailable)")
+            payload = {"code": code, "output_path": str(self.output_path)}
+            if not self.seeded:
+                payload.update(variables=datasci_workspace.variables, imported_modules=datasci_workspace.imported_modules)
+            try:
+                self.process.stdin.write(json.dumps(payload) + "\n")
+                self.process.stdin.flush()
+                self.seeded = True
+                ready, _, _ = select.select([self.response], [], [], float(os.getenv("ATSUITE_DATASCI_TIMEOUT", "240")))
+                if not ready:
+                    os.killpg(self.process.pid, signal.SIGKILL)
+                    self.process.wait()
+                    output = self.output_path.read_text(errors="replace") if self.output_path.exists() else ""
+                    raise DataSciTimeoutError("DataSci Python execution timed out; resident worker stopped; create a new Session", output)
+                line = self.response.readline()
+                if not line:
+                    raise DataSciExecutionError("MCP Python worker exited without a response; create a new Session\n" + self.error_path.read_text())
+                result = json.loads(line)
+            except TimeoutError:
+                raise
+            except (OSError, ValueError) as exc:
+                raise DataSciExecutionError(f"MCP Python worker RPC failed: {exc}") from exc
+            if result["status"] != "ok":
+                raise DataSciExecutionError(result["error"], result["output"])
+            return result["output"]
 
 
 def run_code(code_str: str, uid: Optional[str] = None) -> str:
-    output_buffer = io.StringIO()
+    workspace = _ensure_workspace(uid)
+    env = dict(os.environ, PROVIDER="", ATSUITE_SESSION_ROOT=str(workspace.parent / "worker-state"))
+    env["PYTHONPATH"] = os.pathsep.join([str(Path(__import__("atsuite_sdk").__file__).resolve().parent.parent), env.get("PYTHONPATH", "")])
+    if get_state_runtime().runtime == "mcp":
+        if datasci_workspace._worker is None:
+            datasci_workspace._worker = _ResidentPython(workspace, env)
+        return datasci_workspace._worker.execute(code_str)
+    input_path, result_path = workspace.parent / "input.json", workspace.parent / "result.json"
+    input_path.write_text(json.dumps({
+        "code": code_str, "variables": datasci_workspace.variables,
+        "imported_modules": datasci_workspace.imported_modules,
+    }), encoding="utf-8")
+    process = subprocess.Popen(
+        [sys.executable, "-u", str(_NODE_DIR / "worker.py"), str(input_path), str(result_path)],
+        cwd=workspace, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, start_new_session=True,
+    )
     try:
-        with (
-            _workspace_cwd(uid) as workspace,
-            redirect_stdout(output_buffer),
-            redirect_stderr(output_buffer),
-        ):
-            ns = datasci_workspace.namespace()
-            ns["__file__"] = str(workspace / "__session__.py")
-            exec(code_str.strip(), ns)
-            datasci_workspace.sync_from_namespace(ns)
-    except Exception:
-        return f"{output_buffer.getvalue()}{traceback.format_exc()}"
-
-    return output_buffer.getvalue()
+        stdout, stderr = process.communicate(timeout=float(os.getenv("ATSUITE_DATASCI_TIMEOUT", "240")))
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        stdout, stderr = process.communicate()
+        raise DataSciTimeoutError(f"DataSci Python execution timed out\n{stdout}{stderr}", stdout + stderr) from None
+    if process.returncode != 0:
+        raise DataSciExecutionError(f"DataSci Python failed ({process.returncode})\n{stdout}{stderr}", stdout + stderr)
+    state = json.loads(result_path.read_text(encoding="utf-8"))
+    datasci_workspace.variables = state["variables"]
+    datasci_workspace.imported_modules = state["imported_modules"]
+    return stdout + stderr
 
 
 @registry.tool(stateful=True)

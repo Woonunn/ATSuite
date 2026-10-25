@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -137,7 +138,7 @@ class TimelineBuilder:
                 "benchmark": context.benchmark,
                 "trace": context.trace,
                 "family": context.family,
-                "generated_at": datetime.now().isoformat(timespec="seconds"),
+                "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             },
         }
 
@@ -799,7 +800,7 @@ class PerfettoTraceExporter:
         benchmark: str,
         timestamp: Optional[str] = None,
     ) -> str:
-        ts = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = timestamp or uuid.uuid4().hex
         output_dir = self.base_dir / provider / benchmark
         output_dir.mkdir(parents=True, exist_ok=True)
         trace_path = output_dir / f"{ts}.trace.json"

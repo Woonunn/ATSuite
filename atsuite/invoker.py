@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
+import uuid
+import traceback
+from atsuite_sdk.events import EventLog
 import threading
 import time
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, TextIO
+from typing import Any, Callable, Dict, Optional
 
 from atsuite.pipeline import CliOverrides, is_sandbox_config, read_url_map, resolve_benchmark
 from atsuite.runtime import InvocationRequest, RuntimeAdapter, RuntimeSession, RuntimeTarget, create_runtime_adapter
@@ -31,24 +32,10 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 
-class _TeeWriter:
-    """Writes to both the original stream and a log file simultaneously."""
-
-    def __init__(self, original: TextIO, log_file: TextIO):
-        self._original = original
-        self._log_file = log_file
-
-    def write(self, data: str) -> int:
-        self._original.write(data)
-        self._log_file.write(data)
-        return len(data)
-
-    def flush(self) -> None:
-        self._original.flush()
-        self._log_file.flush()
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._original, name)
+class ToolInvocationError(RuntimeError):
+    def __init__(self, result):
+        super().__init__(result.error or "Tool invocation failed")
+        self.status = result.status
 
 
 def _create_analyzer(
@@ -142,6 +129,8 @@ def run_node(
     *,
     max_workers: Optional[int] = None,
     state_snapshot_bundle: Optional[Dict[str, Any]] = None,
+    run_id: str = "",
+    event_log: Optional[EventLog] = None,
 ) -> None:
     if visited:
         return
@@ -266,7 +255,7 @@ def run_node(
                     seeded_targets=seeded_targets,
                 )
 
-            call_id = f"{uid}_{current_node_id}_{int(time.time() * 1e6)}"
+            call_id = f"{uid}_{current_node_id}_{uuid.uuid4().hex}"
             session = session_for_target(target.name, current_node_id, current_node.name)
             client_start_time = time.time()
             result = runtime.invoke(
@@ -278,9 +267,14 @@ def run_node(
                     call_id=call_id,
                     session=session,
                     timeout=target.runtime.timeout,
+                    run_id=run_id,
                 )
             )
             elapsed_ms = result.client_elapsed_ms
+            if event_log:
+                response = result.to_dict()
+                response.pop("run_id", None)
+                event_log.write("tool_response", node_id=current_node_id, tool_name=route.tool_name, **response)
             if result.status != "ok":
                 analyzer_call(
                     "record_invocation",
@@ -300,7 +294,7 @@ def run_node(
                     provider_metadata=result.provider_metadata,
                 )
                 analyzer_call("end_node", current_node_id)
-                raise RuntimeError(result.error or f"Invocation failed for {current_node.name}")
+                raise ToolInvocationError(result)
 
             is_stateful = route.tool_access.is_stateful or bool(result.provider_metadata.get("is_stateful"))
             if target.family == "faas" and is_stateful:
@@ -395,7 +389,7 @@ def run_node(
             schedule_ready_nodes()
 
 
-def run_trace(
+def _run_trace(
     config_path: Path,
     url_map_path: Path,
     uid: str,
@@ -409,6 +403,9 @@ def run_trace(
     skip_analyzer: bool = False,
     skip_scaling_config: bool = False,
     analyzer: Optional[Any] = None,
+    run_id: str = "",
+    event_log: Optional[EventLog] = None,
+    result: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     if is_sandbox_config(config_path):
         raise SystemExit("Sandbox configs are no longer supported; use an external MCP-Gateway target instead")
@@ -428,13 +425,7 @@ def run_trace(
     if url_map.get("provider") and url_map["provider"] != provider:
         raise SystemExit(f"URL map provider {url_map['provider']} does not match CLI provider {provider}")
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = Path("results") / provider / resolved.bench_name
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{ts}.log"
-    _log_file = open(log_path, "w", encoding="utf-8")
-    _original_stdout = sys.stdout
-    sys.stdout = _TeeWriter(_original_stdout, _log_file)
+    ts = run_id
 
     toclean: set[str] = set()
     stateful_tool_num = [0]
@@ -466,11 +457,14 @@ def run_trace(
         )
     if analyzer:
         analyzer.start(uid=uid)
+        if hasattr(analyzer, "recorder"):
+            analyzer.recorder.context.run_id = run_id
 
     trace_start_time = time.time()
+    trace_start_ns = time.perf_counter_ns()
     trace_end_time = 0.0
     analyzer_report = None
-    result: Dict[str, Any] = {
+    result.update({
         "run": {
             "uid": uid,
             "provider": provider,
@@ -482,7 +476,7 @@ def run_trace(
         "report_path": "",
         "evidence_path": "",
         "trace_path": "",
-    }
+    })
 
     try:
         run_node(
@@ -500,9 +494,11 @@ def run_trace(
             runtime_targets,
             max_workers=max_workers,
             state_snapshot_bundle=state_snapshot_bundle,
+            run_id=run_id,
+            event_log=event_log,
         )
         trace_end_time = time.time()
-        result["summary"]["run_user_e2e_ms"] = (trace_end_time - trace_start_time) * 1000
+        result["summary"]["run_user_e2e_ms"] = (time.perf_counter_ns() - trace_start_ns) / 1_000_000
     finally:
         try:
             cleanup_started_at = time.time()
@@ -547,13 +543,48 @@ def run_trace(
             else:
                 result["summary"].setdefault(
                     "run_user_e2e_ms",
-                    ((trace_end_time or time.time()) - trace_start_time) * 1000,
+                    (time.perf_counter_ns() - trace_start_ns) / 1_000_000,
                 )
-                result["summary"].setdefault("total_compute_time_ms", 0.0)
-                result["summary"].setdefault("total_idle_time_ms", 0.0)
-                result["summary"].setdefault("total_price", 0.0)
+                result["summary"].setdefault("total_compute_time_ms", None)
+                result["summary"].setdefault("total_idle_time_ms", None)
+                result["summary"].setdefault("total_price", None)
         finally:
-            sys.stdout = _original_stdout
-            _log_file.close()
-            print(f"[export] Log: {log_path}")
+            event_log.write("cleanup_finished")
     return result
+
+
+def run_trace(
+    config_path: Path, url_map_path: Path, uid: str, *, provider: str,
+    trace_file: Optional[str] = None, skip_sleep: bool = False,
+    max_workers: Optional[int] = None, state_snapshot_bundle: Optional[Dict[str, Any]] = None,
+    llm_time_scale: float = 1.0, skip_analyzer: bool = False,
+    skip_scaling_config: bool = False, analyzer: Optional[Any] = None,
+) -> Dict[str, Any]:
+    run_id = uuid.uuid4().hex
+    resolved = resolve_benchmark(config_path, provider, CliOverrides(trace_file=trace_file))
+    directory = Path("results") / provider / resolved.bench_name
+    log = EventLog(directory / f"{run_id}.jsonl", run_id=run_id, uid=uid)
+    result = {"run": {"uid": uid, "run_id": run_id}, "summary": {}, "status": "running"}
+    start = time.perf_counter_ns()
+    log.write("run_started", provider=provider, benchmark=resolved.bench_name)
+    try:
+        _run_trace(
+            config_path, url_map_path, uid, provider=provider, trace_file=trace_file,
+            skip_sleep=skip_sleep, max_workers=max_workers, state_snapshot_bundle=state_snapshot_bundle,
+            llm_time_scale=llm_time_scale, skip_analyzer=skip_analyzer,
+            skip_scaling_config=skip_scaling_config, analyzer=analyzer,
+            run_id=run_id, event_log=log, result=result,
+        )
+        result["status"] = "ok"
+        return result
+    except BaseException as exc:
+        result.update(status=getattr(exc, "status", "timeout" if isinstance(exc, TimeoutError) else "error"), error=str(exc), traceback=traceback.format_exc())
+        raise
+    finally:
+        result.setdefault("run", {})["run_id"] = run_id
+        result["event_log_path"] = str(log.path)
+        result["result_path"] = str(directory / f"{run_id}.result.json")
+        elapsed_ms = (time.perf_counter_ns() - start) / 1_000_000
+        result["summary"].setdefault("run_user_e2e_ms", elapsed_ms)
+        log.write("run_finished", status=result["status"], duration_ms=elapsed_ms, error=result.get("error"))
+        Path(result["result_path"]).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -50,6 +51,7 @@ class RunRecorder:
 
     def start_run(self, uid: str, start_time: Optional[float] = None) -> None:
         with self._lock:
+            self.context.run_id = uuid.uuid4().hex
             self.context.uid = uid
             self.context.start_time = float(start_time if start_time is not None else time.time())
             self.context.end_time = 0.0

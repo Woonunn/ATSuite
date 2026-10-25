@@ -1,4 +1,5 @@
 import inspect
+import asyncio
 from typing import Any, Callable, Dict, Optional, Type, get_type_hints
 from pydantic import BaseModel, create_model
 from functools import wraps
@@ -8,10 +9,19 @@ class UnifiedAgentTool:
     统一 Agent Tool 包装器。
     用于封装 Agent Tool 逻辑，并自动提取元数据以适配 MCP 或 FaaS。
     """
-    def __init__(self, func: Callable, name: Optional[str] = None, *, stateful: bool = False):
+    def __init__(self, func: Callable, name: Optional[str] = None, *, stateful: bool = False, access: Optional[str] = None, domain: str = ""):
         self.func = func
         self.name = name or func.__name__
-        self.stateful = stateful
+        from atsuite_sdk.state import load_manifest
+        configured = load_manifest().get("tool_access", {}).get(self.name, {})
+        if configured.get("access") != "stateless":
+            access = configured.get("access", access)
+        domain = configured.get("domain", domain)
+        self.access = access if access is not None else ("rw" if stateful else "stateless")
+        if self.access not in {"r", "w", "rw", "stateless"}:
+            raise ValueError(f"Invalid Tool access: {self.access}")
+        self.stateful = self.access != "stateless"
+        self.domain = domain
         self.docstring = inspect.getdoc(func) or "No description provided."
         self.parameters_schema = self._generate_schema()
 
@@ -66,29 +76,23 @@ class UnifiedAgentTool:
         from atsuite_sdk.state import get_state_runtime
 
         runtime = get_state_runtime()
-        runtime.reset_sync_metrics()
         uid = call_args.get("uid")
-        if self.stateful and isinstance(snapshot_payload, dict):
-            runtime.prime_snapshot(uid, snapshot_payload)
-        should_sync_tool_state = getattr(runtime, "runtime", None) != "mcp"
-        if should_sync_tool_state:
-            runtime.load_for_tool(self.func.__module__, uid)
-        if not self.stateful or "uid" not in inspect.signature(self.func).parameters:
+        if "uid" not in inspect.signature(self.func).parameters:
             call_args.pop("uid", None)
-        with runtime.uid_context(uid):
+        with runtime.execution(self.func.__module__, uid, self.access, self.domain, snapshot_payload):
             result = self.func(**call_args)
-        if should_sync_tool_state and self.stateful:
-            runtime.save_after_tool(self.func.__module__, uid)
-        return result
+            if inspect.isawaitable(result):
+                result = asyncio.run(result)
+            return result
 
 # --- 装饰器 ---
 class AgentToolRegistry:
     def __init__(self):
         self.functions: Dict[str, UnifiedAgentTool] = {}
 
-    def tool(self, name: Optional[str] = None, *, stateful: bool = False):
+    def tool(self, name: Optional[str] = None, *, stateful: bool = False, access: Optional[str] = None, domain: str = ""):
         def decorator(func):
-            unified = UnifiedAgentTool(func, name, stateful=stateful)
+            unified = UnifiedAgentTool(func, name, stateful=stateful, access=access, domain=domain)
             self.functions[unified.name] = unified
             return unified
         return decorator

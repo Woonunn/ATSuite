@@ -2,13 +2,17 @@ import importlib
 import json
 import os
 import time
+import uuid
+import traceback
+from datetime import datetime, timezone
 
 import sys
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, Type, Optional
 from urllib.parse import urlparse
 
 from atsuite_sdk.abstract import registry
+from atsuite_sdk.events import emit_event
 from atsuite_sdk.state import get_state_runtime
 
 module_name = os.environ.get("ATSUITE_NODE_MODULE", "implementation")
@@ -75,6 +79,9 @@ def _build_function_breakdown_payload(
     
     return {
         "event": "atsuite_function_breakdown",
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "monotonic_ns": request_end_ns,
+        "run_id": str(ctx.get("run_id") or ""),
         "request_id": str(ctx.get("request_id") or ""),
         "tool_name": str(ctx.get("tool_name") or ""),
         "status": int(status),
@@ -132,6 +139,12 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
             return path if path else "/"
 
         def _send_json(self, status: int, payload: Dict, custom_headers: Optional[Dict] = None):
+            request_id = getattr(self, "request_id", "")
+            run_id = getattr(self, "run_id", "")
+            payload.setdefault("request_id", request_id)
+            payload.setdefault("run_id", run_id)
+            if status >= 400:
+                emit_event("function_error", request_id=request_id, run_id=run_id, http_status=status, error=payload.get("error"))
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -155,12 +168,14 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
             self.end_headers()
 
         def do_POST(self):
+            self.request_id = self.headers.get("X-Request-Id", "").strip() or uuid.uuid4().hex
+            self.run_id = self.headers.get("X-Run-Id", "").strip() or uuid.uuid4().hex
             path = self._clean_path()
             if path not in ("/run", "/invoke"):
                 self._send_json(404, {"error": f"not found (path={self.path!r})"})
                 return
 
-            request_id = self.headers.get("X-Request-Id", "").strip()
+            request_id, run_id = self.request_id, self.run_id
             trace_header = self.headers.get("X-Cloud-Trace-Context", "").strip()
             project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
             if request_id and project_id:
@@ -171,20 +186,24 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
                         trace_full = f"projects/{project_id}/traces/{part}"
                 print(json.dumps({"request_id": request_id, "trace": trace_full, "message": "atsuite_request"}, ensure_ascii=False), flush=True)
 
-            length = int(self.headers.get("Content-Length", "0"))
-            raw = self.rfile.read(length).decode("utf-8") if length else ""
-
             try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length < 0:
+                    raise ValueError("negative Content-Length")
+                raw = self.rfile.read(length).decode("utf-8") if length else ""
                 payload = json.loads(raw) if raw else {}
-            except json.JSONDecodeError:
-                self._send_json(400, {"error": "invalid json"})
+            except (ValueError, UnicodeDecodeError):
+                self._send_json(400, {"error": "invalid JSON body or Content-Length"})
                 return
 
+            if not isinstance(payload, dict) or not isinstance(payload.get("args", {}), dict):
+                self._send_json(400, {"error": "payload and args must be objects", "request_id": request_id, "run_id": run_id})
+                return
             tool_name = payload.get("tool")
             args = payload.get("args", {})
 
-            if not tool_name:
-                self._send_json(400, {"error": "missing tool name"})
+            if not isinstance(tool_name, str) or not tool_name:
+                self._send_json(400, {"error": "tool name must be a nonempty string"})
                 return
             
             tool_obj = TOOLS.get(tool_name)
@@ -195,6 +214,7 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
 
             request_ctx: Dict[str, object] = {
                 "request_id": request_id,
+                "run_id": run_id,
                 "tool_name": str(tool_name),
                 "request_start_ns": _now_ns(),
                 "request_wall_ns": _wall_ns(),
@@ -220,7 +240,13 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
                 )
                 if breakdown is not None:
                     print(json.dumps(breakdown, ensure_ascii=False), flush=True)
-                self._send_json(500, {"error": str(e)})
+                elapsed_ms = _ns_to_ms(int(request_ctx["tool_end_ns"]) - int(request_ctx["tool_start_ns"]))
+                emit_event("tool_execution", run_id=run_id, request_id=request_id, uid=args.get("uid"),
+                           tool_name=tool_name, status="timeout" if isinstance(e, TimeoutError) else "error",
+                           duration_ms=elapsed_ms, error=str(e), traceback=traceback.format_exc())
+                self._send_json(500, {"status": "timeout" if isinstance(e, TimeoutError) else "error", "error": str(e),
+                                     "result": getattr(e, "result", None), "request_id": request_id, "run_id": run_id,
+                                     "execution_elapsed_ms": elapsed_ms}, custom_headers={"X-Request-Id": request_id})
                 return
 
             breakdown = _build_function_breakdown_payload(
@@ -230,7 +256,12 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
             )
             if breakdown is not None:
                 print(json.dumps(breakdown, ensure_ascii=False), flush=True)
-            self._send_json(200, {"result": result}, custom_headers={"X-Tool-Stateful": is_stateful})
+            elapsed_ms = _ns_to_ms(int(request_ctx["tool_end_ns"]) - int(request_ctx["tool_start_ns"]))
+            emit_event("tool_execution", run_id=run_id, request_id=request_id, uid=args.get("uid"),
+                       tool_name=tool_name, status="ok", duration_ms=elapsed_ms)
+            self._send_json(200, {"status": "ok", "result": result, "error": "", "request_id": request_id,
+                                 "run_id": run_id, "execution_elapsed_ms": elapsed_ms},
+                            custom_headers={"X-Tool-Stateful": is_stateful, "X-Request-Id": request_id})
 
     return ToolHandler
 
@@ -239,7 +270,7 @@ def main():
     host = os.environ.get("FC_SERVER_HOST", "0.0.0.0")
     port = int(os.environ.get("FC_SERVER_PORT", "9000"))
     handler = create_handler()
-    server = HTTPServer((host, port), handler)
+    server = ThreadingHTTPServer((host, port), handler)
     server.serve_forever()
 
 

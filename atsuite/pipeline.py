@@ -684,3 +684,15 @@ def read_url_map(path: Path) -> Dict[str, Any]:
 
 def tool_trace_names(trace: Trace) -> List[str]:
     return [node.name for node in trace.nodes if node.node_type in TRACE_TOOL_TYPES]
+
+
+def target_tool_manifest(resolved, target):
+    access = {}
+    for route in resolved.routes.values():
+        if route.target_name != target.name:
+            continue
+        entry = {"access": route.access, "domain": route.domain}
+        if route.tool_name in access and access[route.tool_name] != entry:
+            raise ValueError(f"Conflicting access declarations for Tool {route.tool_name}")
+        access[route.tool_name] = entry
+    return {"allowed_tools": list(target.allowed_tools), "state_service": target.name, "tool_access": access}

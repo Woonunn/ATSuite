@@ -51,6 +51,18 @@ class AWSS3(StorageBase):
             print(f"[AWSS3] ensure_bucket_exists failed (non-fatal): {e}")
             print(f"[AWSS3] Continuing without bucket verification")
 
+    def put(self, key: str, data: bytes) -> None:
+        self.client.put_object(Bucket=self.bucket, Key=key, Body=data)
+
+    def try_create(self, key: str, data: bytes) -> bool:
+        try:
+            self.client.put_object(Bucket=self.bucket, Key=key, Body=data, IfNoneMatch="*")
+            return True
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] in {"PreconditionFailed", "ConditionalRequestConflict", "412", "409"}:
+                return False
+            raise
+
     def upload(self, key: str, filepath: str):
         """上传本地文件到 S3"""
         try:

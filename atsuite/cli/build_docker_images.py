@@ -16,6 +16,7 @@ from atsuite.pipeline import (
     is_sandbox_config,
     resolve_benchmark,
     target_image_tag,
+    target_tool_manifest,
 )
 from atsuite.utils import run
 
@@ -263,7 +264,7 @@ def build_resolved_targets(
                 requirements.append("boto3")
             requirements.append("pydantic")
             write_requirements(target_dir / "requirements.txt", requirements)
-            manifest = {"allowed_tools": list(target.allowed_tools)}
+            manifest = target_tool_manifest(resolved, target)
             (target_dir / "atsuite-manifest.json").write_text(
                 json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -337,7 +338,7 @@ def build_resolved_targets(
             )
             (target_dir / "atsuite-manifest.json").write_text(
                 json.dumps(
-                    {"allowed_tools": allowed_tools}, ensure_ascii=False, indent=2
+                    {**target_tool_manifest(resolved, target), "allowed_tools": allowed_tools}, ensure_ascii=False, indent=2
                 )
                 + "\n",
                 encoding="utf-8",

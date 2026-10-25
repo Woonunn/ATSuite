@@ -1,4 +1,5 @@
 import argparse
+import math
 import random
 import time
 import uuid
@@ -35,7 +36,7 @@ RESULT_COLUMNS = [
 
 
 def build_unified_result_path(result_dir: Path, provider: str, timestamp: str | None = None) -> Path:
-    ts = timestamp or time.strftime("%Y%m%d_%H%M%S")
+    ts = timestamp or uuid.uuid4().hex
     return result_dir / f"result_{provider}_{ts}.xlsx"
 
 
@@ -45,31 +46,35 @@ def save_unified_results(
     results: List[Dict],
     timestamp: str | None = None,
 ) -> Path:
-    result_dir.mkdir(exist_ok=True)
+    result_dir.mkdir(parents=True, exist_ok=True)
     if results:
         df = pd.DataFrame(results)
     else:
         df = pd.DataFrame(columns=RESULT_COLUMNS)
     for column in RESULT_COLUMNS:
         if column not in df.columns:
-            df[column] = 0
+            df[column] = None
     df = df[RESULT_COLUMNS]
     
     p99_row = {"index": "p99", "uid": ""}
     for col in RESULT_COLUMNS:
         if col in ("index", "uid"):
             continue
-        values = [r.get(col, 0) for r in results if isinstance(r.get(col, 0), (int, float))]
+        values = [r[col] for r in results if isinstance(r.get(col), (int, float)) and math.isfinite(r[col])]
         if values:
             sorted_vals = sorted(values)
             p99_row[col] = sorted_vals[int(len(sorted_vals) * 0.99)]
         else:
-            p99_row[col] = 0
+            p99_row[col] = None
     
     df = pd.concat([df, pd.DataFrame([p99_row])], ignore_index=True)
     
     output_path = build_unified_result_path(result_dir, provider, timestamp=timestamp)
-    df.to_excel(output_path, index=False, sheet_name="results")
+    coverage = [{"metric": column, "measured": sum(isinstance(row.get(column), (int, float)) and math.isfinite(row[column]) for row in results),
+                 "requests": len(results)} for column in RESULT_COLUMNS if column not in {"index", "uid"}]
+    with pd.ExcelWriter(output_path) as writer:
+        df.to_excel(writer, index=False, sheet_name="results")
+        pd.DataFrame(coverage).to_excel(writer, index=False, sheet_name="coverage")
     return output_path
 
 
@@ -183,23 +188,23 @@ def main():
                 results.append({
                     "index": idx + 1,
                     "uid": run_info.get("uid", uid),
-                    "e2e_time_ms": summary.get("run_user_e2e_ms", 0),
-                    "compute_time_ms": summary.get("total_compute_time_ms", 0),
-                    "response_time_ms": summary.get("total_app_e2e_ms", 0),
-                    "idle_time_ms": summary.get("total_idle_time_ms", 0),
-                    "total_price": summary.get("total_price", 0),
-                    "precise_price": summary.get("total_price", 0),
-                    "total_cpu_price": summary.get("total_cpu_price", 0),
-                    "total_memory_price": summary.get("total_memory_price", 0),
-                    "cold_starts": summary.get("cold_start_total", 0),
-                    "avg_memory_mb": summary.get("avg_memory_usage_mb", 0),
-                    "vcpu_hours": summary.get("vcpu_hours", 0),
-                    "memory_gb_hours": summary.get("memory_gb_hours", 0),
+                    "e2e_time_ms": summary.get("run_user_e2e_ms"),
+                    "compute_time_ms": summary.get("total_compute_time_ms"),
+                    "response_time_ms": summary.get("total_app_e2e_ms"),
+                    "idle_time_ms": summary.get("total_idle_time_ms"),
+                    "total_price": summary.get("total_price"),
+                    "precise_price": summary.get("total_price"),
+                    "total_cpu_price": summary.get("total_cpu_price"),
+                    "total_memory_price": summary.get("total_memory_price"),
+                    "cold_starts": summary.get("cold_start_total"),
+                    "avg_memory_mb": summary.get("avg_memory_usage_mb"),
+                    "vcpu_hours": summary.get("vcpu_hours"),
+                    "memory_gb_hours": summary.get("memory_gb_hours"),
                 })
                 print(
                     f"[concurrent_invoker] Completed {completed}/{concurrency}, "
                     f"uid={uid}, scale={llm_time_scale:.3f}, "
-                    f"e2e={summary.get('run_user_e2e_ms', 0):.2f}ms"
+                    f"e2e={summary.get('run_user_e2e_ms')}ms"
                 )
             except Exception as e:
                 failed_results.append({
@@ -222,48 +227,18 @@ def main():
         xlsx_file = save_unified_results(con_result_dir, provider, results)
         print(f"[concurrent_invoker] Results saved to {xlsx_file}")
         
-        e2e_times = [r["e2e_time_ms"] for r in results]
-        compute_times = [r["compute_time_ms"] for r in results]
-        prices = [r["total_price"] for r in results]
-        
-        sorted_e2e = sorted(e2e_times)
-        p99_e2e = sorted_e2e[int(len(sorted_e2e) * 0.99)] if len(sorted_e2e) > 0 else 0.0
-        sorted_prices = sorted(prices)
-        p99_price = sorted_prices[int(len(sorted_prices) * 0.99)] if len(sorted_prices) > 0 else 0.0
-        print(f"[concurrent_invoker] Aggregated results:")
-        print(f"  E2E time: min={min(e2e_times):.2f}ms, max={max(e2e_times):.2f}ms, "
-              f"mean={sum(e2e_times)/len(e2e_times):.2f}ms, p99={p99_e2e:.2f}ms")
-        if provider.startswith("ali") and compute_times:
-            sorted_compute = sorted(compute_times)
-            p99_compute = sorted_compute[int(len(sorted_compute) * 0.99)] if len(sorted_compute) > 0 else 0.0
-            print(f"  Compute time: min={min(compute_times):.2f}ms, max={max(compute_times):.2f}ms, "
-                  f"mean={sum(compute_times)/len(compute_times):.2f}ms, p99={p99_compute:.2f}ms")
-        else:
-            print(f"  Compute time: min={min(compute_times):.2f}ms, max={max(compute_times):.2f}ms, "
-              f"mean={sum(compute_times)/len(compute_times):.2f}ms")
-        print(f"  Total price: min={min(prices):.6f}, max={max(prices):.6f}, "
-              f"mean={sum(prices)/len(prices):.6f}, p99={p99_price:.6f}, total={sum(prices):.6f}")
-        if provider == "ali_agentrun":
-            precise_prices = [r.get("precise_price", 0) for r in results]
-            sorted_precise = sorted(precise_prices)
-            p99_precise = sorted_precise[int(len(sorted_precise) * 0.99)] if len(sorted_precise) > 0 else 0.0
-            print(f"  Precise price: min={min(precise_prices):.6f}, max={max(precise_prices):.6f}, "
-                  f"mean={sum(precise_prices)/len(precise_prices):.6f}, p99={p99_precise:.6f}, total={sum(precise_prices):.6f}")
-        if provider in ("gcp_faas", "gcp_mcp"):
-            cpu_prices = [r.get("total_cpu_price", 0) for r in results]
-            memory_prices = [r.get("total_memory_price", 0) for r in results]
-            print(
-                f"  Total CPU price: min={min(cpu_prices):.6f}, "
-                f"max={max(cpu_prices):.6f}, total={sum(cpu_prices):.6f}"
-            )
-            print(
-                f"  Total memory price: min={min(memory_prices):.6f}, "
-                f"max={max(memory_prices):.6f}, total={sum(memory_prices):.6f}"
-            )
-    
+        print("[concurrent_invoker] Aggregated measured results:")
+        for label, key in (("E2E time", "e2e_time_ms"), ("Compute time", "compute_time_ms"), ("Estimated price", "total_price")):
+            values = sorted(row[key] for row in results if isinstance(row.get(key), (int, float)) and math.isfinite(row[key]))
+            if values:
+                print(f"  {label}: measured={len(values)}/{len(results)}, min={values[0]:.6g}, max={values[-1]:.6g}, "
+                      f"mean={sum(values)/len(values):.6g}, p99={values[int(len(values)*.99)]:.6g}")
+            else:
+                print(f"  {label}: unavailable (measured=0/{len(results)})")
+
     if failed_results:
         df_failed = pd.DataFrame(failed_results)
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        timestamp = uuid.uuid4().hex
         xlsx_failed = con_result_dir / f"failed_{provider}_{timestamp}.xlsx"
         df_failed.to_excel(xlsx_failed, index=False, sheet_name="failed")
         print(f"[concurrent_invoker] Failed results saved to {xlsx_failed}")

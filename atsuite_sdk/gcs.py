@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from google.cloud import storage as gcs_storage
-from google.cloud.exceptions import NotFound
+from google.cloud.exceptions import NotFound, PreconditionFailed
 
 from atsuite_sdk.storage import StorageBase
 
@@ -28,6 +28,16 @@ class GCPStorage(StorageBase):
         self._project_id = project_id or _get_project()
         self._client = client or gcs_storage.Client(project=self._project_id)
         self._bucket = self._client.bucket(self.bucket_name)
+
+    def put(self, key: str, data: bytes) -> None:
+        self._bucket.blob(key).upload_from_string(data)
+
+    def try_create(self, key: str, data: bytes) -> bool:
+        try:
+            self._bucket.blob(key).upload_from_string(data, if_generation_match=0)
+            return True
+        except PreconditionFailed:
+            return False
 
     def upload(self, key: str, filepath: str) -> None:
         blob = self._bucket.blob(key)

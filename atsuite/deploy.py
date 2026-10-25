@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-from atsuite.pipeline import CliOverrides, is_sandbox_config, resolve_benchmark, target_image_tag
+from atsuite.pipeline import CliOverrides, is_sandbox_config, resolve_benchmark, target_image_tag, target_tool_manifest
 from atsuite.runtime import GatewayClient
 from atsuite.utils import write_url_map
 
@@ -23,7 +23,7 @@ def deploy(
         gateway = GatewayClient()
         for target in resolved.targets.values():
             print(f"[deploy] Registering gateway target: '{target.name}'")
-            manifest = {"allowed_tools": list(_allowed_tools_for_target(resolved.nodes, target))}
+            manifest = target_tool_manifest(resolved, target)
             endpoint = gateway.register_target(
                 name=target.name,
                 image=_gateway_image_ref(resolved.bench_name, target),
@@ -79,7 +79,7 @@ def deploy(
             endpoint_cache[target.name] = _endpoint_entry(
                 url.rstrip("/"),
                 target,
-                {"allowed_tools": list(_allowed_tools_for_target(resolved.nodes, target))},
+                target_tool_manifest(resolved, target),
             )
 
     payload = {

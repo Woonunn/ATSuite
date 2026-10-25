@@ -46,6 +46,7 @@ RUN python3 -m pip -q install --user -r /app/requirements.txt
 ENV PYTHONPATH=/app:/app/.python_user/lib/python${PYTHON_VERSION}/site-packages
 ENV ATSUITE_NODE_MODULE=${ATSUITE_NODE_MODULE}
 ENV ATSUITE_MCP_NAME=${ATSUITE_MCP_NAME}
+ENV ATSUITE_RUNTIME=mcp
 
 EXPOSE 8080
 ENTRYPOINT []

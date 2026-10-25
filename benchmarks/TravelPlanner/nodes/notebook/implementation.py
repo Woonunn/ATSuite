@@ -79,8 +79,7 @@ class Notebook:
         self.write_count = 0
         return "Notebook has been reset."
 
-notebook = Notebook()
-register_state_object("notebook", notebook)
+notebook = register_state_object("notebook", Notebook(), session_scoped=True)
 
 @registry.tool(stateful=True)
 def notebook_write(input_data: str, short_description: str):
@@ -94,17 +93,17 @@ def notebook_update(input_data: str, index: int, short_description: str):
     return notebook.update(df, index, short_description)
 
 
-@registry.tool()
+@registry.tool(access="r")
 def notebook_list():
     return notebook.list()
 
 
-@registry.tool()
+@registry.tool(access="r")
 def notebook_list_all():
     return notebook.list_all()
 
 
-@registry.tool()
+@registry.tool(access="r")
 def notebook_read(index: int):
     return notebook.read(index)
 
