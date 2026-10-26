@@ -155,3 +155,9 @@ PyTorch CPU 安装方式参照官方说明：https://pytorch.org/get-started/pre
 ## Phase 2：LangGraph Agent
 
 已完成六项候选真实任务的 DeepSeek + LangGraph Capture/Replay（仅 wlh-190 Docker）。使用方法见 [Agent README](../../benchmarks/DataSciBench/langgraph_agent/README.md)，数值、并行/共享状态证据和限制见 [PHASE2_VALIDATION.md](PHASE2_VALIDATION.md)。新增三项的验证见 [CAPTURE_SIX_VALIDATION.md](CAPTURE_SIX_VALIDATION.md)。完整 Capture 索引位于 benchmarks/DataSciBench/trace/captured/manifest.json。
+
+## Phase 3：Copilot 抽样 Session 到达流量
+
+已完成整周下载/清洗、固定窗口选择与原速 Open-loop 轻量验证。复现见 [PHASE3_README.md](PHASE3_README.md)，实际计数、到达误差、丢失率及限制见 [PHASE3_VALIDATION.md](PHASE3_VALIDATION.md)。不将抽样到达率当作完整产品 QPS。
+
+默认流量窗口已改为 10 分钟，并支持 15/60 分钟比较；独立绘图脚本为 analysis/plot_windows.py，选择依据与放大图索引见 [WINDOW_SELECTION.md](WINDOW_SELECTION.md)。保持 time_scale=1.0，缩短的是连续观测区间。

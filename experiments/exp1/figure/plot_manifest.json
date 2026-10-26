@@ -1,0 +1,68 @@
+{
+  "traffic_summary_sha256": "deb4bab6b2d35aacb690bc17e531a609a89b4da4bf0cd7d5f1f95660a05fe9df",
+  "arrivals_sha256": "d069f897e474e15c553f0cae89e547a020d6444f9fc2bacafab83ff79283d625",
+  "window_minutes": 10.0,
+  "bin_seconds": 10,
+  "style": "serif, embedded TrueType PDF, common y-axis, UTC time axis",
+  "combined_title": "Sampled Copilot Arrivals Across 10-Minute Traffic Windows",
+  "shared_y_limits": [
+    0,
+    20
+  ],
+  "selected_windows": {
+    "low": {
+      "window_id": "copilot-20260606T021000Z-PT10M",
+      "start_utc": "2026-06-06T02:10:00Z",
+      "end_utc": "2026-06-06T02:20:00Z",
+      "duration_ms": 600000,
+      "arrival_count": 53,
+      "sampled_mean_arrivals_per_s": 0.08833333333333333,
+      "sampled_peak_arrivals_per_s": 4,
+      "peak_to_mean": 45.283018867924525,
+      "peak_per_minute": 10,
+      "minute_fano_factor": 1.0962264150943397,
+      "rank_zero_based": 100,
+      "quantile": 0.1
+    },
+    "typical": {
+      "window_id": "copilot-20260604T044000Z-PT10M",
+      "start_utc": "2026-06-04T04:40:00Z",
+      "end_utc": "2026-06-04T04:50:00Z",
+      "duration_ms": 600000,
+      "arrival_count": 191,
+      "sampled_mean_arrivals_per_s": 0.31833333333333336,
+      "sampled_peak_arrivals_per_s": 8,
+      "peak_to_mean": 25.13089005235602,
+      "peak_per_minute": 24,
+      "minute_fano_factor": 0.5910994764397905,
+      "rank_zero_based": 503,
+      "quantile": 0.5
+    },
+    "high": {
+      "window_id": "copilot-20260605T073000Z-PT10M",
+      "start_utc": "2026-06-05T07:30:00Z",
+      "end_utc": "2026-06-05T07:40:00Z",
+      "duration_ms": 600000,
+      "arrival_count": 478,
+      "sampled_mean_arrivals_per_s": 0.7966666666666666,
+      "sampled_peak_arrivals_per_s": 16,
+      "peak_to_mean": 20.0836820083682,
+      "peak_per_minute": 64,
+      "minute_fano_factor": 1.672803347280335,
+      "rank_zero_based": 906,
+      "quantile": 0.9
+    }
+  },
+  "time_scale": 1.0,
+  "files": {
+    "traffic_windows_10min_combined.pdf": "0cf4330da99e61e7de07546c93d0a59be4fb2e8be7d15b3fe8d06e3e66e7d3ea",
+    "traffic_high_10min.pdf": "03145b7f7333f7993dc7e7be4b511b6dee33dd3b096ab7cafe3164e02a2601fd",
+    "traffic_windows_10min_combined.png": "c62ebe06b8e513d3cd7df63ef4f99165173d6cfaa6eb57d4f874a0af61f3c827",
+    "window_bins.csv": "e56cb7a09722a0713206b975b1a89bf6c8c82788763b853f02081657e3b45ba1",
+    "traffic_typical_10min.png": "fbf9157c1bbda8d574570954366c9e715f63641a05e90c8918012d363e08afe9",
+    "traffic_low_10min.pdf": "8230e3b5f47a38713d5f3702cdbf7abbf5ff600f608b33e5b119f0e8fb90ff39",
+    "traffic_low_10min.png": "563dae63dc6d4c8f96d13ae71e1a23774b552bffae1c13781a14a956d932c47f",
+    "traffic_high_10min.png": "660d319258815ed88cfb970cb1c6f66dc7eb7f40c26bab6e1cd59d45faba0d7a",
+    "traffic_typical_10min.pdf": "7ed62bef8eb84f611849cd944d4ebe8cb1a613f8975ca2ec9de39cad70b0d3e1"
+  }
+}

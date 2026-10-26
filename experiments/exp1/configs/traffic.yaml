@@ -1,0 +1,20 @@
+schema_version: 1
+source_type: copilot_sampled_session_first_user_llm
+expected_dates: [2026-06-01, 2026-06-02, 2026-06-03, 2026-06-04, 2026-06-05, 2026-06-06, 2026-06-07]
+timezone: UTC
+partition_grace_hours: 24
+window_minutes: 10
+selection:
+  statistic: arrival_count
+  quantiles: {low: 0.10, typical: 0.50, high: 0.90}
+  rank_rule: floor(q * (N - 1))
+  ties: earlier_window_utc
+  include_zero_windows: true
+validation:
+  offset_ms: 0
+  duration_ms: 120000
+  concurrency: 4
+  queue_capacity: 1000
+  pbkdf2_iterations: 100000
+  seed: 0
+  time_scale: 1.0

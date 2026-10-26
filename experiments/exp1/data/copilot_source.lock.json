@@ -1,0 +1,93 @@
+{
+  "release_url": "https://github.com/Azure/AzurePublicDataset/releases/tag/ghcp-coding-agent-2026",
+  "release_id": 400522856,
+  "tag": "ghcp-coding-agent-2026",
+  "tag_object": {
+    "sha": "207bed67dd10090b28ad4f745b2cfd41a11aace4",
+    "type": "commit",
+    "url": "https://api.github.com/repos/Azure/AzurePublicDataset/git/commits/207bed67dd10090b28ad4f745b2cfd41a11aace4"
+  },
+  "documentation_commit": "215becdacba1ce682c7368642ce97d5a332de7a6",
+  "published_at": "2026-10-01T01:21:42Z",
+  "population": "uniformly sampled non-enterprise agentic sessions; not full product traffic",
+  "assets": [
+    {
+      "id": 602046479,
+      "name": "date.2026-06-01.tar.gz",
+      "size": 594479134,
+      "digest": "sha256:cacad69f23d3c87ac54d788fec3f8e9c84df82c0cc9638d693340423c14e68e9",
+      "browser_download_url": "https://github.com/Azure/AzurePublicDataset/releases/download/ghcp-coding-agent-2026/date.2026-06-01.tar.gz",
+      "updated_at": "2026-10-01T00:02:15Z"
+    },
+    {
+      "id": 602046803,
+      "name": "date.2026-06-02.tar.gz",
+      "size": 621345734,
+      "digest": "sha256:95b0450041095dbe88181b88841c64b1e42f55a0127aa7abe91c1c9d3b424240",
+      "browser_download_url": "https://github.com/Azure/AzurePublicDataset/releases/download/ghcp-coding-agent-2026/date.2026-06-02.tar.gz",
+      "updated_at": "2026-10-01T00:02:29Z"
+    },
+    {
+      "id": 602047067,
+      "name": "date.2026-06-03.tar.gz",
+      "size": 618403924,
+      "digest": "sha256:622a5b0742eeb196d69d9a5ee5f6457cf82d432ddc435b9eb76eb5bb4363f1d0",
+      "browser_download_url": "https://github.com/Azure/AzurePublicDataset/releases/download/ghcp-coding-agent-2026/date.2026-06-03.tar.gz",
+      "updated_at": "2026-10-01T00:02:45Z"
+    },
+    {
+      "id": 602047355,
+      "name": "date.2026-06-04.tar.gz",
+      "size": 572771629,
+      "digest": "sha256:fd81d45e0149cae10aa193f2c2536ae709a5eba61b5aa886e534587e80473028",
+      "browser_download_url": "https://github.com/Azure/AzurePublicDataset/releases/download/ghcp-coding-agent-2026/date.2026-06-04.tar.gz",
+      "updated_at": "2026-10-01T00:03:03Z"
+    },
+    {
+      "id": 602047785,
+      "name": "date.2026-06-05.tar.gz",
+      "size": 548375182,
+      "digest": "sha256:ababba256966dc8bb005c98fbb4b72faea5301e17dcd949fd5b69e71b8239c50",
+      "browser_download_url": "https://github.com/Azure/AzurePublicDataset/releases/download/ghcp-coding-agent-2026/date.2026-06-05.tar.gz",
+      "updated_at": "2026-10-01T00:03:24Z"
+    },
+    {
+      "id": 602048286,
+      "name": "date.2026-06-06.tar.gz",
+      "size": 124247983,
+      "digest": "sha256:9546e3fd156d379e2420b8a0ada496ff507cf74aab32b9fc97bd1b6b353fa182",
+      "browser_download_url": "https://github.com/Azure/AzurePublicDataset/releases/download/ghcp-coding-agent-2026/date.2026-06-06.tar.gz",
+      "updated_at": "2026-10-01T00:03:29Z"
+    },
+    {
+      "id": 602048368,
+      "name": "date.2026-06-07.tar.gz",
+      "size": 139262550,
+      "digest": "sha256:8b6da125b486aea3eb37c752adf6be14d61dd1e6a584f5967bca7077fafe8c3c",
+      "browser_download_url": "https://github.com/Azure/AzurePublicDataset/releases/download/ghcp-coding-agent-2026/date.2026-06-07.tar.gz",
+      "updated_at": "2026-10-01T00:03:33Z"
+    }
+  ],
+  "documentation": [
+    {
+      "path": "GitHubCopilotCodingAgentDataset2026.md",
+      "url": "https://raw.githubusercontent.com/Azure/AzurePublicDataset/215becdacba1ce682c7368642ce97d5a332de7a6/GitHubCopilotCodingAgentDataset2026.md",
+      "sha256": "13b99fc6c34d90f05d10a4c6f1c80c36e296bbe837a56c2ad05b07273cab000b"
+    },
+    {
+      "path": "analysis/GitHubCopilotCodingAgents/schema.json",
+      "url": "https://raw.githubusercontent.com/Azure/AzurePublicDataset/215becdacba1ce682c7368642ce97d5a332de7a6/analysis/GitHubCopilotCodingAgents/schema.json",
+      "sha256": "dbe38cc7a6a58d8e3579b87dc663081f5c1a27511bcaa120255902115e1ba339"
+    },
+    {
+      "path": "analysis/GitHubCopilotCodingAgents/DATASET_CARD.md",
+      "url": "https://raw.githubusercontent.com/Azure/AzurePublicDataset/215becdacba1ce682c7368642ce97d5a332de7a6/analysis/GitHubCopilotCodingAgents/DATASET_CARD.md",
+      "sha256": "e475f6f5a38115094d59f36f8919486367e67b0008b5ff99915c3d6012d68fbf"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/Azure/AzurePublicDataset/215becdacba1ce682c7368642ce97d5a332de7a6/LICENSE",
+      "sha256": "9bbc1ea9fe5c96df01b311a2ac864d5b18fc87b9948bfd14770e4b44db755ee9"
+    }
+  ]
+}
