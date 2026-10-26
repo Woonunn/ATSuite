@@ -150,3 +150,8 @@ csv_excel_29 的官方输入位于 `zd21/DataSciBench` 数据集固定修订 `f1
 CPU 镜像固定 `torch==2.5.1+cpu`，安装只在构建阶段进行。LSTM 参考代码独立放在 `profile/lstm_reference.py`，通过现有 ATSuite Tool 执行；其他任务不加载 PyTorch。使用 1–5 月 151 天的 Value1，按时间留出最后 28 天选择 epoch，再用全部 151 天重训；递归预测 6 月 1 日至 7 月 19 日的 49 天。检查真实权重更新、损失下降、模型重载复现、独立 NumPy 门公式、精确输出日期及 PNG。另用独立断网容器改写全部未来 Value1 和未使用列，验证模型及预测不变。该任务当前约 1.2 秒，归为轻量任务；报告中保留真实预测误差及末值基线，不以格式校验代替预测质量比较。
 
 PyTorch CPU 安装方式参照官方说明：https://pytorch.org/get-started/previous-versions/ 。加入 PyTorch 后六项在同一个新镜像 ID 中重新测量，不将不同镜像环境的耗时直接合并。
+
+
+## Phase 2：LangGraph Agent
+
+已完成六项候选真实任务的 DeepSeek + LangGraph Capture/Replay（仅 wlh-190 Docker）。使用方法见 [Agent README](../../benchmarks/DataSciBench/langgraph_agent/README.md)，数值、并行/共享状态证据和限制见 [PHASE2_VALIDATION.md](PHASE2_VALIDATION.md)。新增三项的验证见 [CAPTURE_SIX_VALIDATION.md](CAPTURE_SIX_VALIDATION.md)。完整 Capture 索引位于 benchmarks/DataSciBench/trace/captured/manifest.json。

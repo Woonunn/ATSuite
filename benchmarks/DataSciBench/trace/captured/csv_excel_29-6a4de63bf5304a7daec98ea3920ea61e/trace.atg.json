@@ -1,0 +1,903 @@
+{
+  "name": "DataSciBench LangGraph",
+  "discription": "Capture partial-order ATG; use LangGraph replay for output consistency enforcement",
+  "deploy_config": "",
+  "nodes": [
+    {
+      "id": 0,
+      "name": "start",
+      "type": "start",
+      "edge_to": [
+        {
+          "id": 1,
+          "params": {
+            "input": {
+              "model": "deepseek-flash",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "You are a data analysis planner. Return JSON {\"steps\":[{\"id\":\"clean\",\"purpose\":\"...\",\"prompt_evidence\":\"exact substring of the user prompt\",\"deps\":[],\"outputs\":[\"cleaned_data.csv\"],\"code\":\"complete runnable Python\"}]}.\nImplement the ORIGINAL prompt, not an illustrative substitute. Choose the actual number of required steps. Independent sections should depend on one shared preparation step and run in parallel; never duplicate a calculation to invent parallelism. Dependency IDs must refer to this plan. Output filenames are globally unique within the plan. Include complete Python code in every step.\nThe code runs in an isolated offline CPU sandbox with pandas, numpy, scipy, sklearn, matplotlib, reportlab, openpyxl, torch. No network, installs, host filesystem, credentials or subprocess services. All input files are already prepared. Use inputs_dir / \"filename\" for input, output_dir / \"filename\" for EVERY generated artifact; create output subdirectories when needed. artifact_path(\"filename\") reads a committed artifact from dependencies. state_out={} is a dictionary you fill with actual reusable Python data/models; all ancestors' committed values are accessible as shared[\"step_id\"][\"variable\"]. DataFrames/models remain in Tool Runtime; never print large data. Import modules explicitly. Do not put module objects or functions in state_out. Keep state_out to values actually needed downstream. Each branch receives the SAME immutable shared snapshot; sibling writes are not visible until MERGE. A final report task must depend on every computation whose artifacts it uses.\nUse seed for every random estimator and stochastic process, n_jobs=1, avoid timestamps or random artifact names. matplotlib backend Agg; PDFs use reportlab Canvas(invariant=1) for reproducibility. Prefer compact robust implementations; genuine models and computations only. All original requested outputs are mandatory. For model reports include real computed metrics. Output JSON only. No preinstalled task-specific reference functions may be called."
+                },
+                {
+                  "role": "user",
+                  "content": "{\"original_prompt\": \"Please complete the following task:\\nWrite a complete LSTM (Long Short-Term Memory) neural network for time series prediction based on PyTorch. Use 'data.csv' as the dataset for this task. Implement the actual training and prediction of the LSTM model. Use data from column \\\"Value1\\\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model. Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv' and visualize it with a image 'predictions_chart.png'.\\n\", \"datasets\": [{\"name\": \"data.csv\", \"sha256\": \"5c26a06faffc1438e79ed3e8a74bad42f6889c13eb4e36ed44994823650c28b3\", \"bytes\": 13981}], \"required_outputs\": [\"predictions.csv\", \"predictions_chart.png\"], \"validation_contract\": \"Use only Value1 for 151 daily Jan 1-May 31 training observations; never fit, scale, select epochs or forecast using future June-July values or Value2/Value3. Forecast all 49 dates June 1-July 19 recursively. Use a real CPU torch.nn.Module with self.lstm=nn.LSTM(input_size=1,hidden_size=chosen_h,num_layers=chosen_layers,batch_first=True), self.fc=nn.Linear(chosen_h,1), forward(x)=self.fc(self.lstm(x)[0][:,-1,:]); no dropout/bidirectionality. You choose lookback, hidden size, layer count, learning rate, epoch count and optimization strategy; perform genuine backward/optimizer.step updates with seed, not fake work. Tool independently observes optimizer steps and parameter hashes. Scale with mean=float(train_values.mean()) and scale=float(train_values.std(ddof=0)) on only Jan-May observations. Use float32 tensors and a flat 1D last_window of final scaled training values; predict recursively with eval/no_grad. predictions.csv columns Date (YYYY-MM-DD) and Predicted_Value1. Save auxiliary model_checkpoint.pt with torch.save of a plain dict containing state_dict,lookback,hidden_size,num_layers,mean,scale,last_window (a CPU Tensor), training_start='2023-01-01',training_end='2023-05-31'. State dict keys start lstm.* and fc.*; do NOT pickle a custom model class. Save auxiliary training_summary.json with train_rows=151,training_start,training_end,epochs_run,initial_loss,final_loss,seed; losses must be real and training should improve. Produce checkpoint and summary in the SAME step that runs optimizer steps so independent Tool training evidence is attached to checkpoint. Avoid putting Torch modules or function closures in state_out; native arrays, tensors or checkpoint dicts are supported. All evidence files must be declared as outputs. Plot actual computed predictions. No forced parallel copies: training, forecasting and plotting have their real dependencies.\", \"feedback\": \"\", \"available_committed_artifacts\": []}"
+                }
+              ],
+              "response_format": {
+                "type": "json_object"
+              },
+              "temperature": 0,
+              "top_p": 1,
+              "max_tokens": 16000,
+              "extra_body": {
+                "thinking": {
+                  "type": "disabled"
+                }
+              }
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 0,
+      "output": null
+    },
+    {
+      "id": 1,
+      "name": "PLAN",
+      "type": "llm",
+      "edge_to": [
+        {
+          "id": 2,
+          "params": {
+            "input": {
+              "task_id": "csv_excel_29",
+              "dataset_refs": [
+                {
+                  "name": "data.csv",
+                  "sha256": "5c26a06faffc1438e79ed3e8a74bad42f6889c13eb4e36ed44994823650c28b3",
+                  "bytes": 13981
+                }
+              ]
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 7828.913476783782,
+      "output": {
+        "id": "b4628015-ff5f-454c-856e-add1b6375c27",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"steps\":[{\"id\":\"train_lstm\",\"purpose\":\"Load data.csv, extract Value1 for 2023-01-01..2023-05-31 (151 rows), scale with train mean/std, build lookback windows, train a real PyTorch LSTM with backward/optimizer steps, save checkpoint and training summary.\",\"prompt_evidence\":\"Use data from column \\\"Value1\\\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model.\",\"deps\":[],\"outputs\":[\"model_checkpoint.pt\",\"training_summary.json\"],\"code\":\"import os, json\\nimport numpy as np\\nimport pandas as pd\\nimport torch\\nimport torch.nn as nn\\n\\nSEED = 42\\nnp.random.seed(SEED)\\ntorch.manual_seed(SEED)\\ntorch.use_deterministic_algorithms(False)\\n\\nin_path = os.path.join(inputs_dir, 'data.csv')\\ndf = pd.read_csv(in_path)\\ndf['Date'] = pd.to_datetime(df['Date'])\\ndf = df.sort_values('Date').reset_index(drop=True)\\n\\ntrain_start = '2023-01-01'\\ntrain_end = '2023-05-31'\\nmask = (df['Date'] >= pd.Timestamp(train_start)) & (df['Date'] <= pd.Timestamp(train_end))\\ntrain_df = df.loc[mask, ['Date', 'Value1']].reset_index(drop=True)\\ntrain_values = train_df['Value1'].to_numpy(dtype=np.float64)\\nassert len(train_values) == 151, len(train_values)\\n\\nmean = float(train_values.mean())\\nscale = float(train_values.std(ddof=0))\\nscaled = (train_values - mean) / scale\\nscaled32 = scaled.astype(np.float32)\\n\\nLOOKBACK = 10\\nHIDDEN = 32\\nLAYERS = 1\\nEPOCHS = 300\\nLR = 0.01\\n\\nX_list, y_list = [], []\\nfor i in range(LOOKBACK, len(scaled32)):\\n    X_list.append(scaled32[i-LOOKBACK:i])\\n    y_list.append(scaled32[i])\\nX = torch.tensor(np.array(X_list), dtype=torch.float32).unsqueeze(-1)  # (N, L, 1)\\ny = torch.tensor(np.array(y_list), dtype=torch.float32).unsqueeze(-1)  # (N, 1)\\n\\nclass LSTMModel(nn.Module):\\n    def __init__(self, hidden_size, num_layers):\\n        super().__init__()\\n        self.lstm = nn.LSTM(input_size=1, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)\\n        self.fc = nn.Linear(hidden_size, 1)\\n    def forward(self, x):\\n        out, _ = self.lstm(x)\\n        return self.fc(out[:, -1, :])\\n\\nmodel = LSTMModel(HIDDEN, LAYERS)\\noptimizer = torch.optim.Adam(model.parameters(), lr=LR)\\ncriterion = nn.MSELoss()\\n\\nlosses = []\\nfor epoch in range(EPOCHS):\\n    model.train()\\n    optimizer.zero_grad()\\n    pred = model(X)\\n    loss = criterion(pred, y)\\n    loss.backward()\\n    optimizer.step()\\n    losses.append(float(loss.item()))\\n\\ninitial_loss = float(losses[0])\\nfinal_loss = float(losses[-1])\\n\\nlast_window = torch.tensor(scaled32[-LOOKBACK:], dtype=torch.float32)\\n\\ncheckpoint = {\\n    'state_dict': model.state_dict(),\\n    'lookback': LOOKBACK,\\n    'hidden_size': HIDDEN,\\n    'num_layers': LAYERS,\\n    'mean': mean,\\n    'scale': scale,\\n    'last_window': last_window,\\n    'training_start': train_start,\\n    'training_end': train_end,\\n}\\ntorch.save(checkpoint, os.path.join(output_dir, 'model_checkpoint.pt'))\\n\\nsummary = {\\n    'train_rows': int(len(train_values)),\\n    'training_start': train_start,\\n    'training_end': train_end,\\n    'epochs_run': EPOCHS,\\n    'initial_loss': initial_loss,\\n    'final_loss': final_loss,\\n    'seed': SEED,\\n}\\nwith open(os.path.join(output_dir, 'training_summary.json'), 'w') as f:\\n    json.dump(summary, f, indent=2)\\n\\nstate_out = {\\n    'mean': mean,\\n    'scale': scale,\\n    'lookback': LOOKBACK,\\n    'hidden_size': HIDDEN,\\n    'num_layers': LAYERS,\\n    'last_window': last_window.numpy().tolist(),\\n    'initial_loss': initial_loss,\\n    'final_loss': final_loss,\\n    'epochs_run': EPOCHS,\\n    'seed': SEED,\\n    'train_rows': int(len(train_values)),\\n}\\nprint('training done', initial_loss, final_loss)\"},{\"id\":\"forecast\",\"purpose\":\"Load checkpoint, reconstruct model, recursively forecast all 49 dates 2023-06-01..2023-07-19 using eval/no_grad, save predictions.csv.\",\"prompt_evidence\":\"Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv'\",\"deps\":[\"train_lstm\"],\"outputs\":[\"predictions.csv\"],\"code\":\"import os\\nimport numpy as np\\nimport pandas as pd\\nimport torch\\nimport torch.nn as nn\\n\\nckpt = torch.load(os.path.join(output_dir, 'model_checkpoint.pt'), map_location='cpu')\\nLOOKBACK = ckpt['lookback']\\nHIDDEN = ckpt['hidden_size']\\nLAYERS = ckpt['num_layers']\\nmean = ckpt['mean']\\nscale = ckpt['scale']\\nlast_window = ckpt['last_window'].clone().to(torch.float32)\\n\\nclass LSTMModel(nn.Module):\\n    def __init__(self, hidden_size, num_layers):\\n        super().__init__()\\n        self.lstm = nn.LSTM(input_size=1, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)\\n        self.fc = nn.Linear(hidden_size, 1)\\n    def forward(self, x):\\n        out, _ = self.lstm(x)\\n        return self.fc(out[:, -1, :])\\n\\nmodel = LSTMModel(HIDDEN, LAYERS)\\nmodel.load_state_dict(ckpt['state_dict'])\\nmodel.eval()\\n\\nforecast_dates = pd.date_range('2023-06-01', '2023-07-19', freq='D')\\nwindow = last_window.clone()\\npreds_scaled = []\\nwith torch.no_grad():\\n    for _ in range(len(forecast_dates)):\\n        inp = window.view(1, LOOKBACK, 1)\\n        out = model(inp).item()\\n        preds_scaled.append(out)\\n        window = torch.cat([window[1:], torch.tensor([out], dtype=torch.float32)])\\n\\npreds_scaled = np.array(preds_scaled, dtype=np.float64)\\npreds = preds_scaled * scale + mean\\n\\npred_df = pd.DataFrame({\\n    'Date': forecast_dates.strftime('%Y-%m-%d'),\\n    'Predicted_Value1': preds,\\n})\\npred_df.to_csv(os.path.join(output_dir, 'predictions.csv'), index=False)\\n\\nstate_out = {\\n    'pred_dates': pred_df['Date'].tolist(),\\n    'pred_values': preds.tolist(),\\n}\\nprint('forecast done', len(pred_df))\"},{\"id\":\"plot\",\"purpose\":\"Plot actual computed predictions from predictions.csv as predictions_chart.png.\",\"prompt_evidence\":\"visualize it with a image 'predictions_chart.png'\",\"deps\":[\"forecast\"],\"outputs\":[\"predictions_chart.png\"],\"code\":\"import os\\nimport matplotlib\\nmatplotlib.use('Agg')\\nimport matplotlib.pyplot as plt\\nimport pandas as pd\\n\\npred_df = pd.read_csv(os.path.join(output_dir, 'predictions.csv'))\\npred_df['Date'] = pd.to_datetime(pred_df['Date'])\\n\\nfig, ax = plt.subplots(figsize=(10, 5))\\nax.plot(pred_df['Date'], pred_df['Predicted_Value1'], marker='o', markersize=3, color='tab:blue', label='Predicted Value1')\\nax.set_title('LSTM Forecast: 2023-06-01 to 2023-07-19')\\nax.set_xlabel('Date')\\nax.set_ylabel('Value1')\\nax.legend()\\nax.grid(True, alpha=0.3)\\nfig.autofmt_xdate()\\nfig.tight_layout()\\nfig.savefig(os.path.join(output_dir, 'predictions_chart.png'), dpi=120)\\nplt.close(fig)\\n\\nstate_out = {}\\nprint('plot done')\"}]}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": null
+            }
+          }
+        ],
+        "created": 1793000751,
+        "model": "deepseek-flash",
+        "object": "chat.completion",
+        "service_tier": null,
+        "system_fingerprint": "e72d3c7f663d3e1383b00b3884cb4501",
+        "usage": {
+          "completion_tokens": 2165,
+          "prompt_tokens": 1128,
+          "total_tokens": 3293,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 256
+          },
+          "prompt_cache_hit_tokens": 256,
+          "prompt_cache_miss_tokens": 872
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "prepare_workspace",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 3,
+          "params": {
+            "input": {
+              "step_id": "train_lstm",
+              "code": "import os, json\nimport numpy as np\nimport pandas as pd\nimport torch\nimport torch.nn as nn\n\nSEED = 42\nnp.random.seed(SEED)\ntorch.manual_seed(SEED)\ntorch.use_deterministic_algorithms(False)\n\nin_path = os.path.join(inputs_dir, 'data.csv')\ndf = pd.read_csv(in_path)\ndf['Date'] = pd.to_datetime(df['Date'])\ndf = df.sort_values('Date').reset_index(drop=True)\n\ntrain_start = '2023-01-01'\ntrain_end = '2023-05-31'\nmask = (df['Date'] >= pd.Timestamp(train_start)) & (df['Date'] <= pd.Timestamp(train_end))\ntrain_df = df.loc[mask, ['Date', 'Value1']].reset_index(drop=True)\ntrain_values = train_df['Value1'].to_numpy(dtype=np.float64)\nassert len(train_values) == 151, len(train_values)\n\nmean = float(train_values.mean())\nscale = float(train_values.std(ddof=0))\nscaled = (train_values - mean) / scale\nscaled32 = scaled.astype(np.float32)\n\nLOOKBACK = 10\nHIDDEN = 32\nLAYERS = 1\nEPOCHS = 300\nLR = 0.01\n\nX_list, y_list = [], []\nfor i in range(LOOKBACK, len(scaled32)):\n    X_list.append(scaled32[i-LOOKBACK:i])\n    y_list.append(scaled32[i])\nX = torch.tensor(np.array(X_list), dtype=torch.float32).unsqueeze(-1)  # (N, L, 1)\ny = torch.tensor(np.array(y_list), dtype=torch.float32).unsqueeze(-1)  # (N, 1)\n\nclass LSTMModel(nn.Module):\n    def __init__(self, hidden_size, num_layers):\n        super().__init__()\n        self.lstm = nn.LSTM(input_size=1, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)\n        self.fc = nn.Linear(hidden_size, 1)\n    def forward(self, x):\n        out, _ = self.lstm(x)\n        return self.fc(out[:, -1, :])\n\nmodel = LSTMModel(HIDDEN, LAYERS)\noptimizer = torch.optim.Adam(model.parameters(), lr=LR)\ncriterion = nn.MSELoss()\n\nlosses = []\nfor epoch in range(EPOCHS):\n    model.train()\n    optimizer.zero_grad()\n    pred = model(X)\n    loss = criterion(pred, y)\n    loss.backward()\n    optimizer.step()\n    losses.append(float(loss.item()))\n\ninitial_loss = float(losses[0])\nfinal_loss = float(losses[-1])\n\nlast_window = torch.tensor(scaled32[-LOOKBACK:], dtype=torch.float32)\n\ncheckpoint = {\n    'state_dict': model.state_dict(),\n    'lookback': LOOKBACK,\n    'hidden_size': HIDDEN,\n    'num_layers': LAYERS,\n    'mean': mean,\n    'scale': scale,\n    'last_window': last_window,\n    'training_start': train_start,\n    'training_end': train_end,\n}\ntorch.save(checkpoint, os.path.join(output_dir, 'model_checkpoint.pt'))\n\nsummary = {\n    'train_rows': int(len(train_values)),\n    'training_start': train_start,\n    'training_end': train_end,\n    'epochs_run': EPOCHS,\n    'initial_loss': initial_loss,\n    'final_loss': final_loss,\n    'seed': SEED,\n}\nwith open(os.path.join(output_dir, 'training_summary.json'), 'w') as f:\n    json.dump(summary, f, indent=2)\n\nstate_out = {\n    'mean': mean,\n    'scale': scale,\n    'lookback': LOOKBACK,\n    'hidden_size': HIDDEN,\n    'num_layers': LAYERS,\n    'last_window': last_window.numpy().tolist(),\n    'initial_loss': initial_loss,\n    'final_loss': final_loss,\n    'epochs_run': EPOCHS,\n    'seed': SEED,\n    'train_rows': int(len(train_values)),\n}\nprint('training done', initial_loss, final_loss)",
+              "outputs": [
+                "model_checkpoint.pt",
+                "training_summary.json"
+              ],
+              "snapshot": 0,
+              "seed": 0,
+              "call_id": "i0-train_lstm"
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 675.1016180496663,
+      "output": {
+        "status": "ok",
+        "snapshot": 0,
+        "workspace_id": "ddd891b173334d5b8421615dfd3e1622",
+        "inputs": [
+          {
+            "name": "data.csv",
+            "sha256": "5c26a06faffc1438e79ed3e8a74bad42f6889c13eb4e36ed44994823650c28b3",
+            "bytes": 13981
+          }
+        ],
+        "kernel": {
+          "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+          "pid": 1,
+          "session_start_s": 0.6575404650066048,
+          "lifecycle": "resident"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "name": "execute_analysis",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 4,
+          "params": {
+            "input": {
+              "branches": [
+                {
+                  "branch_ref": "i0-train_lstm",
+                  "step_id": "train_lstm",
+                  "artifacts": [
+                    {
+                      "name": "model_checkpoint.pt",
+                      "signature": "c82ce5fdc33c97302090d9080a343b85dc25007718a5e775bcc29861350b442e",
+                      "comparison": "torch-weights-only-canonical"
+                    },
+                    {
+                      "name": "training_summary.json",
+                      "signature": "85aac42f3c139759be7e137bb67a70bb30fa7831a61217776def43f5942e0e44",
+                      "comparison": "json"
+                    }
+                  ]
+                }
+              ],
+              "snapshot": 0
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 3600.4430691245943,
+      "output": {
+        "status": "ok",
+        "state_lifecycle": {
+          "mode": "resident",
+          "canonical_restore_performed": false,
+          "canonical_restore_s": null,
+          "canonical_restore_bytes": null,
+          "canonical_save_performed": false,
+          "canonical_save_s": null,
+          "canonical_save_bytes": null,
+          "branch_export_s": 9.071500971913338e-05,
+          "branch_export_bytes": 287
+        },
+        "artifacts": [
+          {
+            "name": "model_checkpoint.pt",
+            "bytes": 21223,
+            "sha256": "1470d0a90f8acd82ca967ed1a06bfcb8e8710aa794ad1f9769fcddd76f2fbcd7",
+            "signature": "c82ce5fdc33c97302090d9080a343b85dc25007718a5e775bcc29861350b442e",
+            "comparison": "torch-weights-only-canonical",
+            "evidence": {
+              "optimizer_steps": [
+                {
+                  "optimizer": "Adam",
+                  "steps": 300,
+                  "initial_parameters_sha256": "c651e22087ad5f432173b7e97e403ff977a779be7ce924a870246d92e2e3cf05",
+                  "final_parameters_sha256": "242f102288edcef7528771bb77f2e0f8add551041a064aebe3616cf0bce41d1f"
+                }
+              ]
+            }
+          },
+          {
+            "name": "training_summary.json",
+            "bytes": 200,
+            "sha256": "a5a9ab9138118de9c00d3f919630f1a8c287432c27a5d68b9cf3167a5ef0b7ef",
+            "signature": "85aac42f3c139759be7e137bb67a70bb30fa7831a61217776def43f5942e0e44",
+            "comparison": "json"
+          }
+        ],
+        "state_signature": "ce79148279f590cb384bad8e2d400e29f38b2f14a662e620e30c72c1dffbf4de",
+        "state_names": [
+          "epochs_run",
+          "final_loss",
+          "hidden_size",
+          "initial_loss",
+          "last_window",
+          "lookback",
+          "mean",
+          "num_layers",
+          "scale",
+          "seed",
+          "train_rows"
+        ],
+        "stdout": "training done 1.0190433263778687 0.020302845165133476\n",
+        "exec_started_monotonic": 1202874.646348597,
+        "exec_ended_monotonic": 1202878.210958029,
+        "pid": 7,
+        "sandbox_image": "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588",
+        "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+        "sandbox_wall_s": 3.5799118420109153,
+        "resident_kernel_pid": 1,
+        "kernel_reused": true,
+        "branch_ref": "i0-train_lstm",
+        "step_id": "train_lstm",
+        "snapshot": 0
+      }
+    },
+    {
+      "id": 4,
+      "name": "merge_artifacts",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 5,
+          "params": {
+            "input": {
+              "step_id": "forecast",
+              "code": "import os\nimport numpy as np\nimport pandas as pd\nimport torch\nimport torch.nn as nn\n\nckpt = torch.load(os.path.join(output_dir, 'model_checkpoint.pt'), map_location='cpu')\nLOOKBACK = ckpt['lookback']\nHIDDEN = ckpt['hidden_size']\nLAYERS = ckpt['num_layers']\nmean = ckpt['mean']\nscale = ckpt['scale']\nlast_window = ckpt['last_window'].clone().to(torch.float32)\n\nclass LSTMModel(nn.Module):\n    def __init__(self, hidden_size, num_layers):\n        super().__init__()\n        self.lstm = nn.LSTM(input_size=1, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)\n        self.fc = nn.Linear(hidden_size, 1)\n    def forward(self, x):\n        out, _ = self.lstm(x)\n        return self.fc(out[:, -1, :])\n\nmodel = LSTMModel(HIDDEN, LAYERS)\nmodel.load_state_dict(ckpt['state_dict'])\nmodel.eval()\n\nforecast_dates = pd.date_range('2023-06-01', '2023-07-19', freq='D')\nwindow = last_window.clone()\npreds_scaled = []\nwith torch.no_grad():\n    for _ in range(len(forecast_dates)):\n        inp = window.view(1, LOOKBACK, 1)\n        out = model(inp).item()\n        preds_scaled.append(out)\n        window = torch.cat([window[1:], torch.tensor([out], dtype=torch.float32)])\n\npreds_scaled = np.array(preds_scaled, dtype=np.float64)\npreds = preds_scaled * scale + mean\n\npred_df = pd.DataFrame({\n    'Date': forecast_dates.strftime('%Y-%m-%d'),\n    'Predicted_Value1': preds,\n})\npred_df.to_csv(os.path.join(output_dir, 'predictions.csv'), index=False)\n\nstate_out = {\n    'pred_dates': pred_df['Date'].tolist(),\n    'pred_values': preds.tolist(),\n}\nprint('forecast done', len(pred_df))",
+              "outputs": [
+                "predictions.csv"
+              ],
+              "snapshot": 1,
+              "seed": 0,
+              "call_id": "i0-forecast"
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 69.82203316874802,
+      "output": {
+        "status": "ok",
+        "snapshot": 1,
+        "artifacts": [
+          {
+            "name": "model_checkpoint.pt",
+            "bytes": 21223,
+            "sha256": "1470d0a90f8acd82ca967ed1a06bfcb8e8710aa794ad1f9769fcddd76f2fbcd7",
+            "signature": "c82ce5fdc33c97302090d9080a343b85dc25007718a5e775bcc29861350b442e",
+            "comparison": "torch-weights-only-canonical",
+            "evidence": {
+              "optimizer_steps": [
+                {
+                  "optimizer": "Adam",
+                  "steps": 300,
+                  "initial_parameters_sha256": "c651e22087ad5f432173b7e97e403ff977a779be7ce924a870246d92e2e3cf05",
+                  "final_parameters_sha256": "242f102288edcef7528771bb77f2e0f8add551041a064aebe3616cf0bce41d1f"
+                }
+              ]
+            }
+          },
+          {
+            "name": "training_summary.json",
+            "bytes": 200,
+            "sha256": "a5a9ab9138118de9c00d3f919630f1a8c287432c27a5d68b9cf3167a5ef0b7ef",
+            "signature": "85aac42f3c139759be7e137bb67a70bb30fa7831a61217776def43f5942e0e44",
+            "comparison": "json"
+          }
+        ],
+        "state_signature": "f991c27807aefc167fef0b21936878b565a30050ab51be318d7dc3ebddcc8597",
+        "kernel_execution": {
+          "state_lifecycle": {
+            "mode": "resident",
+            "canonical_restore_performed": false,
+            "canonical_restore_s": null,
+            "canonical_restore_bytes": null,
+            "canonical_save_performed": false,
+            "canonical_save_s": null,
+            "canonical_save_bytes": null
+          },
+          "sandbox_wall_s": 0.020832988899201155,
+          "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+          "resident_kernel_pid": 1,
+          "exec_started_monotonic": 1202878.244047919,
+          "exec_ended_monotonic": 1202878.244773165
+        }
+      }
+    },
+    {
+      "id": 5,
+      "name": "execute_analysis",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 6,
+          "params": {
+            "input": {
+              "branches": [
+                {
+                  "branch_ref": "i0-forecast",
+                  "step_id": "forecast",
+                  "artifacts": [
+                    {
+                      "name": "predictions.csv",
+                      "signature": "def2bcaf7d806375ca682bf157260f6ed88a37672f99387910820e5d219ad235",
+                      "comparison": "csv-round-8-decimal-places"
+                    }
+                  ]
+                }
+              ],
+              "snapshot": 1
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 1562.031639041379,
+      "output": {
+        "status": "ok",
+        "state_lifecycle": {
+          "mode": "resident",
+          "canonical_restore_performed": false,
+          "canonical_restore_s": null,
+          "canonical_restore_bytes": null,
+          "canonical_save_performed": false,
+          "canonical_save_s": null,
+          "canonical_save_bytes": null,
+          "branch_export_s": 0.0001003919169306755,
+          "branch_export_bytes": 1129
+        },
+        "artifacts": [
+          {
+            "name": "predictions.csv",
+            "bytes": 1534,
+            "sha256": "440d07a5175e0bad586e4fa29f374062cd2c622a3b0e1fd501c3ec4ac3781697",
+            "signature": "def2bcaf7d806375ca682bf157260f6ed88a37672f99387910820e5d219ad235",
+            "comparison": "csv-round-8-decimal-places"
+          }
+        ],
+        "state_signature": "e05b9f1e1cbd4f7b1725044a7932c775e112c1af16c0262af8c72c5cf56f5922",
+        "state_names": [
+          "pred_dates",
+          "pred_values"
+        ],
+        "stdout": "/work/analysis.py:7: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.\nforecast done 49\n",
+        "exec_started_monotonic": 1202878.323465655,
+        "exec_ended_monotonic": 1202879.853623878,
+        "pid": 72,
+        "sandbox_image": "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588",
+        "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+        "sandbox_wall_s": 1.5486666280776262,
+        "resident_kernel_pid": 1,
+        "kernel_reused": true,
+        "branch_ref": "i0-forecast",
+        "step_id": "forecast",
+        "snapshot": 1
+      }
+    },
+    {
+      "id": 6,
+      "name": "merge_artifacts",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 7,
+          "params": {
+            "input": {
+              "step_id": "plot",
+              "code": "import os\nimport matplotlib\nmatplotlib.use('Agg')\nimport matplotlib.pyplot as plt\nimport pandas as pd\n\npred_df = pd.read_csv(os.path.join(output_dir, 'predictions.csv'))\npred_df['Date'] = pd.to_datetime(pred_df['Date'])\n\nfig, ax = plt.subplots(figsize=(10, 5))\nax.plot(pred_df['Date'], pred_df['Predicted_Value1'], marker='o', markersize=3, color='tab:blue', label='Predicted Value1')\nax.set_title('LSTM Forecast: 2023-06-01 to 2023-07-19')\nax.set_xlabel('Date')\nax.set_ylabel('Value1')\nax.legend()\nax.grid(True, alpha=0.3)\nfig.autofmt_xdate()\nfig.tight_layout()\nfig.savefig(os.path.join(output_dir, 'predictions_chart.png'), dpi=120)\nplt.close(fig)\n\nstate_out = {}\nprint('plot done')",
+              "outputs": [
+                "predictions_chart.png"
+              ],
+              "snapshot": 2,
+              "seed": 0,
+              "call_id": "i0-plot"
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 53.50004299543798,
+      "output": {
+        "status": "ok",
+        "snapshot": 2,
+        "artifacts": [
+          {
+            "name": "model_checkpoint.pt",
+            "bytes": 21223,
+            "sha256": "1470d0a90f8acd82ca967ed1a06bfcb8e8710aa794ad1f9769fcddd76f2fbcd7",
+            "signature": "c82ce5fdc33c97302090d9080a343b85dc25007718a5e775bcc29861350b442e",
+            "comparison": "torch-weights-only-canonical",
+            "evidence": {
+              "optimizer_steps": [
+                {
+                  "optimizer": "Adam",
+                  "steps": 300,
+                  "initial_parameters_sha256": "c651e22087ad5f432173b7e97e403ff977a779be7ce924a870246d92e2e3cf05",
+                  "final_parameters_sha256": "242f102288edcef7528771bb77f2e0f8add551041a064aebe3616cf0bce41d1f"
+                }
+              ]
+            }
+          },
+          {
+            "name": "training_summary.json",
+            "bytes": 200,
+            "sha256": "a5a9ab9138118de9c00d3f919630f1a8c287432c27a5d68b9cf3167a5ef0b7ef",
+            "signature": "85aac42f3c139759be7e137bb67a70bb30fa7831a61217776def43f5942e0e44",
+            "comparison": "json"
+          },
+          {
+            "name": "predictions.csv",
+            "bytes": 1534,
+            "sha256": "440d07a5175e0bad586e4fa29f374062cd2c622a3b0e1fd501c3ec4ac3781697",
+            "signature": "def2bcaf7d806375ca682bf157260f6ed88a37672f99387910820e5d219ad235",
+            "comparison": "csv-round-8-decimal-places"
+          }
+        ],
+        "state_signature": "d0f7a3a815a122fbd1e6b4cf60a938d5f6865d14c5ae7fb5da4797ebf2da265e",
+        "kernel_execution": {
+          "state_lifecycle": {
+            "mode": "resident",
+            "canonical_restore_performed": false,
+            "canonical_restore_s": null,
+            "canonical_restore_bytes": null,
+            "canonical_save_performed": false,
+            "canonical_save_s": null,
+            "canonical_save_bytes": null
+          },
+          "sandbox_wall_s": 0.02044472098350525,
+          "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+          "resident_kernel_pid": 1,
+          "exec_started_monotonic": 1202879.876910663,
+          "exec_ended_monotonic": 1202879.877331963
+        }
+      }
+    },
+    {
+      "id": 7,
+      "name": "execute_analysis",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 8,
+          "params": {
+            "input": {
+              "branches": [
+                {
+                  "branch_ref": "i0-plot",
+                  "step_id": "plot",
+                  "artifacts": [
+                    {
+                      "name": "predictions_chart.png",
+                      "signature": "392f78fdaa2d4e4ab645b5272d3be31a7737dc7a1ba64a00b20be1f9ccedc9e1",
+                      "comparison": "decoded-rgba"
+                    }
+                  ]
+                }
+              ],
+              "snapshot": 2
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 1761.5561161655933,
+      "output": {
+        "status": "ok",
+        "state_lifecycle": {
+          "mode": "resident",
+          "canonical_restore_performed": false,
+          "canonical_restore_s": null,
+          "canonical_restore_bytes": null,
+          "canonical_save_performed": false,
+          "canonical_save_s": null,
+          "canonical_save_bytes": null,
+          "branch_export_s": 9.2316884547472e-05,
+          "branch_export_bytes": 5
+        },
+        "artifacts": [
+          {
+            "name": "predictions_chart.png",
+            "bytes": 63834,
+            "sha256": "46a32cecb6da254f722753ce8cbd3e07f7d2c6601f5601ed1dee1457f9220b08",
+            "signature": "392f78fdaa2d4e4ab645b5272d3be31a7737dc7a1ba64a00b20be1f9ccedc9e1",
+            "comparison": "decoded-rgba",
+            "evidence": {
+              "bars": [],
+              "lines": [
+                {
+                  "label": "Predicted Value1",
+                  "style": "-",
+                  "y": [
+                    0.4859746057852265,
+                    0.4327223153688692,
+                    0.3380728433298632,
+                    0.2619336498588106,
+                    0.1707076570805153,
+                    0.0720372825143007,
+                    -0.0496238195623709,
+                    -0.167102979878235,
+                    -0.2686934634292315,
+                    -0.3754939318256785,
+                    -0.4815455640925712,
+                    -0.5840195738181818,
+                    -0.6707301208242618,
+                    -0.7405167011625577,
+                    -0.7920825168843465,
+                    -0.8295181607965366,
+                    -0.8593627902669652,
+                    -0.8924560203729279,
+                    -0.9437251887626324,
+                    -1.0169457532143389,
+                    -1.064340271846501,
+                    -1.0597169970061686,
+                    -1.033455603920956,
+                    -1.006364374958001,
+                    -0.9825853139160264,
+                    -0.958363307924864,
+                    -0.927297224200614,
+                    -0.8826859058790629,
+                    -0.821358164277869,
+                    -0.7491149996015958,
+                    -0.681088802534772,
+                    -0.6222346134314157,
+                    -0.5627569921859301,
+                    -0.4947351848918067,
+                    -0.4168282848265561,
+                    -0.3337590542752636,
+                    -0.2544290236681016,
+                    -0.1878314443590646,
+                    -0.1343374842927572,
+                    -0.0640985463195798,
+                    0.068531101940863,
+                    0.1631999744536894,
+                    0.2222021337197574,
+                    0.2832516312667255,
+                    0.3519420136058901,
+                    0.426531849465225,
+                    0.5031107166606168,
+                    0.5759697580048527,
+                    0.6399031251690651
+                  ],
+                  "count": 49
+                }
+              ],
+              "scatter": []
+            }
+          }
+        ],
+        "state_signature": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "state_names": [],
+        "stdout": "plot done\n",
+        "exec_started_monotonic": 1202879.941973049,
+        "exec_ended_monotonic": 1202881.662247481,
+        "pid": 135,
+        "sandbox_image": "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588",
+        "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+        "sandbox_wall_s": 1.7456894300412387,
+        "resident_kernel_pid": 1,
+        "kernel_reused": true,
+        "branch_ref": "i0-plot",
+        "step_id": "plot",
+        "snapshot": 2
+      }
+    },
+    {
+      "id": 8,
+      "name": "merge_artifacts",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 9,
+          "params": {
+            "input": {
+              "outputs": [
+                "predictions.csv",
+                "predictions_chart.png"
+              ],
+              "snapshot": 3
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 71.56067783944309,
+      "output": {
+        "status": "ok",
+        "snapshot": 3,
+        "artifacts": [
+          {
+            "name": "model_checkpoint.pt",
+            "bytes": 21223,
+            "sha256": "1470d0a90f8acd82ca967ed1a06bfcb8e8710aa794ad1f9769fcddd76f2fbcd7",
+            "signature": "c82ce5fdc33c97302090d9080a343b85dc25007718a5e775bcc29861350b442e",
+            "comparison": "torch-weights-only-canonical",
+            "evidence": {
+              "optimizer_steps": [
+                {
+                  "optimizer": "Adam",
+                  "steps": 300,
+                  "initial_parameters_sha256": "c651e22087ad5f432173b7e97e403ff977a779be7ce924a870246d92e2e3cf05",
+                  "final_parameters_sha256": "242f102288edcef7528771bb77f2e0f8add551041a064aebe3616cf0bce41d1f"
+                }
+              ]
+            }
+          },
+          {
+            "name": "training_summary.json",
+            "bytes": 200,
+            "sha256": "a5a9ab9138118de9c00d3f919630f1a8c287432c27a5d68b9cf3167a5ef0b7ef",
+            "signature": "85aac42f3c139759be7e137bb67a70bb30fa7831a61217776def43f5942e0e44",
+            "comparison": "json"
+          },
+          {
+            "name": "predictions.csv",
+            "bytes": 1534,
+            "sha256": "440d07a5175e0bad586e4fa29f374062cd2c622a3b0e1fd501c3ec4ac3781697",
+            "signature": "def2bcaf7d806375ca682bf157260f6ed88a37672f99387910820e5d219ad235",
+            "comparison": "csv-round-8-decimal-places"
+          },
+          {
+            "name": "predictions_chart.png",
+            "bytes": 63834,
+            "sha256": "46a32cecb6da254f722753ce8cbd3e07f7d2c6601f5601ed1dee1457f9220b08",
+            "signature": "392f78fdaa2d4e4ab645b5272d3be31a7737dc7a1ba64a00b20be1f9ccedc9e1",
+            "comparison": "decoded-rgba",
+            "evidence": {
+              "bars": [],
+              "lines": [
+                {
+                  "label": "Predicted Value1",
+                  "style": "-",
+                  "y": [
+                    0.4859746057852265,
+                    0.4327223153688692,
+                    0.3380728433298632,
+                    0.2619336498588106,
+                    0.1707076570805153,
+                    0.0720372825143007,
+                    -0.0496238195623709,
+                    -0.167102979878235,
+                    -0.2686934634292315,
+                    -0.3754939318256785,
+                    -0.4815455640925712,
+                    -0.5840195738181818,
+                    -0.6707301208242618,
+                    -0.7405167011625577,
+                    -0.7920825168843465,
+                    -0.8295181607965366,
+                    -0.8593627902669652,
+                    -0.8924560203729279,
+                    -0.9437251887626324,
+                    -1.0169457532143389,
+                    -1.064340271846501,
+                    -1.0597169970061686,
+                    -1.033455603920956,
+                    -1.006364374958001,
+                    -0.9825853139160264,
+                    -0.958363307924864,
+                    -0.927297224200614,
+                    -0.8826859058790629,
+                    -0.821358164277869,
+                    -0.7491149996015958,
+                    -0.681088802534772,
+                    -0.6222346134314157,
+                    -0.5627569921859301,
+                    -0.4947351848918067,
+                    -0.4168282848265561,
+                    -0.3337590542752636,
+                    -0.2544290236681016,
+                    -0.1878314443590646,
+                    -0.1343374842927572,
+                    -0.0640985463195798,
+                    0.068531101940863,
+                    0.1631999744536894,
+                    0.2222021337197574,
+                    0.2832516312667255,
+                    0.3519420136058901,
+                    0.426531849465225,
+                    0.5031107166606168,
+                    0.5759697580048527,
+                    0.6399031251690651
+                  ],
+                  "count": 49
+                }
+              ],
+              "scatter": []
+            }
+          }
+        ],
+        "state_signature": "9345c0951c570952f3013f35115f0274fc89504c011dec63a013b36767e2485e",
+        "kernel_execution": {
+          "state_lifecycle": {
+            "mode": "resident",
+            "canonical_restore_performed": false,
+            "canonical_restore_s": null,
+            "canonical_restore_bytes": null,
+            "canonical_save_performed": false,
+            "canonical_save_s": null,
+            "canonical_save_bytes": null
+          },
+          "sandbox_wall_s": 0.021251940866932273,
+          "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+          "resident_kernel_pid": 1,
+          "exec_started_monotonic": 1202881.706596617,
+          "exec_ended_monotonic": 1202881.707073216
+        }
+      }
+    },
+    {
+      "id": 9,
+      "name": "validate_result",
+      "type": "tool_use",
+      "edge_to": [
+        {
+          "id": 10,
+          "params": {
+            "input": {
+              "model": "deepseek-flash",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "Review the original prompt against actual Tool results and validation. Return JSON {\"verdict\":\"complete\"|\"replan\"|\"failed\",\"feedback\":\"specific reasoning\"}. Complete only when the actual results meet the task; if errors or missing outputs remain, request a corrected plan. Do not assume a successful file listing proves numerical correctness."
+                },
+                {
+                  "role": "user",
+                  "content": "{\"original_prompt\": \"Please complete the following task:\\nWrite a complete LSTM (Long Short-Term Memory) neural network for time series prediction based on PyTorch. Use 'data.csv' as the dataset for this task. Implement the actual training and prediction of the LSTM model. Use data from column \\\"Value1\\\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model. Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv' and visualize it with a image 'predictions_chart.png'.\\n\", \"plan\": [{\"id\": \"train_lstm\", \"purpose\": \"Load data.csv, extract Value1 for 2023-01-01..2023-05-31 (151 rows), scale with train mean/std, build lookback windows, train a real PyTorch LSTM with backward/optimizer steps, save checkpoint and training summary.\", \"prompt_evidence\": \"Use data from column \\\"Value1\\\" and Date 2023-01-01 to 2023-05-31 from the CSV file 'data.csv' to train the LSTM model.\", \"deps\": [], \"outputs\": [\"model_checkpoint.pt\", \"training_summary.json\"], \"code\": \"import os, json\\nimport numpy as np\\nimport pandas as pd\\nimport torch\\nimport torch.nn as nn\\n\\nSEED = 42\\nnp.random.seed(SEED)\\ntorch.manual_seed(SEED)\\ntorch.use_deterministic_algorithms(False)\\n\\nin_path = os.path.join(inputs_dir, 'data.csv')\\ndf = pd.read_csv(in_path)\\ndf['Date'] = pd.to_datetime(df['Date'])\\ndf = df.sort_values('Date').reset_index(drop=True)\\n\\ntrain_start = '2023-01-01'\\ntrain_end = '2023-05-31'\\nmask = (df['Date'] >= pd.Timestamp(train_start)) & (df['Date'] <= pd.Timestamp(train_end))\\ntrain_df = df.loc[mask, ['Date', 'Value1']].reset_index(drop=True)\\ntrain_values = train_df['Value1'].to_numpy(dtype=np.float64)\\nassert len(train_values) == 151, len(train_values)\\n\\nmean = float(train_values.mean())\\nscale = float(train_values.std(ddof=0))\\nscaled = (train_values - mean) / scale\\nscaled32 = scaled.astype(np.float32)\\n\\nLOOKBACK = 10\\nHIDDEN = 32\\nLAYERS = 1\\nEPOCHS = 300\\nLR = 0.01\\n\\nX_list, y_list = [], []\\nfor i in range(LOOKBACK, len(scaled32)):\\n    X_list.append(scaled32[i-LOOKBACK:i])\\n    y_list.append(scaled32[i])\\nX = torch.tensor(np.array(X_list), dtype=torch.float32).unsqueeze(-1)  # (N, L, 1)\\ny = torch.tensor(np.array(y_list), dtype=torch.float32).unsqueeze(-1)  # (N, 1)\\n\\nclass LSTMModel(nn.Module):\\n    def __init__(self, hidden_size, num_layers):\\n        super().__init__()\\n        self.lstm = nn.LSTM(input_size=1, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)\\n        self.fc = nn.Linear(hidden_size, 1)\\n    def forward(self, x):\\n        out, _ = self.lstm(x)\\n        return self.fc(out[:, -1, :])\\n\\nmodel = LSTMModel(HIDDEN, LAYERS)\\noptimizer = torch.optim.Adam(model.parameters(), lr=LR)\\ncriterion = nn.MSELoss()\\n\\nlosses = []\\nfor epoch in range(EPOCHS):\\n    model.train()\\n    optimizer.zero_grad()\\n    pred = model(X)\\n    loss = criterion(pred, y)\\n    loss.backward()\\n    optimizer.step()\\n    losses.append(float(loss.item()))\\n\\ninitial_loss = float(losses[0])\\nfinal_loss = float(losses[-1])\\n\\nlast_window = torch.tensor(scaled32[-LOOKBACK:], dtype=torch.float32)\\n\\ncheckpoint = {\\n    'state_dict': model.state_dict(),\\n    'lookback': LOOKBACK,\\n    'hidden_size': HIDDEN,\\n    'num_layers': LAYERS,\\n    'mean': mean,\\n    'scale': scale,\\n    'last_window': last_window,\\n    'training_start': train_start,\\n    'training_end': train_end,\\n}\\ntorch.save(checkpoint, os.path.join(output_dir, 'model_checkpoint.pt'))\\n\\nsummary = {\\n    'train_rows': int(len(train_values)),\\n    'training_start': train_start,\\n    'training_end': train_end,\\n    'epochs_run': EPOCHS,\\n    'initial_loss': initial_loss,\\n    'final_loss': final_loss,\\n    'seed': SEED,\\n}\\nwith open(os.path.join(output_dir, 'training_summary.json'), 'w') as f:\\n    json.dump(summary, f, indent=2)\\n\\nstate_out = {\\n    'mean': mean,\\n    'scale': scale,\\n    'lookback': LOOKBACK,\\n    'hidden_size': HIDDEN,\\n    'num_layers': LAYERS,\\n    'last_window': last_window.numpy().tolist(),\\n    'initial_loss': initial_loss,\\n    'final_loss': final_loss,\\n    'epochs_run': EPOCHS,\\n    'seed': SEED,\\n    'train_rows': int(len(train_values)),\\n}\\nprint('training done', initial_loss, final_loss)\"}, {\"id\": \"forecast\", \"purpose\": \"Load checkpoint, reconstruct model, recursively forecast all 49 dates 2023-06-01..2023-07-19 using eval/no_grad, save predictions.csv.\", \"prompt_evidence\": \"Then make predicions on 2023-06-01 to 2023-07-19 and save to 'predictions.csv'\", \"deps\": [\"train_lstm\"], \"outputs\": [\"predictions.csv\"], \"code\": \"import os\\nimport numpy as np\\nimport pandas as pd\\nimport torch\\nimport torch.nn as nn\\n\\nckpt = torch.load(os.path.join(output_dir, 'model_checkpoint.pt'), map_location='cpu')\\nLOOKBACK = ckpt['lookback']\\nHIDDEN = ckpt['hidden_size']\\nLAYERS = ckpt['num_layers']\\nmean = ckpt['mean']\\nscale = ckpt['scale']\\nlast_window = ckpt['last_window'].clone().to(torch.float32)\\n\\nclass LSTMModel(nn.Module):\\n    def __init__(self, hidden_size, num_layers):\\n        super().__init__()\\n        self.lstm = nn.LSTM(input_size=1, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)\\n        self.fc = nn.Linear(hidden_size, 1)\\n    def forward(self, x):\\n        out, _ = self.lstm(x)\\n        return self.fc(out[:, -1, :])\\n\\nmodel = LSTMModel(HIDDEN, LAYERS)\\nmodel.load_state_dict(ckpt['state_dict'])\\nmodel.eval()\\n\\nforecast_dates = pd.date_range('2023-06-01', '2023-07-19', freq='D')\\nwindow = last_window.clone()\\npreds_scaled = []\\nwith torch.no_grad():\\n    for _ in range(len(forecast_dates)):\\n        inp = window.view(1, LOOKBACK, 1)\\n        out = model(inp).item()\\n        preds_scaled.append(out)\\n        window = torch.cat([window[1:], torch.tensor([out], dtype=torch.float32)])\\n\\npreds_scaled = np.array(preds_scaled, dtype=np.float64)\\npreds = preds_scaled * scale + mean\\n\\npred_df = pd.DataFrame({\\n    'Date': forecast_dates.strftime('%Y-%m-%d'),\\n    'Predicted_Value1': preds,\\n})\\npred_df.to_csv(os.path.join(output_dir, 'predictions.csv'), index=False)\\n\\nstate_out = {\\n    'pred_dates': pred_df['Date'].tolist(),\\n    'pred_values': preds.tolist(),\\n}\\nprint('forecast done', len(pred_df))\"}, {\"id\": \"plot\", \"purpose\": \"Plot actual computed predictions from predictions.csv as predictions_chart.png.\", \"prompt_evidence\": \"visualize it with a image 'predictions_chart.png'\", \"deps\": [\"forecast\"], \"outputs\": [\"predictions_chart.png\"], \"code\": \"import os\\nimport matplotlib\\nmatplotlib.use('Agg')\\nimport matplotlib.pyplot as plt\\nimport pandas as pd\\n\\npred_df = pd.read_csv(os.path.join(output_dir, 'predictions.csv'))\\npred_df['Date'] = pd.to_datetime(pred_df['Date'])\\n\\nfig, ax = plt.subplots(figsize=(10, 5))\\nax.plot(pred_df['Date'], pred_df['Predicted_Value1'], marker='o', markersize=3, color='tab:blue', label='Predicted Value1')\\nax.set_title('LSTM Forecast: 2023-06-01 to 2023-07-19')\\nax.set_xlabel('Date')\\nax.set_ylabel('Value1')\\nax.legend()\\nax.grid(True, alpha=0.3)\\nfig.autofmt_xdate()\\nfig.tight_layout()\\nfig.savefig(os.path.join(output_dir, 'predictions_chart.png'), dpi=120)\\nplt.close(fig)\\n\\nstate_out = {}\\nprint('plot done')\"}], \"validation\": {\"status\": \"ok\", \"checks\": {\"training_rows\": 151, \"forecast_rows\": 49, \"optimizer_steps_observed\": 300, \"checkpoint_reproduces_forecasts\": true, \"forecast_rmse\": 0.17114420520682191, \"last_value_baseline_rmse\": 1.0338467090576366, \"official_gt_mae_checked\": false}, \"state_signature\": \"9345c0951c570952f3013f35115f0274fc89504c011dec63a013b36767e2485e\", \"artifacts\": [{\"name\": \"predictions.csv\", \"signature\": \"def2bcaf7d806375ca682bf157260f6ed88a37672f99387910820e5d219ad235\", \"comparison\": \"csv-round-8-decimal-places\"}, {\"name\": \"predictions_chart.png\", \"signature\": \"392f78fdaa2d4e4ab645b5272d3be31a7737dc7a1ba64a00b20be1f9ccedc9e1\", \"comparison\": \"decoded-rgba\"}]}, \"errors\": null, \"completed\": [\"train_lstm\", \"forecast\", \"plot\"], \"tool_outputs\": [{\"status\": \"ok\", \"snapshot\": 0, \"state_signature\": \"ce79148279f590cb384bad8e2d400e29f38b2f14a662e620e30c72c1dffbf4de\", \"state_names\": [\"epochs_run\", \"final_loss\", \"hidden_size\", \"initial_loss\", \"last_window\", \"lookback\", \"mean\", \"num_layers\", \"scale\", \"seed\", \"train_rows\"], \"branch_ref\": \"i0-train_lstm\", \"step_id\": \"train_lstm\", \"artifacts\": [{\"name\": \"model_checkpoint.pt\", \"signature\": \"c82ce5fdc33c97302090d9080a343b85dc25007718a5e775bcc29861350b442e\", \"comparison\": \"torch-weights-only-canonical\"}, {\"name\": \"training_summary.json\", \"signature\": \"85aac42f3c139759be7e137bb67a70bb30fa7831a61217776def43f5942e0e44\", \"comparison\": \"json\"}], \"stdout\": \"training done 1.0190433263778687 0.020302845165133476\\n\"}, {\"status\": \"ok\", \"snapshot\": 1, \"state_signature\": \"e05b9f1e1cbd4f7b1725044a7932c775e112c1af16c0262af8c72c5cf56f5922\", \"state_names\": [\"pred_dates\", \"pred_values\"], \"branch_ref\": \"i0-forecast\", \"step_id\": \"forecast\", \"artifacts\": [{\"name\": \"predictions.csv\", \"signature\": \"def2bcaf7d806375ca682bf157260f6ed88a37672f99387910820e5d219ad235\", \"comparison\": \"csv-round-8-decimal-places\"}], \"stdout\": \"/work/analysis.py:7: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.\\nforecast done 49\\n\"}, {\"status\": \"ok\", \"snapshot\": 2, \"state_signature\": \"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\", \"state_names\": [], \"branch_ref\": \"i0-plot\", \"step_id\": \"plot\", \"artifacts\": [{\"name\": \"predictions_chart.png\", \"signature\": \"392f78fdaa2d4e4ab645b5272d3be31a7737dc7a1ba64a00b20be1f9ccedc9e1\", \"comparison\": \"decoded-rgba\"}], \"stdout\": \"plot done\\n\"}]}"
+                }
+              ],
+              "response_format": {
+                "type": "json_object"
+              },
+              "temperature": 0,
+              "top_p": 1,
+              "max_tokens": 16000,
+              "extra_body": {
+                "thinking": {
+                  "type": "disabled"
+                }
+              }
+            }
+          },
+          "interval": 0
+        }
+      ],
+      "time": 1316.3315060082823,
+      "output": {
+        "status": "ok",
+        "state_lifecycle": {
+          "mode": "resident",
+          "canonical_restore_performed": false,
+          "canonical_restore_s": null,
+          "canonical_restore_bytes": null,
+          "canonical_save_performed": false,
+          "canonical_save_s": null,
+          "canonical_save_bytes": null
+        },
+        "artifacts": [
+          {
+            "name": "predictions.csv",
+            "bytes": 1534,
+            "sha256": "440d07a5175e0bad586e4fa29f374062cd2c622a3b0e1fd501c3ec4ac3781697",
+            "signature": "def2bcaf7d806375ca682bf157260f6ed88a37672f99387910820e5d219ad235",
+            "comparison": "csv-round-8-decimal-places"
+          },
+          {
+            "name": "predictions_chart.png",
+            "bytes": 63834,
+            "sha256": "46a32cecb6da254f722753ce8cbd3e07f7d2c6601f5601ed1dee1457f9220b08",
+            "signature": "392f78fdaa2d4e4ab645b5272d3be31a7737dc7a1ba64a00b20be1f9ccedc9e1",
+            "comparison": "decoded-rgba"
+          }
+        ],
+        "state_signature": "9345c0951c570952f3013f35115f0274fc89504c011dec63a013b36767e2485e",
+        "checks": {
+          "training_rows": 151,
+          "forecast_rows": 49,
+          "optimizer_steps_observed": 300,
+          "checkpoint_reproduces_forecasts": true,
+          "forecast_rmse": 0.17114420520682191,
+          "last_value_baseline_rmse": 1.0338467090576366,
+          "official_gt_mae_checked": false
+        },
+        "exec_started_monotonic": 1202881.783234391,
+        "exec_ended_monotonic": 1202883.054475924,
+        "pid": 198,
+        "sandbox_image": "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588",
+        "container_name": "wabber-mcp-1cf5a00e9c674b5da17ae7b7e8604db8",
+        "sandbox_wall_s": 1.3039318949449807,
+        "resident_kernel_pid": 1,
+        "kernel_reused": true,
+        "evaluation_basis": {
+          "mode": "custom_prompt_checks",
+          "official_pass": null,
+          "source_commit_sha": "84ef3d4d94d7362a5149cf14a73dc168fc4f2f33",
+          "mapping_sha256": "f23f78ae630f6801f8a294a12331c13062bdcf44059f96b4da357dd0db9d0e4f",
+          "metrics": [
+            {
+              "metric": "Data Consistency Ratio",
+              "coverage": "not_covered"
+            },
+            {
+              "metric": "Model Mean Absolute Error (MAE)",
+              "coverage": "partial"
+            },
+            {
+              "metric": "Visualization Quality Score",
+              "coverage": "not_covered"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 10,
+      "name": "REVIEW",
+      "type": "llm",
+      "edge_to": [
+        {
+          "id": 11,
+          "params": {},
+          "interval": 0
+        }
+      ],
+      "time": 1584.0712420176715,
+      "output": {
+        "id": "ed17a988-8d08-44e4-ac31-9056a13ba0be",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"verdict\":\"complete\",\"feedback\":\"All task requirements are met. The training step loaded data.csv, filtered Value1 to 2023-01-01..2023-05-31 (validated 151 rows), scaled with train mean/std, built lookback windows, and trained a real PyTorch LSTM with 300 observed optimizer steps (loss dropped from ~1.019 to ~0.020). The forecast step reconstructed the model from the checkpoint, ran eval/no_grad recursive forecasting for all 49 dates 2023-06-01..2023-07-19, and saved predictions.csv (validated 49 rows). The plot step generated predictions_chart.png from the actual predictions. Validation confirms checkpoint reproduces forecasts and forecast RMSE (0.171) beats the last-value baseline (1.034), indicating genuine learned predictions rather than a trivial copy. All three artifacts exist with matching signatures. The only minor note is a harmless FutureWarning about torch.load weights_only, which does not affect correctness.\"}",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": null
+            }
+          }
+        ],
+        "created": 1793000768,
+        "model": "deepseek-flash",
+        "object": "chat.completion",
+        "service_tier": null,
+        "system_fingerprint": "e72d3c7f663d3e1383b00b3884cb4501",
+        "usage": {
+          "completion_tokens": 212,
+          "prompt_tokens": 3540,
+          "total_tokens": 3752,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 3540
+        }
+      }
+    },
+    {
+      "id": 11,
+      "name": "end",
+      "type": "end",
+      "edge_to": [],
+      "time": 0,
+      "output": null
+    }
+  ]
+}

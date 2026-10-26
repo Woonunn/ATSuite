@@ -2,10 +2,10 @@
 import json
 import os
 import sys
-import traceback
 from pathlib import Path
 
 from implementation import DataSciWorkspace
+from kernel import execute_code
 
 
 def resident_loop(response_fd):
@@ -20,27 +20,8 @@ def resident_loop(response_fd):
                 workspace.imported_modules = payload["imported_modules"]
                 namespace = workspace.namespace()
                 namespace["__file__"] = str(Path.cwd() / "__session__.py")
-            status, error = "ok", ""
-            sys.stdout.flush()
-            sys.stderr.flush()
-            saved = os.dup(1), os.dup(2)
-            with open(payload["output_path"], "w+b") as capture:
-                try:
-                    os.dup2(capture.fileno(), 1)
-                    os.dup2(capture.fileno(), 2)
-                    exec(compile(payload["code"].strip(), namespace["__file__"], "exec"), namespace)
-                except BaseException:
-                    status, error = "error", traceback.format_exc()
-                    print(error, file=sys.stderr, end="")
-                finally:
-                    sys.stdout.flush()
-                    sys.stderr.flush()
-                    for source, target in zip(saved, (1, 2)):
-                        os.dup2(source, target)
-                        os.close(source)
-                capture.seek(0)
-                output = capture.read().decode("utf-8", errors="replace")
-            response.write(json.dumps({"status": status, "error": error, "output": output}) + "\n")
+            result = execute_code(payload["code"], namespace, payload["output_path"], namespace["__file__"])
+            response.write(json.dumps(result) + "\n")
 
 
 def main():
@@ -53,7 +34,7 @@ def main():
     workspace.imported_modules = payload["imported_modules"]
     namespace = workspace.namespace()
     namespace["__file__"] = str(Path.cwd() / "__session__.py")
-    exec(compile(payload["code"].strip(), namespace["__file__"], "exec"), namespace)
+    execute_code(payload["code"], namespace, None, namespace["__file__"])
     workspace.sync_from_namespace(namespace)
     Path(sys.argv[2]).write_text(json.dumps({
         "variables": workspace.variables, "imported_modules": workspace.imported_modules,

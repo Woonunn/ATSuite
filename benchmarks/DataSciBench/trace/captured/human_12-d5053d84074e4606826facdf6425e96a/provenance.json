@@ -1,0 +1,69 @@
+{
+  "task_id": "human_12",
+  "capture": "benchmarks/DataSciBench/trace/captured/human_12-d5053d84074e4606826facdf6425e96a",
+  "original_capture": "results/phase2/d5053d84074e4606826facdf6425e96a",
+  "replay": "results/phase2/2a9cb3c8c6fe4c0a82610128e921dffe",
+  "capture_utc": "2026-10-25T16:30:08.156537+00:00",
+  "iterations": 1,
+  "model_requests": 2,
+  "requested_models": [
+    "deepseek-flash"
+  ],
+  "returned_models": [
+    "deepseek-flash"
+  ],
+  "input_tokens": 7036,
+  "output_tokens": 3957,
+  "parallel_execution": [
+    {
+      "steps": [
+        "i0-model",
+        "i0-cluster"
+      ],
+      "seconds": 4.875037431018427,
+      "snapshot": 1
+    }
+  ],
+  "shared_state_reads": [
+    {
+      "step": "model",
+      "references": [
+        "feature_cols = shared['clean']['feature_cols']"
+      ]
+    },
+    {
+      "step": "cluster",
+      "references": [
+        "feature_cols = shared['clean']['feature_cols']"
+      ]
+    },
+    {
+      "step": "report",
+      "references": [
+        "model_metrics = shared['model']['metrics']",
+        "cluster_profile = shared['cluster']['cluster_profile']"
+      ]
+    }
+  ],
+  "independent_checks": {
+    "heldout_metrics": {
+      "accuracy": 0.8624777347828757,
+      "precision": 0.7878896452884271,
+      "recall": 0.5717628705148206,
+      "f1": 0.6626487871026064,
+      "roc_auc": 0.9140259353840177
+    },
+    "checkpoint_reloaded": true,
+    "cluster_count": 5
+  },
+  "sandbox_images": [
+    "sha256:3912999238a7983f08bafb7afb90801faec626655cbd942ecf3911cd816b309d"
+  ],
+  "capture_family": "faas",
+  "replay_family": "faas",
+  "files": {
+    "events.jsonl": "ada815a8f0a506f299abdef810c7be9a6ba73b1a42b754484ad588c7fa322060",
+    "result.json": "c2ccc3510c5119773998e899f4016e3a04121d80b76ae78b9bb66ad5777151f8",
+    "trace.atg.json": "4a0e016bc093e3c146b7d9691439addf950461fef3395a72e56b36f0570bfe74"
+  }
+}

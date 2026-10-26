@@ -1,0 +1,6 @@
+{
+  "max_iterations": 3,
+  "max_parallel": 3,
+  "model": {"seed": 0, "temperature": 0, "top_p": 1, "max_tokens": 16000, "retries": 2},
+  "tool": {"provider": "local", "family": "faas", "target_id": "datasci-agent", "endpoint": "http://127.0.0.1:9200", "timeout": 240, "execution_scope": "wlh-190 Docker; not a cloud deployment"}
+}

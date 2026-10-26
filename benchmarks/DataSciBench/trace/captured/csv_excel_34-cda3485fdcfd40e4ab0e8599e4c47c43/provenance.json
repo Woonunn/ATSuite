@@ -1,0 +1,43 @@
+{
+  "task_id": "csv_excel_34",
+  "capture": "benchmarks/DataSciBench/trace/captured/csv_excel_34-cda3485fdcfd40e4ab0e8599e4c47c43",
+  "original_capture": "results/phase2/cda3485fdcfd40e4ab0e8599e4c47c43",
+  "replay": "results/phase2/67bc0c8a23974f14aa484b78afd43358",
+  "capture_utc": "2026-10-25T16:37:45.485922+00:00",
+  "iterations": 1,
+  "model_requests": 2,
+  "requested_models": [
+    "deepseek-flash"
+  ],
+  "returned_models": [
+    "deepseek-flash"
+  ],
+  "input_tokens": 3655,
+  "output_tokens": 1764,
+  "parallel_execution": [
+    {
+      "steps": [
+        "i0-gini",
+        "i0-lorenz"
+      ],
+      "seconds": 0.6939462190493941,
+      "snapshot": 1
+    }
+  ],
+  "shared_state_reads": [],
+  "independent_checks": {
+    "rows": 170669,
+    "gini": 0.5069736336647479,
+    "gini_independently_verified": true
+  },
+  "sandbox_images": [
+    "sha256:8aba9f3edc4d402fb2848071a69dfbff010e82d89f415f2f10274ea2969dd6d6"
+  ],
+  "capture_family": "faas",
+  "replay_family": "session",
+  "files": {
+    "events.jsonl": "ff15f9734c7c76c92869b555135c855fdf698d3af13ebb0848f13889d1c0f901",
+    "result.json": "a549ce15f3fe09201b9c6a9378185812ea7ba8e1b3b4e2359c918f78343d993e",
+    "trace.atg.json": "d215fe9400c91f38c338c21a6910350377c2608bd121c623f5b04e9065accea9"
+  }
+}

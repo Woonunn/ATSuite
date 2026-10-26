@@ -1,0 +1,44 @@
+import asyncio
+from datetime import datetime,timezone
+import json
+import os
+import random
+import time
+from openai import AsyncOpenAI,APIStatusError
+
+
+class DeepSeekClient:
+    def __init__(self,recorder,config):
+        key=os.getenv('DEEPSEEK_API_KEY')
+        if not key:raise ValueError('Configure DEEPSEEK_API_KEY outside Git')
+        self.client=AsyncOpenAI(api_key=key,base_url='https://api.deepseek.com',max_retries=0,timeout=180)
+        self.recorder=recorder;self.config=config;self.random=random.Random(config['seed'])
+
+    async def decide(self,phase,iteration,messages):
+        request={'model':'deepseek-flash','messages':messages,'response_format':{'type':'json_object'},
+                 **{k:self.config[k] for k in ('temperature','top_p','max_tokens')},
+                 'extra_body':{'thinking':{'type':'disabled'}}}
+        start=time.perf_counter();started=datetime.now(timezone.utc).isoformat()
+        for attempt in range(self.config.get('retries',2)+1):
+            attempt_start=time.perf_counter();raw=None
+            try:
+                response=await self.client.chat.completions.create(**request)
+                raw=response.model_dump(mode='json');content=response.choices[0].message.content
+                if response.choices[0].finish_reason!='stop':raise ValueError('Incomplete model response')
+                decision=json.loads(content)
+                if not isinstance(decision,dict):raise ValueError('Model decision must be a JSON object')
+                self.recorder.emit('llm',phase=phase,iteration=iteration,request=request,response=raw,decision=decision,
+                    requested_model='deepseek-flash',actual_model=response.model,response_id=response.id,
+                    usage=raw.get('usage'),input_tokens=(raw.get('usage') or {}).get('prompt_tokens'),
+                    output_tokens=(raw.get('usage') or {}).get('completion_tokens'),started_utc=started,ended_utc=datetime.now(timezone.utc).isoformat(),
+                    duration_s=time.perf_counter()-start,attempts=attempt+1,source='live_official_api')
+                return decision
+            except Exception as exc:
+                status=exc.status_code if isinstance(exc,APIStatusError) else None
+                retry=attempt<self.config.get('retries',2) and (status in (429,500,502,503,504) or status is None)
+                delay=(2**attempt)+self.random.random()*.1 if retry else None
+                self.recorder.emit('llm_error',phase=phase,iteration=iteration,attempt=attempt+1,status_code=status,
+                    error_type=type(exc).__name__,error=str(exc).replace(self.client.api_key,'[redacted]')[:2000],duration_s=time.perf_counter()-attempt_start,
+                    retry_delay_s=delay,request=request,response=raw,usage=raw.get('usage') if raw else None)
+                if not retry:raise
+                await asyncio.sleep(delay)

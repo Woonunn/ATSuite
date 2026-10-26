@@ -1,0 +1,9 @@
+{
+  "name": "agent-tools",
+  "description": "ATSuite structured data analysis tools; requires isolated worker launcher",
+  "python-version": "3.11",
+  "cpu": 2,
+  "memory": 4096,
+  "disk": 2048,
+  "timeout": 240
+}

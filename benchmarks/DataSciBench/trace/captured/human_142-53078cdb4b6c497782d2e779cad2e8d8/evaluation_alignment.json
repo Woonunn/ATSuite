@@ -1,0 +1,307 @@
+{
+  "source_repository": "https://github.com/THUDM/DataSciBench",
+  "source_commit_sha": "84ef3d4d94d7362a5149cf14a73dc168fc4f2f33",
+  "assessment": "Custom prompt checks with explicit official-metric mapping; NOT official TMC/CR scores",
+  "covered_definition": "Custom check implies the literal official existence predicate only. It does not imply all prompt requirements or the complete task pass.",
+  "official_evaluator": "experiments/evaluate.py -> metric/<task>/metric.yaml -> src/schemas/dag.py; VLM calls src/vlm_utils.py",
+  "official_vlm": "Upstream gpt-4o-mini via api.turboai.one; not invoked from an offline Tool and no substitute score is fabricated.",
+  "tasks": [
+    {
+      "task_id": "human_12",
+      "scope": "LangGraph Agent + Phase 1 reference",
+      "prompt_sha256": "6957e18188b519ea68c962cd50162edc5455edab56d0b50f94f79456a35917e2",
+      "official_metric_path": "metric/human_12/metric.yaml",
+      "official_metric_url": "https://github.com/THUDM/DataSciBench/blob/84ef3d4d94d7362a5149cf14a73dc168fc4f2f33/metric/human_12/metric.yaml",
+      "official_metric_sha256": "52f91e5599a7c32287eca06233ca78c7ed8fe1d29f02da491bef402ffd2daa59",
+      "official_pass": null,
+      "metrics": [
+        {
+          "index": 0,
+          "task_name": "Data cleaning and preprocessing",
+          "metric": "Percentage of Missing Values",
+          "function": "Data Completeness",
+          "ground_truth": "cleaned_data.csv",
+          "code_sha256": "b6b3fb7259459e62a40f79cba6773f1faafb10ebb62c35911f7dfa078cbae348",
+          "coverage": "partial",
+          "custom_check": "Parse cleaned CSV, preserve original labels and official split; Phase 1 also asserts no missing values.",
+          "difference_or_gap": "Agent checker does not calculate missing-cell percentage against official cleaned_data.csv. Schema split/target and no row exclusion are additional benchmark contracts; original prompt allows exclusion."
+        },
+        {
+          "index": 1,
+          "task_name": "Predictive modeling",
+          "metric": "Model Accuracy",
+          "function": "Model Accuracy",
+          "ground_truth": "model_predictions.csv",
+          "code_sha256": "41abd61281e1f69e9463337224a765dcece3d4d171415abd9d47688b81d7e238",
+          "coverage": "partial",
+          "custom_check": "Recompute held-out accuracy, precision, recall, F1 and ROC-AUC; reload checkpoint to reproduce predictions.",
+          "difference_or_gap": "Accuracy >= .80 is our extra guard, not the official >= ground-truth accuracy. Columns y_true/y_pred differ from official Actual/Predicted; no official GT comparison."
+        },
+        {
+          "index": 2,
+          "task_name": "Data mining",
+          "metric": "Silhouette Score",
+          "function": "Clustering Validity",
+          "ground_truth": "clustering_results.csv",
+          "code_sha256": "bf2614fe8ca01c6af0dc31685440288ee28e5f6aab58dbc0658d043d4019a008",
+          "coverage": "partial",
+          "custom_check": "Check clustering row count and at least two clusters; Phase 1 verifies profiles against observed income rates.",
+          "difference_or_gap": "No comparison of silhouette scores on the first 1000 rows against official clustering_results.csv. Official Cluster/income schema differs from current output."
+        },
+        {
+          "index": 3,
+          "task_name": "Interpretability and report generation",
+          "metric": "Report Completeness",
+          "function": "Report Completeness",
+          "ground_truth": null,
+          "code_sha256": "56df2b3323ec501bb55aa7276a0b2e9abbaef6f1d99ebbe6f120c9db08143a88",
+          "coverage": "covered",
+          "custom_check": "Require a readable PDF with substantive text, accuracy and clustering; official predicate only checks PDF existence.",
+          "difference_or_gap": "Does not establish that EDA, figures, trends, anomalies or report interpretation are correct; those are prompt requirements beyond this official existence metric."
+        }
+      ]
+    },
+    {
+      "task_id": "human_15",
+      "scope": "LangGraph Agent + Phase 1 reference",
+      "prompt_sha256": "b0d7b1d7d473dcac930c1a3f5231572c787d4ae70e417dc2622cbbb74990018a",
+      "official_metric_path": "metric/human_15/metric.yaml",
+      "official_metric_url": "https://github.com/THUDM/DataSciBench/blob/84ef3d4d94d7362a5149cf14a73dc168fc4f2f33/metric/human_15/metric.yaml",
+      "official_metric_sha256": "2e860664f004bbba124c82171f1af5610c87ac8bb89385a9c6905a1470b24b3d",
+      "official_pass": null,
+      "metrics": [
+        {
+          "index": 0,
+          "task_name": "Data visualization",
+          "metric": "Bar Chart Color Consistency",
+          "function": "Visualization Quality",
+          "ground_truth": "bar_chart.png",
+          "code_sha256": "5d00d78cd670c98d5be311deb317c8fce44d4e3b90ed1856d1b203f70daf0d85",
+          "coverage": "partial",
+          "custom_check": "Inspect actual saved Matplotlib bar heights, red fills and black edges; parse final PNG.",
+          "difference_or_gap": "No VLM comparison against official bar image. Annual year positions, labels/scales, spacing and overall layout are not fully checked."
+        },
+        {
+          "index": 1,
+          "task_name": "Data visualization",
+          "metric": "Line Chart Line Style Consistency",
+          "function": "Visualization Quality",
+          "ground_truth": "line_chart.png",
+          "code_sha256": "c0a3b27b4390db06be369fc67eb86425934bb1f2b14064858439bee1fae52248",
+          "coverage": "partial",
+          "custom_check": "Inspect dash-dot styles, three category lines and exact category sales totals; parse final PNG.",
+          "difference_or_gap": "No VLM comparison; exact month alignment, category-to-color mapping, legends, axes and layout remain unchecked."
+        },
+        {
+          "index": 2,
+          "task_name": "Data visualization",
+          "metric": "Scatter Chart Point Properties",
+          "function": "Visualization Quality",
+          "ground_truth": null,
+          "code_sha256": "50f242e776554388cf008ecb9a7382885694aecdf80f9f921f22d75d32760a29",
+          "coverage": "partial",
+          "custom_check": "Inspect seven actual scatter observations, alpha .5, sizes proportional to sales and three colors.",
+          "difference_or_gap": "Official code compares Size/Color/Transparency in scatter_chart_data.csv against a GT CSV although that auxiliary output is not required by prompt and ground_truth is unspecified. Current check does not prove point-to-category color mapping, time positions or exact GT equality."
+        }
+      ]
+    },
+    {
+      "task_id": "csv_excel_34",
+      "scope": "LangGraph Agent + Phase 1 reference",
+      "prompt_sha256": "5973c8a006c53dbf4cde1d3fc34cad61870c677a3dbeb17a550e6e5c84828dda",
+      "official_metric_path": "metric/csv_excel_34/metric.yaml",
+      "official_metric_url": "https://github.com/THUDM/DataSciBench/blob/84ef3d4d94d7362a5149cf14a73dc168fc4f2f33/metric/csv_excel_34/metric.yaml",
+      "official_metric_sha256": "0f3d554af428ea01bd0310ec533c87e07b48f3c07a791ae1401b57acd89b7f34",
+      "official_pass": null,
+      "metrics": [
+        {
+          "index": 0,
+          "task_name": "Data cleaning and preprocessing",
+          "metric": "Data Quality Score",
+          "function": "Data Quality Score",
+          "ground_truth": "cleaned_data.csv",
+          "code_sha256": "9098bea95c462b7ddc5ac7223dc1c0317283956d19ed862a84469456c0fc2ee8",
+          "coverage": "partial",
+          "custom_check": "Compare all finite nonnegative input incomes with cleaned CSV; retain repeated AGE/INCTOT pairs.",
+          "difference_or_gap": "Official metric only compares cleaned row count with official GT, which has not been compared here. Exact input population is a stricter benchmark cleaning contract, not an official cleaning prescription."
+        },
+        {
+          "index": 1,
+          "task_name": "Data visualization",
+          "metric": "Lorenz Curve Visual Inspection",
+          "function": "Visualization Quality",
+          "ground_truth": "lorenz_curve.png",
+          "code_sha256": "a9934cf224f2cd0523f74cb3053581d54443dd5b44c69112c975ca6c4f4a3dba",
+          "coverage": "not_covered",
+          "custom_check": "PNG is nonempty and decodable; actual plotted artifacts are replay-compared.",
+          "difference_or_gap": "No VLM comparison and no independent check of Lorenz coordinates, axes or layout. Parsing/consistency cannot prove the chart represents the correct Lorenz curve."
+        },
+        {
+          "index": 2,
+          "task_name": "Data exploration and statistics understand",
+          "metric": "Gini Coefficient Calculation",
+          "function": "Data Uniformity",
+          "ground_truth": "gini_coefficient.txt",
+          "code_sha256": "740ac117066701d86ab096960737d889aead9fd05b6a801df9c7b7cf75c1f730",
+          "coverage": "partial",
+          "custom_check": "Independently recompute Gini from actual cleaned incomes and require atol=1e-6.",
+          "difference_or_gap": "Official requires exact floating-point equality with GT text; this is a numerical consistency check, not official score equality."
+        }
+      ]
+    },
+    {
+      "task_id": "human_142",
+      "scope": "Phase 1 reference only; no LangGraph result validator yet",
+      "prompt_sha256": "5ea3a897eb5a1e5f34c79ebd42e6513ac3a67c9f52fb6e0b2b1c70a01ec54746",
+      "official_metric_path": "metric/human_142/metric.yaml",
+      "official_metric_url": "https://github.com/THUDM/DataSciBench/blob/84ef3d4d94d7362a5149cf14a73dc168fc4f2f33/metric/human_142/metric.yaml",
+      "official_metric_sha256": "fc69bf8fb9d8177a6219acfe143012a91ac8fac6734c102d2f52e142e1ef3523",
+      "official_pass": null,
+      "metrics": [
+        {
+          "index": 0,
+          "task_name": "Data mining",
+          "metric": "Association Rules Validity",
+          "function": "Clustering Validity",
+          "ground_truth": "association_rules.csv",
+          "code_sha256": "04b2b8119c9cb82d2f1510f35b1f101e40881fa9c0eeed1d87895ad9d64f85a4",
+          "coverage": "partial",
+          "custom_check": "Phase 1 recomputes all persisted association-rule confidences from original baskets.",
+          "difference_or_gap": "Does not compare the set of antecedent/consequent pairs against official GT with output precision >= .9."
+        },
+        {
+          "index": 1,
+          "task_name": "Data mining",
+          "metric": "Frequent Itemsets Validity",
+          "function": "Clustering Validity",
+          "ground_truth": "frequent_itemsets.csv",
+          "code_sha256": "acec651c434a87866628842994d7678d2dfc6151c4d0b08e8b7b354e9357d78b",
+          "coverage": "partial",
+          "custom_check": "Phase 1 recomputes all persisted itemset supports from original baskets.",
+          "difference_or_gap": "Does not compare itemset strings against official GT with output precision >= .9; binning/support choices may differ."
+        },
+        {
+          "index": 2,
+          "task_name": "Pattern recognition",
+          "metric": "Pattern Analysis Completeness Ratio",
+          "function": "Completeness",
+          "ground_truth": null,
+          "code_sha256": "7188787a325409c1efcfc0751e94ce4faf9f01ae0394197f1c2b19ce446c8b1e",
+          "coverage": "covered",
+          "custom_check": "Phase 1 requires and parses pattern_analysis_report.pdf.",
+          "difference_or_gap": "File validity does not establish the interpretation quality."
+        },
+        {
+          "index": 3,
+          "task_name": "Interpretability and report generation",
+          "metric": "Client Segments Description Cohesion",
+          "function": "Report Quality",
+          "ground_truth": null,
+          "code_sha256": "754d097bcae857254061ab31cfffb23a0362683a40e146c6fb0230779d00ae37",
+          "coverage": "covered",
+          "custom_check": "Phase 1 requires and parses client_segments_analysis.pdf.",
+          "difference_or_gap": "File validity does not establish segment description quality."
+        },
+        {
+          "index": 4,
+          "task_name": "Interpretability and report generation",
+          "metric": "Report Completeness",
+          "function": "Report Completeness",
+          "ground_truth": null,
+          "code_sha256": "456b2108cfefce2054923ddbad4705a7b57cf7df7e9c32419dde4216953b03cc",
+          "coverage": "not_covered",
+          "custom_check": "Original prompt outputs are checked in Phase 1.",
+          "difference_or_gap": "Official metric asks for customer_segmentation_analysis.pdf, which original prompt does not require; no fabricated alias is added to claim a pass."
+        }
+      ]
+    },
+    {
+      "task_id": "human_7",
+      "scope": "Phase 1 reference only; no LangGraph result validator yet",
+      "prompt_sha256": "9b84ae4068ab58d0727aebfda78b366b7521afc2b91b337e1393ceb0d7932251",
+      "official_metric_path": "metric/human_7/metric.yaml",
+      "official_metric_url": "https://github.com/THUDM/DataSciBench/blob/84ef3d4d94d7362a5149cf14a73dc168fc4f2f33/metric/human_7/metric.yaml",
+      "official_metric_sha256": "c20a7cb79b27c60ba33f438cd99bcf50d7f1d120e354cc496221e1406a767b72",
+      "official_pass": null,
+      "metrics": [
+        {
+          "index": 0,
+          "task_name": "Data visualization",
+          "metric": "Visualization Completeness",
+          "function": "Visualization Completeness",
+          "ground_truth": null,
+          "code_sha256": "812e64c756e6f261812e32eb21c74b572ba740d3c93472303915fc0c43314c66",
+          "coverage": "covered",
+          "custom_check": "Phase 1 requires and parses all three named visualization PNGs; also checks country totals and monthly revenue.",
+          "difference_or_gap": "Official predicate is file existence only; visual meaning/layout still not fully established."
+        },
+        {
+          "index": 1,
+          "task_name": "Data mining",
+          "metric": "Association Rule Coverage",
+          "function": "Association Rule Confidence",
+          "ground_truth": "frequent_itemsets.csv",
+          "code_sha256": "50e8107a5d428010c37045ae19f2c6ef4492f8538e712f830fcfdd6641611b32",
+          "coverage": "partial",
+          "custom_check": "Phase 1 recomputes itemset supports and rule confidences against actual baskets.",
+          "difference_or_gap": "No official GT frequent-itemset recall >= .9 comparison. Numerical validity is different from coverage of the official set."
+        },
+        {
+          "index": 2,
+          "task_name": "Interpretability and report generation",
+          "metric": "Report Completeness",
+          "function": "Report Completeness",
+          "ground_truth": null,
+          "code_sha256": "1c1132c5a2417f594df46306f312bfe9de6d13e8c6b84dce1fa2dff51c707deb",
+          "coverage": "covered",
+          "custom_check": "Phase 1 requires and parses comprehensive_report.pdf.",
+          "difference_or_gap": "Existence/parse success does not establish the narrative or business implications are correct."
+        }
+      ]
+    },
+    {
+      "task_id": "csv_excel_29",
+      "scope": "Phase 1 reference only; no LangGraph result validator yet",
+      "prompt_sha256": "1cb3c178d2fbadd65ba689edc5a33a22d57aa6b54bf2c1572164bac617332a74",
+      "official_metric_path": "metric/csv_excel_29/metric.yaml",
+      "official_metric_url": "https://github.com/THUDM/DataSciBench/blob/84ef3d4d94d7362a5149cf14a73dc168fc4f2f33/metric/csv_excel_29/metric.yaml",
+      "official_metric_sha256": "a931c5661a8c0e425f49beca58c373f2a453d11449d6baa9abe6294ca13bab9f",
+      "official_pass": null,
+      "metrics": [
+        {
+          "index": 0,
+          "task_name": "Data cleaning and preprocessing",
+          "metric": "Data Consistency Ratio",
+          "function": "Data Quality Score",
+          "ground_truth": "cleaned_data.csv",
+          "code_sha256": "11506205828d99a320d791c4bb51584aa06db3429e6e4012e0e2470de806b68c",
+          "coverage": "not_covered",
+          "custom_check": "Phase 1 uses the prepared authentic 200-row dataset and validates 151 train/49 forecast dates.",
+          "difference_or_gap": "Official asks for cleaned_data.csv and compares nonmissing Value1 count with GT; cleaned_data.csv is not a required output in the original prompt and is not an official-evaluated artifact here."
+        },
+        {
+          "index": 1,
+          "task_name": "Predictive modeling",
+          "metric": "Model Mean Absolute Error (MAE)",
+          "function": "Mean Absolute Error",
+          "ground_truth": "predictions.csv",
+          "code_sha256": "dc6023f166f6b62c6cebdc1e2920d49e453b65bd9b53a79ae2f6f13e25f65682",
+          "coverage": "partial",
+          "custom_check": "Phase 1 verifies real LSTM optimization, checkpoint reproduction, finite forecasts and an independent NumPy gate calculation; holdout RMSE is reported.",
+          "difference_or_gap": "No MAE < .1 comparison with official predictions.csv. Holdout RMSE and official GT-prediction MAE are different quantities."
+        },
+        {
+          "index": 2,
+          "task_name": "Data visualization",
+          "metric": "Visualization Quality Score",
+          "function": "Visualization Quality",
+          "ground_truth": "predictions_chart.png",
+          "code_sha256": "f19fc855713041988c8c6479016c029ca148e9ebb8d839d0e409b49c32ddebf0",
+          "coverage": "not_covered",
+          "custom_check": "Phase 1 requires and parses predictions_chart.png.",
+          "difference_or_gap": "No VLM comparison of the prediction chart against official GT."
+        }
+      ]
+    }
+  ]
+}

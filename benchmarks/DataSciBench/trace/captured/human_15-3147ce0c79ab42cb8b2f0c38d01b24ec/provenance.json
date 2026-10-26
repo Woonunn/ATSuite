@@ -1,0 +1,85 @@
+{
+  "task_id": "human_15",
+  "capture": "benchmarks/DataSciBench/trace/captured/human_15-3147ce0c79ab42cb8b2f0c38d01b24ec",
+  "original_capture": "results/phase2/3147ce0c79ab42cb8b2f0c38d01b24ec",
+  "replay": "results/phase2/d141cac3605c4587a2307588194c0202",
+  "capture_utc": "2026-10-25T16:30:08.175632+00:00",
+  "iterations": 2,
+  "model_requests": 4,
+  "requested_models": [
+    "deepseek-flash"
+  ],
+  "returned_models": [
+    "deepseek-flash"
+  ],
+  "input_tokens": 8989,
+  "output_tokens": 4252,
+  "parallel_execution": [
+    {
+      "steps": [
+        "i1-bar",
+        "i1-scatter"
+      ],
+      "seconds": 0.7787040420807898,
+      "snapshot": 3
+    },
+    {
+      "steps": [
+        "i1-bar",
+        "i1-line"
+      ],
+      "seconds": 0.7786528039723635,
+      "snapshot": 3
+    },
+    {
+      "steps": [
+        "i1-scatter",
+        "i1-line"
+      ],
+      "seconds": 0.8518991339951754,
+      "snapshot": 3
+    },
+    {
+      "steps": [
+        "i0-bar_chart",
+        "i0-line_chart"
+      ],
+      "seconds": 0.8039463281165808,
+      "snapshot": 1
+    },
+    {
+      "steps": [
+        "i0-bar_chart",
+        "i0-scatter_chart"
+      ],
+      "seconds": 0.8053625340107828,
+      "snapshot": 1
+    },
+    {
+      "steps": [
+        "i0-line_chart",
+        "i0-scatter_chart"
+      ],
+      "seconds": 0.8390122901182622,
+      "snapshot": 1
+    }
+  ],
+  "shared_state_reads": [],
+  "independent_checks": {
+    "year_totals": {
+      "2022": 4800,
+      "2023": 7800
+    },
+    "chart_geometry_verified": true
+  },
+  "sandbox_images": [
+    "sha256:3912999238a7983f08bafb7afb90801faec626655cbd942ecf3911cd816b309d"
+  ],
+  "capture_family": "faas",
+  "replay_family": "faas",
+  "files": {
+    "events.jsonl": "744e41855bce90ec914dcf2bce56f97c25701957fb64fa746bc4fcadb11a3d1d",
+    "result.json": "62923faa5eb9f6398fea347918b3f66901226f77dbea699b945b4a114ae6563d",
+    "trace.atg.json": "7b267b95343c1c1dce42ffe63dee53b926858a88f08c069275db31fdcb097f5b"
+  }
+}

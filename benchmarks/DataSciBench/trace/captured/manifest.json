@@ -1,0 +1,417 @@
+{
+  "execution_scope": "real DeepSeek official API + real ATSuite RPC/Docker on wlh-190; no cloud deployment",
+  "harness_versions": {
+    "langgraph": "1.0.5",
+    "openai": "2.14.0",
+    "fastmcp": "2.14.2"
+  },
+  "python": "3.12.12 (main, Feb  3 2026, 22:51:04) [Clang 21.1.4 ]",
+  "source_commit_sha": "84ef3d4d94d7362a5149cf14a73dc168fc4f2f33",
+  "captures": [
+    {
+      "task_id": "human_15",
+      "capture": "benchmarks/DataSciBench/trace/captured/human_15-3147ce0c79ab42cb8b2f0c38d01b24ec",
+      "original_capture": "results/phase2/3147ce0c79ab42cb8b2f0c38d01b24ec",
+      "replay": "results/phase2/d141cac3605c4587a2307588194c0202",
+      "capture_utc": "2026-10-25T16:30:08.175632+00:00",
+      "iterations": 2,
+      "model_requests": 4,
+      "requested_models": [
+        "deepseek-flash"
+      ],
+      "returned_models": [
+        "deepseek-flash"
+      ],
+      "input_tokens": 8989,
+      "output_tokens": 4252,
+      "parallel_execution": [
+        {
+          "steps": [
+            "i1-bar",
+            "i1-scatter"
+          ],
+          "seconds": 0.7787040420807898,
+          "snapshot": 3
+        },
+        {
+          "steps": [
+            "i1-bar",
+            "i1-line"
+          ],
+          "seconds": 0.7786528039723635,
+          "snapshot": 3
+        },
+        {
+          "steps": [
+            "i1-scatter",
+            "i1-line"
+          ],
+          "seconds": 0.8518991339951754,
+          "snapshot": 3
+        },
+        {
+          "steps": [
+            "i0-bar_chart",
+            "i0-line_chart"
+          ],
+          "seconds": 0.8039463281165808,
+          "snapshot": 1
+        },
+        {
+          "steps": [
+            "i0-bar_chart",
+            "i0-scatter_chart"
+          ],
+          "seconds": 0.8053625340107828,
+          "snapshot": 1
+        },
+        {
+          "steps": [
+            "i0-line_chart",
+            "i0-scatter_chart"
+          ],
+          "seconds": 0.8390122901182622,
+          "snapshot": 1
+        }
+      ],
+      "shared_state_reads": [],
+      "independent_checks": {
+        "year_totals": {
+          "2022": 4800,
+          "2023": 7800
+        },
+        "chart_geometry_verified": true
+      },
+      "sandbox_images": [
+        "sha256:3912999238a7983f08bafb7afb90801faec626655cbd942ecf3911cd816b309d"
+      ],
+      "capture_family": "faas",
+      "replay_family": "faas",
+      "files": {
+        "events.jsonl": "744e41855bce90ec914dcf2bce56f97c25701957fb64fa746bc4fcadb11a3d1d",
+        "result.json": "62923faa5eb9f6398fea347918b3f66901226f77dbea699b945b4a114ae6563d",
+        "trace.atg.json": "7b267b95343c1c1dce42ffe63dee53b926858a88f08c069275db31fdcb097f5b"
+      }
+    },
+    {
+      "task_id": "human_12",
+      "capture": "benchmarks/DataSciBench/trace/captured/human_12-d5053d84074e4606826facdf6425e96a",
+      "original_capture": "results/phase2/d5053d84074e4606826facdf6425e96a",
+      "replay": "results/phase2/2a9cb3c8c6fe4c0a82610128e921dffe",
+      "capture_utc": "2026-10-25T16:30:08.156537+00:00",
+      "iterations": 1,
+      "model_requests": 2,
+      "requested_models": [
+        "deepseek-flash"
+      ],
+      "returned_models": [
+        "deepseek-flash"
+      ],
+      "input_tokens": 7036,
+      "output_tokens": 3957,
+      "parallel_execution": [
+        {
+          "steps": [
+            "i0-model",
+            "i0-cluster"
+          ],
+          "seconds": 4.875037431018427,
+          "snapshot": 1
+        }
+      ],
+      "shared_state_reads": [
+        {
+          "step": "model",
+          "references": [
+            "feature_cols = shared['clean']['feature_cols']"
+          ]
+        },
+        {
+          "step": "cluster",
+          "references": [
+            "feature_cols = shared['clean']['feature_cols']"
+          ]
+        },
+        {
+          "step": "report",
+          "references": [
+            "model_metrics = shared['model']['metrics']",
+            "cluster_profile = shared['cluster']['cluster_profile']"
+          ]
+        }
+      ],
+      "independent_checks": {
+        "heldout_metrics": {
+          "accuracy": 0.8624777347828757,
+          "precision": 0.7878896452884271,
+          "recall": 0.5717628705148206,
+          "f1": 0.6626487871026064,
+          "roc_auc": 0.9140259353840177
+        },
+        "checkpoint_reloaded": true,
+        "cluster_count": 5
+      },
+      "sandbox_images": [
+        "sha256:3912999238a7983f08bafb7afb90801faec626655cbd942ecf3911cd816b309d"
+      ],
+      "capture_family": "faas",
+      "replay_family": "faas",
+      "files": {
+        "events.jsonl": "ada815a8f0a506f299abdef810c7be9a6ba73b1a42b754484ad588c7fa322060",
+        "result.json": "c2ccc3510c5119773998e899f4016e3a04121d80b76ae78b9bb66ad5777151f8",
+        "trace.atg.json": "4a0e016bc093e3c146b7d9691439addf950461fef3395a72e56b36f0570bfe74"
+      }
+    },
+    {
+      "task_id": "csv_excel_34",
+      "capture": "benchmarks/DataSciBench/trace/captured/csv_excel_34-cda3485fdcfd40e4ab0e8599e4c47c43",
+      "original_capture": "results/phase2/cda3485fdcfd40e4ab0e8599e4c47c43",
+      "replay": "results/phase2/67bc0c8a23974f14aa484b78afd43358",
+      "capture_utc": "2026-10-25T16:37:45.485922+00:00",
+      "iterations": 1,
+      "model_requests": 2,
+      "requested_models": [
+        "deepseek-flash"
+      ],
+      "returned_models": [
+        "deepseek-flash"
+      ],
+      "input_tokens": 3655,
+      "output_tokens": 1764,
+      "parallel_execution": [
+        {
+          "steps": [
+            "i0-gini",
+            "i0-lorenz"
+          ],
+          "seconds": 0.6939462190493941,
+          "snapshot": 1
+        }
+      ],
+      "shared_state_reads": [],
+      "independent_checks": {
+        "rows": 170669,
+        "gini": 0.5069736336647479,
+        "gini_independently_verified": true
+      },
+      "sandbox_images": [
+        "sha256:8aba9f3edc4d402fb2848071a69dfbff010e82d89f415f2f10274ea2969dd6d6"
+      ],
+      "capture_family": "faas",
+      "replay_family": "session",
+      "files": {
+        "events.jsonl": "ff15f9734c7c76c92869b555135c855fdf698d3af13ebb0848f13889d1c0f901",
+        "result.json": "a549ce15f3fe09201b9c6a9378185812ea7ba8e1b3b4e2359c918f78343d993e",
+        "trace.atg.json": "d215fe9400c91f38c338c21a6910350377c2608bd121c623f5b04e9065accea9"
+      }
+    },
+    {
+      "task_id": "human_142",
+      "capture": "benchmarks/DataSciBench/trace/captured/human_142-53078cdb4b6c497782d2e779cad2e8d8",
+      "original_capture": "results/phase2/capture-six-ba95be52f0ca4870942fb3e72f2aad2c/human_142/capture",
+      "replay": "results/phase2/replay-new-331bc66d5e0a465598912df7d9e67d4b/human_142/replay",
+      "capture_utc": "2026-10-26T07:45:49.116231+00:00",
+      "iterations": 2,
+      "model_requests": 3,
+      "requested_models": [
+        "deepseek-flash"
+      ],
+      "returned_models": [
+        "deepseek-flash"
+      ],
+      "input_tokens": 8737,
+      "output_tokens": 7861,
+      "parallel_execution": [
+        {
+          "steps": [
+            "i1-mining",
+            "i1-clustering"
+          ],
+          "seconds": 0.8571800531353801,
+          "snapshot": 1
+        },
+        {
+          "steps": [
+            "i1-pattern_report",
+            "i1-segments_report"
+          ],
+          "seconds": 0.46110525191761553,
+          "snapshot": 2
+        }
+      ],
+      "shared_state_reads": [
+        "i1-pattern_report",
+        "i1-segments_report"
+      ],
+      "independent_checks": {
+        "transactions": 30000,
+        "frequent_itemsets": 363,
+        "association_rules": 850,
+        "all_support_confidence_lift_recomputed": true,
+        "selected_k": 4,
+        "clients": 30000,
+        "all_elbow_inertias_recomputed": true,
+        "pattern_report": {
+          "pages": 1,
+          "text_characters": 953
+        },
+        "segment_report": {
+          "pages": 1,
+          "text_characters": 714
+        }
+      },
+      "sandbox_images": [
+        "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588"
+      ],
+      "capture_family": "session",
+      "replay_family": "faas",
+      "official_pass": null,
+      "files": {
+        "trace.atg.json": "e307201d0031370a4351e548df6c14890aa89d6e2a7acd5f6c813662de174cd7",
+        "evaluation_alignment.json": "f23f78ae630f6801f8a294a12331c13062bdcf44059f96b4da357dd0db9d0e4f",
+        "result.json": "529e5ce7280a74b1aa7eac5426151164458a8d80101dc60a4e6d6a6bfcd34319",
+        "provenance.json": "a1d5be284e8b3fe67b740c2158329e7295a21658c912674e3343d35d9c1f4d00",
+        "events.jsonl": "665cee0545c33cf77ce7fd4348aa9239e269d9862d5d6037d76bba211905f1d3"
+      }
+    },
+    {
+      "task_id": "csv_excel_29",
+      "capture": "benchmarks/DataSciBench/trace/captured/csv_excel_29-6a4de63bf5304a7daec98ea3920ea61e",
+      "original_capture": "results/phase2/capture-six-ba95be52f0ca4870942fb3e72f2aad2c/csv_excel_29/capture",
+      "replay": "results/phase2/replay-new-331bc66d5e0a465598912df7d9e67d4b/csv_excel_29/replay",
+      "capture_utc": "2026-10-26T07:45:51.426034+00:00",
+      "iterations": 1,
+      "model_requests": 2,
+      "requested_models": [
+        "deepseek-flash"
+      ],
+      "returned_models": [
+        "deepseek-flash"
+      ],
+      "input_tokens": 4668,
+      "output_tokens": 2377,
+      "parallel_execution": [],
+      "shared_state_reads": [],
+      "independent_checks": {
+        "training_rows": 151,
+        "forecast_rows": 49,
+        "optimizer_steps_observed": 300,
+        "checkpoint_reproduces_forecasts": true,
+        "forecast_rmse": 0.17114420520682191,
+        "last_value_baseline_rmse": 1.0338467090576366,
+        "official_gt_mae_checked": false
+      },
+      "sandbox_images": [
+        "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588"
+      ],
+      "capture_family": "session",
+      "replay_family": "faas",
+      "official_pass": null,
+      "files": {
+        "trace.atg.json": "b0888556f05476a146ba148e6053c0e6c6bf0623e476099c668da31a5ecf3fcd",
+        "evaluation_alignment.json": "f23f78ae630f6801f8a294a12331c13062bdcf44059f96b4da357dd0db9d0e4f",
+        "result.json": "5693f2c58b43394f4ad64efd7ca01554cff5a33088292d34a4bac88113f75e22",
+        "provenance.json": "1ae87853ba8361c07195aabf556f6297ea43321de518614dde95c4344d7b4310",
+        "events.jsonl": "ebd5367b3060643d0994f3e06078e994187d500ddb49846ee69fa480ccf17036"
+      }
+    },
+    {
+      "task_id": "human_7",
+      "capture": "benchmarks/DataSciBench/trace/captured/human_7-33e3a31395704f0fa7ac2db44632258c",
+      "original_capture": "results/phase2/capture-six-cb07dfab67bf45c6ac2716bbb1e75618/human_7/capture",
+      "replay": "results/phase2/replay-new-cfee7d694c5a4150add9d297f4d7710c/human_7/replay",
+      "capture_utc": "2026-10-26T07:47:58.338826+00:00",
+      "iterations": 1,
+      "model_requests": 2,
+      "requested_models": [
+        "deepseek-flash"
+      ],
+      "returned_models": [
+        "deepseek-flash"
+      ],
+      "input_tokens": 8646,
+      "output_tokens": 5356,
+      "parallel_execution": [
+        {
+          "steps": [
+            "i0-viz",
+            "i0-mining"
+          ],
+          "seconds": 2.832500329008326,
+          "snapshot": 1
+        }
+      ],
+      "shared_state_reads": [
+        "i0-viz",
+        "i0-report"
+      ],
+      "independent_checks": {
+        "transactions": 40077,
+        "frequent_itemsets": 106,
+        "association_rules": 3,
+        "all_support_confidence_lift_recomputed": true,
+        "source_rows": 1067371,
+        "retained_rows": 1041670,
+        "total_revenue": 20972594.568000007,
+        "all_product_totals_recomputed": true,
+        "report": {
+          "pages": 4,
+          "text_characters": 3178
+        }
+      },
+      "sandbox_images": [
+        "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588"
+      ],
+      "capture_family": "session",
+      "replay_family": "faas",
+      "official_pass": null,
+      "files": {
+        "trace.atg.json": "183a3bd7b2a0d59e3a5dbd9a2a6f74fcb4d1b0d0c2b819fd5a8303b2b7a8bda2",
+        "evaluation_alignment.json": "f23f78ae630f6801f8a294a12331c13062bdcf44059f96b4da357dd0db9d0e4f",
+        "result.json": "c05953183a24327be66e33a6ec08137406707f619301a2f96b2fd4da1c85d02a",
+        "provenance.json": "ee28fb15ee3956907d0306f4489df42ed31be238e5a3602d0b0bcc09cae5b29d",
+        "events.jsonl": "e1f2b2174d63b82af06ab83def2469247b2dd7a44d9e2854621c7e0a53096a55"
+      }
+    }
+  ],
+  "validation": {
+    "regression_tests": 80,
+    "sandbox_security": "results/phase2/sandbox-security-13856b6a4d18492eb3309fb091b96f02.json",
+    "mcp_error_protocol": "results/phase2/mcp-error-check-789360e7cae54855a7ae5e0ef3411892/validation.json",
+    "incompatible_output_replay_aborted_before_merge": [
+      "results/phase2/98179485f5f041e88099143dcc827d70"
+    ],
+    "post_validation_source_sha256": {
+      "benchmarks/DataSciBench/langgraph_agent/validators.py": "c201cdd65711fda4e373b850647a00a459d60ebea8c2e580a6a53ddd038f5a32",
+      "benchmarks/DataSciBench/langgraph_agent/model_client.py": "547446e7cc5286350b3d1186a04dd92cc629ae6b60273f011bd0405dedc08183",
+      "benchmarks/DataSciBench/langgraph_agent/trace_replayer.py": "7e56209691ee7b1cf45861a56b9074131e7a50f5d2bbdc9f70b83740142a726d",
+      "benchmarks/DataSciBench/langgraph_agent/trace_recorder.py": "ef45cddf3f1ed1ed6780d61cf5bb45117b03cbd5ef26b57b66401ec7106f959e",
+      "benchmarks/DataSciBench/langgraph_agent/tool_client.py": "ff7d9164cdf1b39e994d8e30f2b333c34c779c184b7bc58180598980f2cd4ed6",
+      "benchmarks/DataSciBench/langgraph_agent/state.py": "6d93e207c303fa6224a35128c7d2e00a6a960db50ab08b3ce13f30667d9763a4",
+      "benchmarks/DataSciBench/langgraph_agent/graph.py": "e4e34df0dfe7fa4ceaa72a0e50f709bb929591e672cfddce4f791339981d17bb",
+      "benchmarks/DataSciBench/nodes/AgentTools/result_checks.py": "956d1fdac19932f442606fc2c2d3c1582083a5815ae2bafccd1c23df29dee2d2",
+      "benchmarks/DataSciBench/nodes/AgentTools/sandbox_worker.py": "1e51c60058c2fe595f5adb8cdce26035a14faaa92ad5ef234f9ac40f2bd8a983",
+      "benchmarks/DataSciBench/nodes/AgentTools/implementation.py": "a9fbe0d0864d95e7f7cd653efd46afcfb5c3bf75f75042a8fbd20ac19617487d",
+      "benchmarks/DataSciBench/nodes/AgentTools/guards.py": "b80a2ede47005e6423f5c156cee18fd10b2a0cfc60c9f4c1f4e29ebc3f59df0f",
+      "experiments/exp1/capture/capture_agent_traces.py": "63cbc979b62b1cf3d38c9e285c857f50eb289c3bcd10d1c29dcd82d5f86ed707",
+      "experiments/exp1/capture/local_tool_service.py": "19a407e4d97c7f5d830653380b68fa7838d0c8bc457f2d0f83008c2c0f19bed4"
+    },
+    "source_hash_scope": "Historical initial Phase 2 validation source, before the resident-kernel change; not capture-time hashes. Current residency validation is linked separately."
+  },
+  "resident_kernel_validation": {
+    "summary": "results/phase2/resident-replays-0d6f96a178b941bc8af4d27bf13983d1/lifecycle_summary.json",
+    "image": "sha256:62e2b7e98e29e6bb21357787dff0c7bbedd49c3331ab174dac294c7df658e14b",
+    "scope": "post-change actual Tool replays, not a new model capture or cloud deployment"
+  },
+  "additional_capture_validation": {
+    "summary": "results/phase2/capture-six-validation.json",
+    "tasks": [
+      "human_142",
+      "csv_excel_29",
+      "human_7"
+    ],
+    "image": "sha256:c11ba32bbcd3cd398de643553593ac127833419743e3e5cb5eeb992a34796588",
+    "regression_tests": 82,
+    "scope": "post-residency real Capture and actual cross-runtime Replay; official score unclaimed; original evidence and failed attempts retained"
+  }
+}
