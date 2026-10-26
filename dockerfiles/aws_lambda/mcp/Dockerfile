@@ -14,7 +14,7 @@ ARG ATSUITE_SYSTEM_PACKAGES=""
 ENV PROVIDER=${PROVIDER}
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
-ENV PROJECT="atsuite"
+ENV PROJECT="uaibs"
 
 # 安装 AWS Lambda Web Adapter
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter

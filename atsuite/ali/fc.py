@@ -45,8 +45,8 @@ class AliFC(FunctionBase):
     def deploy(self) -> str:
         image_addr = self.push_image(self.tag)
         sls = AliSLS(
-            project='atsuite',
-            location='us-east-1'
+            project=os.environ.get("ATSUITE_ALI_SLS_PROJECT", "atsuite"),
+            location=os.environ.get("ATSUITE_ALI_SLS_LOCATION", "us-east-1")
         )
         sls.create_project()
         sls.create_logstore(self.function_name)
@@ -87,7 +87,7 @@ class AliFC(FunctionBase):
             enable_instance_metrics=True,
             enable_request_metrics=True,
             logstore=self.function_name,
-            project='atsuite'
+            project=os.environ.get("ATSUITE_ALI_SLS_PROJECT", "atsuite")
         )
         if self.typ == "mcp":
             # self.cpu = max(2, self.cpu)

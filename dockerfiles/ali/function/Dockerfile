@@ -16,7 +16,7 @@ ENV PATH=/usr/sbin:$PATH
 ENV PYTHONUSERBASE=/app/.python_user
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
-ENV PROJECT="atsuite11"
+ENV PROJECT="wabber"
 
 RUN set -eux; \
     if [ -n "${ATSUITE_SYSTEM_PACKAGES}" ]; then \

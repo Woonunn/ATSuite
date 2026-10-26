@@ -24,9 +24,8 @@ from atsuite.utils import (
     _create_scaling_configs,
     cleaner,
     parse_arguments,
+    state_bucket_for_provider,
 )
-
-BUCKET_NAME = "atsuite"
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
@@ -421,6 +420,7 @@ def _run_trace(
     with config_path.open("r", encoding="utf-8") as f:
         config = json.load(f)
     selected_trace_file = trace_file if trace_file is not None else config.get("trace_file", "")
+    bucket_name = state_bucket_for_provider(provider)
 
     if url_map.get("provider") and url_map["provider"] != provider:
         raise SystemExit(f"URL map provider {url_map['provider']} does not match CLI provider {provider}")
@@ -435,6 +435,7 @@ def _run_trace(
             provider=provider,
             uid=uid,
             state_snapshot_bundle=state_snapshot_bundle,
+            bucket=bucket_name,
         )
     )
 
@@ -504,7 +505,7 @@ def _run_trace(
             cleanup_started_at = time.time()
             size = cleaner(
                 provider,
-                BUCKET_NAME,
+                bucket_name,
                 toclean,
                 uid,
                 url_map=url_map,
@@ -520,7 +521,7 @@ def _run_trace(
                     operation_count=stateful_tool_num[0] + len(toclean),
                     started_at=cleanup_started_at,
                     ended_at=time.time(),
-                    metadata={"bucket": BUCKET_NAME},
+                    metadata={"bucket": bucket_name},
                 )
 
             if resolved.family == "session" and provider == "ali_agentrun" and not skip_scaling_config:

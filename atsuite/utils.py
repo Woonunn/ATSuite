@@ -4,6 +4,8 @@ import json
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 OUT_DIR = Path("url_results")
 
 
@@ -54,6 +56,18 @@ def parse_arguments(input, uid: str) -> dict:
     return out
 
 
+def state_bucket_for_provider(provider: str) -> str:
+    load_dotenv()
+    buckets = json.loads(os.environ.get("ATSUITE_STATE_BUCKETS", "{}"))
+    if not isinstance(buckets, dict):
+        raise ValueError("ATSUITE_STATE_BUCKETS must be a JSON object")
+    default = "atsuite11" if normalize_provider_storage(provider) == "ali" else "atsuite"
+    bucket = buckets.get(provider, default)
+    if not isinstance(bucket, str) or not bucket.strip():
+        raise ValueError(f"State bucket for {provider} must be a nonempty string")
+    return bucket
+
+
 def cleaner(
     provider: str,
     bucket_name: str,
@@ -66,7 +80,6 @@ def cleaner(
     provider = normalize_provider_storage(provider)
     size = 0.0
     if provider == "ali":
-        bucket_name = "atsuite11"
         from atsuite.ali.oss import AliOSS
         oss = AliOSS(bucket_name)
         for service_name in toclean:

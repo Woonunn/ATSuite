@@ -73,6 +73,10 @@ Important methods:
 
 `AliSLS` wraps Alibaba Cloud Log Service operations used for provider-side evidence collection.
 
+FC deployment and analysis use `ATSUITE_ALI_SLS_PROJECT` (default: `atsuite`) and `ATSUITE_ALI_SLS_LOCATION` (default: `us-east-1`). Wabber configures the project as `wabber` in `.env`. SLS project names must be lowercase.
+
+Wabber uses a private Standard OSS bucket named `wabber` in `us-east-1`. Both Alibaba Cloud Dockerfiles set `PROJECT=wabber` for state storage. Rebuild the images to apply this setting; existing deployments and the old `atsuite11` bucket are unchanged. Host-side snapshot seeding and cleanup select buckets using `ATSUITE_STATE_BUCKETS`; Wabber maps `ali_fc` and `ali_agentrun` to `wabber`, and AWS providers to `uaibs`. Keep these mappings consistent with each container's `PROJECT`.
+
 Important methods:
 
 - `create_project()`

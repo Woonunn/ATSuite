@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
+from atsuite.utils import state_bucket_for_provider
+
 
 RESERVED_STATE_SNAPSHOT_ARG = "__atsuite_state_snapshot"
 
@@ -58,7 +60,7 @@ def seed_lambda_state_snapshot_for_uid(
     provider: str,
     uid: str,
     state_snapshot_bundle: Optional[Dict[str, Any]],
-    bucket: str = "atsuite",
+    bucket: str | None = None,
     s3_client: Any = None,
 ) -> Set[str]:
     if provider != "aws_lambda":
@@ -70,6 +72,7 @@ def seed_lambda_state_snapshot_for_uid(
     if not isinstance(services, dict) or not services:
         return set()
 
+    bucket = bucket if bucket is not None else state_bucket_for_provider(provider)
     client = s3_client
     if client is None:
         import boto3
@@ -99,7 +102,7 @@ def seed_alifc_state_snapshot_for_uid(
     provider: str,
     uid: str,
     state_snapshot_bundle: Optional[Dict[str, Any]],
-    bucket: str = "atsuite11",
+    bucket: str | None = None,
     client: Any = None,
 ) -> Set[str]:
     if provider != "ali_fc":
@@ -111,7 +114,7 @@ def seed_alifc_state_snapshot_for_uid(
     if not isinstance(services, dict) or not services:
         return set()
 
-    client = client
+    bucket = bucket if bucket is not None else state_bucket_for_provider(provider)
     if client is None:
         from atsuite.ali.oss import AliOSS
 
