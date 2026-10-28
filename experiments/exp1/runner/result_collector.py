@@ -52,7 +52,7 @@ def request_metrics(row,terminal,directory):
     status=terminal['status']
     if status=='failed' and any(e.get('transport',{}).get('status')=='timeout' for e in tools):status='timeout'
     return {**row,'status':status,'request_arrival_utc':terminal.get('planned_arrival_utc'),'request_start_utc':terminal.get('harness_started_utc'),
-        'request_end_utc':terminal.get('completed_utc'),'end_to_end_ms':(end-arrival)/1e6 if end is not None and arrival is not None else None,
+        'request_end_utc':terminal.get('completed_utc'),'end_to_end_ms':(end-arrival)/1e6 if end is not None and arrival is not None and submitted is not None else None,
         'harness_latency_ms':(end-start)/1e6 if end is not None and start is not None else None,
         'harness_queue_ms':(start-submitted)/1e6 if start is not None and submitted is not None else None,
         'active_tool_path_ms':interval_union(client) if client else None,
@@ -69,8 +69,17 @@ def request_metrics(row,terminal,directory):
         'error':terminal.get('error'),'graph_error':next((e.get('error') for e in reversed(events) if e['kind']=='run_error'),None)}
 
 
+def workload_manifest(info):
+    """Resolve the recorded workload after repository relocation."""
+    path=Path(info['workload'])
+    if not path.exists():path=ROOT/'results/phase4'/path.name
+    manifest=json.loads((path/'manifest.json').read_text())
+    if manifest['request_table_sha256']!=info['request_table_sha256']:raise ValueError('Run workload request table differs from its recorded manifest')
+    return manifest
+
+
 def collect_local(run):
-    run=Path(run);info=json.loads((run/'run.json').read_text());workload=json.loads((Path(info['workload'])/'manifest.json').read_text())
+    run=Path(run);info=json.loads((run/'run.json').read_text());workload=workload_manifest(info)
     rows=list(csv.DictReader((run/'planned_requests.csv').open()));events=read_events(run/'schedule/events.jsonl')
     terminal_rows=[e for e in events if e['kind']=='request_terminal']
     terminals={e['arrival_id']:e for e in terminal_rows}
@@ -82,7 +91,7 @@ def collect_local(run):
     summary={'provider':info['provider'],'pilot':info['pilot'],'sequence_seed':info['sequence_seed'],'window_role':info['window_role'],
         'request_table_sha256':info['request_table_sha256'],'planned_requests_sha256':sha(run/'planned_requests.csv'),'requests':n,'successes':len(success),'success_rate':len(success)/n if n else None,
         'slo_ms':slo,'slo_attainment':sum(r['end_to_end_ms']<=slo for r in success)/n if n else None,
-        'latency_ms_success_only':stats([r['end_to_end_ms'] for r in success]),'end_to_end_ms_all_terminal':stats([r['end_to_end_ms'] for r in records]),
+        'latency_ms_success_only':stats([r['end_to_end_ms'] for r in success]),'end_to_end_ms_all_terminal':stats([r['end_to_end_ms'] for r in records if r['end_to_end_ms'] is not None]),
         'arrival_rate_per_s':n/(float(info['duration_ms'])/1000),'window_duration_ms':info['duration_ms'],
         'completion_throughput_per_s':None,'observed_window_goodput_per_s':None,
         'active_tool_path_ms':stats([r['active_tool_path_ms'] for r in success if r['active_tool_path_ms'] is not None]),
@@ -91,9 +100,11 @@ def collect_local(run):
         'metric_coverage':{key:sum(r[key] is not None for r in records) for key in ('peak_memory_bytes','worker_peak_rss_bytes','worker_cpu_seconds','cold_start','state_synchronization_ms','provider_queue_ms','tool_parallelism')},
         'cost_note':'No missing metrics or absent bill lines are replaced with zero. Tool usage is not an invoice.'}
     schedule=json.loads((run/'schedule/summary.json').read_text());summary['completion_throughput_per_s']=len(success)/(schedule['actual_total_ms']/1000)
-    window_end=next(e['logged_monotonic_ns'] for e in events if e['kind']=='arrival_window_closed')
-    completed_in_window=sum(1 for r in success if terminals[r['arrival_id']]['completed_monotonic_ns']<=window_end)
-    summary['observed_window_goodput_per_s']=completed_in_window/(float(info['duration_ms'])/1000)
+    summary['scheduler_status']=schedule['status']
+    window_end=next((e['logged_monotonic_ns'] for e in events if e['kind']=='arrival_window_closed'),None)
+    if window_end is not None:
+        completed_in_window=sum(1 for r in success if terminals[r['arrival_id']]['completed_monotonic_ns']<=window_end)
+        summary['observed_window_goodput_per_s']=completed_in_window/(float(info['duration_ms'])/1000)
     with (run/'request_metrics.jsonl').open('w') as f:
         for record in records:f.write(json.dumps(record,allow_nan=False)+'\n')
     (run/'window_report.json').write_text(json.dumps(summary,indent=2,allow_nan=False)+'\n');return summary
@@ -104,7 +115,7 @@ def provider_observations(run):
     endpoint_map=json.loads((ROOT/'url_results'/Path(entry['config']).name).read_text());target_id,target=next(iter(endpoint_map['targets'].items()))
     observability={'aws_lambda':'aws_lambda_cloudwatch','aws_agentcore':'aws_agentcore_cloudwatch','ali_fc':'ali_sls','ali_agentrun':'ali_sls'}[provider]
     schedule=read_events(run/'schedule/events.jsonl');end=max(e['logged_utc'] for e in schedule)
-    context=RunContext(uid=run.name,provider=provider,observability_provider=observability,benchmark='DataSciBench',trace=json.loads((Path(info['workload'])/'manifest.json').read_text())['task_id'],family=target['family'],
+    context=RunContext(uid=run.name,provider=provider,observability_provider=observability,benchmark='DataSciBench',trace=workload_manifest(info)['task_id'],family=target['family'],
         config_path=entry['config'],run_id=run.name,start_time=info['started_epoch'],end_time=datetime.fromisoformat(end.replace('Z','+00:00')).timestamp(),
         targets={target_id:{'name':actual['runtime_name'],'runtime':target['resources']}},endpoint_map=endpoint_map)
     nodes={};invocations=[];sessions=[];index=0

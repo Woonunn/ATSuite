@@ -106,6 +106,23 @@ class ExtractionTests(unittest.TestCase):
             self.assertEqual([r.relative_arrival_ms for r in result],['0.000000','299123.456789','300000.000000'])
 
 
+    def test_relocated_arrivals_keep_the_sealed_hash_and_original_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);traffic=root/'traffic';traffic.mkdir();data=root/'arrivals-v1/arrivals.csv';data.parent.mkdir()
+            stamp='2026-06-01T00:00:00Z';row={'arrival_id':'a','relative_arrival_ms':'0','original_timestamp_utc':stamp,
+                'source_partition':'fixture','source_type':'synthetic_test_fixture','window_id':window_id(timestamp_ns(stamp))}
+            with data.open('w',newline='') as target:
+                writer=csv.DictWriter(target,fieldnames=list(row));writer.writeheader();writer.writerow(row)
+            summary=traffic/'traffic_summary.json';summary.write_text(json.dumps({'selected_windows':{'high':{
+                'window_id':window_id(timestamp_ns(stamp),10),'start_utc':stamp,'duration_ms':600000}},
+                'arrivals_path':'/missing-old-host/results/phase3/arrivals-v1/arrivals.csv',
+                'arrivals_sha256':hashlib.sha256(data.read_bytes()).hexdigest(),'origin_timestamp_utc':stamp,
+                'selection_policy_sha256':'fixture'}));original=summary.read_bytes()
+            result,_=load_span(traffic,'high',0,600000);self.assertEqual([r.arrival_id for r in result],['a'])
+            self.assertEqual(summary.read_bytes(),original)
+            data.write_text('changed')
+            with self.assertRaises(ValueError):load_span(traffic,'high',0,600000)
+
     def test_changed_shard_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);cfg=load_config();cfg['expected_dates']=['2026-06-01']

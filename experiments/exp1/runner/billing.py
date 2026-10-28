@@ -13,7 +13,9 @@ def fetch_aws(day,output):
     response=boto3.client('ce',region_name='us-east-1').get_cost_and_usage(
         TimePeriod={'Start':str(date),'End':str(date+timedelta(days=1))},Granularity='DAILY',
         Metrics=['UnblendedCost','UsageQuantity'],GroupBy=[{'Type':'DIMENSION','Key':'SERVICE'}])
-    result={'basis':'actual_vendor_billing','scope':'account-wide daily service totals; not attributable to an E1-A window',
+    periods=response.get('ResultsByTime',[])
+    estimated=not periods or any(period.get('Estimated') is not False for period in periods)
+    result={'basis':'vendor_estimated_billing' if estimated else 'actual_vendor_billing','scope':'account-wide daily service totals; not attributable to an E1-A window',
             'attribution_status':'unallocated','queried_utc':datetime.now(timezone.utc).isoformat(),'raw':response}
     Path(output).write_text(json.dumps(result,indent=2,default=str)+'\n');return result
 

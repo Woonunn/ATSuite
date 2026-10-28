@@ -35,11 +35,11 @@ slo_ms: 120000
 pilot_requests: 3
 budget:
   ali_cny: 15
-  aws_cny: 30
-  aws_usd_admission_cap: 4.49
+  aws_cny: 33
+  aws_usd_admission_cap: 4.94
   reserve_fraction: 0.1
-  note: 'User-approved total caps: Alibaba CNY15, AWS CNY30 including all Pilots and
-    ancillary charges. AWS USD ceiling uses the frozen ECB reference, not a bank transaction
+  note: 'User-approved cumulative caps: AWS CNY33, Alibaba CNY15; includes all previous
+    Pilot/diagnostic and ancillary costs. Frozen FX reference; not a bank transaction
     rate.'
   include:
   - pilot

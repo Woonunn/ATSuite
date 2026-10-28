@@ -177,7 +177,8 @@ def serve(config_path):
         try:os.write(wake_write,b'1')
         except BlockingIOError:pass
     signal.signal(signal.SIGCHLD,notify)
-    (root/'ready').write_text(json.dumps({'pid':os.getpid(),'landlock_abi':abi}))
+    ready=root/'ready.tmp';ready.write_text(json.dumps({'pid':os.getpid(),'landlock_abi':abi}))
+    ready.replace(root/'ready')
     while True:
         for child in list(children):
             pid, _ = os.waitpid(child, os.WNOHANG)

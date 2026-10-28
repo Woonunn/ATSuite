@@ -16,6 +16,7 @@ def load_span(traffic,role,offset_ms,duration_ms):
     start=ms_ns(offset_ms);duration=ms_ns(duration_ms)
     if start+duration>ms_ns(window['duration_ms']):raise ValueError('Validation slice exceeds selected window')
     path=Path(summary['arrivals_path'])
+    if path.is_absolute() and not path.exists():path=traffic.parent/path.parent.name/path.name
     if sha(path)!=summary['arrivals_sha256']:raise ValueError('Source arrival checksum changed')
     window_offset=timestamp_ns(window['start_utc'])-timestamp_ns(summary['origin_timestamp_utc']);begin=window_offset+start
     result=[]

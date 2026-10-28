@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
 STYLE={'aws_lambda':('AWS Lambda','#0072B2','o'),'aws_agentcore':('AWS AgentCore','#56B4E9','s'),
-       'ali_fc':('Alibaba FC','#009E73','^'),'ali_agentrun':('Alibaba Session MCP','#D55E00','D')}
+       'ali_fc':('Alibaba FC','#009E73','^'),'ali_agentrun':('Alibaba AgentRun','#D55E00','D')}
 ROLES=('low','typical','high')
 
 
@@ -23,7 +23,7 @@ def plot(source,output):
         'ps.fonttype':42,'axes.spines.top':False,'axes.spines.right':False,'savefig.dpi':360})
     pilot=reports[0]['pilot'];title='Pilot: '+ 'Fixed-Workload Traffic Sensitivity' if pilot else 'E1-A: Fixed-Workload Traffic Sensitivity'
     fig,axes=plt.subplots(1,3,figsize=(11.4,3.25));fig.subplots_adjust(left=.07,right=.99,bottom=.26,top=.78,wspace=.32)
-    measures=[('latency_ms_success_only','p95','P95 end-to-end latency (s)',.001),('total_cost_cny',None,'Actual cost per successful task (CNY)',1),('slo_attainment',None,'Requests meeting the SLO (%)',100)]
+    measures=[('latency_ms_success_only','p95','P95 successful-task latency (s)',.001),('total_cost_cny',None,'Actual cost per successful task (CNY)',1),('slo_attainment',None,'Requests meeting the SLO (%)',100)]
     handles=[]
     for provider,(label,color,marker) in STYLE.items():
         rows=sorted([r for r in reports if r['provider']==provider],key=lambda r:r['arrival_rate_per_s'])
@@ -58,7 +58,7 @@ def plot(source,output):
             label,color,marker=STYLE[r['provider']];ax.scatter(r['total_cost_cny']/r['successes'],latency/1000,c=color,marker=marker,s=48,edgecolor='white',linewidth=.6);count+=1
         if not count:ax.text(.5,.5,'Awaiting paired latency\nand complete billing',transform=ax.transAxes,ha='center',va='center',color='#667085')
         ax.set_xlabel('Actual cost / successful task (CNY)');ax.grid(color='#D8DDE4',linewidth=.55);ax.set_axisbelow(True)
-    axes[0].set_ylabel('P95 end-to-end latency (s)');fig.suptitle(('Pilot: ' if pilot else 'E1-A: ')+'Cost–Latency Trade-offs Across Traffic Windows',fontsize=14,fontweight='bold',y=.98)
+    axes[0].set_ylabel('P95 successful-task latency (s)');fig.suptitle(('Pilot: ' if pilot else 'E1-A: ')+'Cost–Latency Trade-offs Across Traffic Windows',fontsize=14,fontweight='bold',y=.98)
     fig.text(.5,.015,'Optimality requires success ≥ 99% and SLO attainment ≥ 95%; absent cost evidence is never plotted as zero.',ha='center',fontsize=9,color='#667085')
     for extension in ('png','pdf'):fig.savefig(output/('e1a_cost_latency.'+extension))
     plt.close(fig)

@@ -1,5 +1,6 @@
 """Synthetic contract tests; no fixture bill or timing is a cloud measurement."""
 import copy
+import asyncio
 import json
 from pathlib import Path
 import tempfile
@@ -12,6 +13,18 @@ from experiments.exp1.data.prepare_e1a import sha
 
 
 class MetricsTests(unittest.TestCase):
+    def test_relocated_workload_must_match_the_recorded_request_table(self):
+        from unittest.mock import patch
+        from experiments.exp1.runner import result_collector
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);path=root/'results/phase4/workload';path.mkdir(parents=True)
+            manifest=path/'manifest.json';manifest.write_text(json.dumps({'request_table_sha256':'expected'}))
+            info={'workload':'/missing-old-host/results/phase4/workload','request_table_sha256':'expected'}
+            with patch.object(result_collector,'ROOT',root):
+                self.assertEqual(result_collector.workload_manifest(info)['request_table_sha256'],'expected')
+                manifest.write_text(json.dumps({'request_table_sha256':'other'}))
+                with self.assertRaises(ValueError):result_collector.workload_manifest(info)
+
     def test_overlapping_path_is_not_sum_of_parallel_work(self):
         self.assertEqual(interval_union([(0,4),(1,5),(8,9)]),6)
         self.assertEqual(parallel_peak([(0,4),(1,5),(5,8)]),2)
@@ -25,6 +38,29 @@ class MetricsTests(unittest.TestCase):
             metrics=request_metrics({'arrival_id':'a'},terminal,Path(temporary))
             self.assertEqual(metrics['end_to_end_ms'],20)
             self.assertIsNone(metrics['tool_execution_ms']);self.assertIsNone(metrics['cold_start']);self.assertIsNone(metrics['cost_breakdown'])
+
+    def test_unsubmitted_cancelled_request_has_no_latency(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            metrics=request_metrics({'arrival_id':'a'},{'status':'cancelled','completed_monotonic_ns':10,
+                'planned_arrival_monotonic_ns':100,'submitted_monotonic_ns':None},Path(temporary))
+            self.assertIsNone(metrics['end_to_end_ms'])
+
+    def test_interrupted_window_can_be_collected_before_arrivals_close(self):
+        from experiments.exp1.runner.result_collector import collect_local
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);run=root/'run';(run/'schedule').mkdir(parents=True)
+            (root/'manifest.json').write_text(json.dumps({'config':{'slo_ms':120000},'request_table_sha256':'fixture'}))
+            (run/'run.json').write_text(json.dumps({'workload':str(root),'provider':'aws_lambda','pilot':False,
+                'sequence_seed':11,'window_role':'low','request_table_sha256':'fixture','duration_ms':'600000'}))
+            (run/'planned_requests.csv').write_text('arrival_id\na\n')
+            (run/'schedule/summary.json').write_text(json.dumps({'status':'failed','actual_total_ms':10}))
+            (run/'schedule/events.jsonl').write_text(json.dumps({'kind':'request_terminal','arrival_id':'a',
+                'status':'cancelled','planned_arrival_monotonic_ns':100,'completed_monotonic_ns':10,
+                'submitted_monotonic_ns':None})+'\n')
+            report=collect_local(run)
+            self.assertEqual(report['scheduler_status'],'failed');self.assertEqual(report['successes'],0)
+            self.assertIsNone(report['observed_window_goodput_per_s'])
+            self.assertEqual(report['end_to_end_ms_all_terminal']['count'],0)
 
     def test_files_allow_immutable_aliases_and_reject_other_links(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -65,6 +101,117 @@ class BudgetTests(unittest.TestCase):
             with self.assertRaises(ValueError):reserve_budget(ledger,config,'aws_lambda','one',.01,'test fixture reservation')
             reserve_budget(ledger,config,'ali_fc','four',1,'test fixture reservation')
             self.assertEqual(len(json.loads(ledger.read_text())['reservations']),3)
+
+
+class BillingSnapshotTests(unittest.TestCase):
+    def test_cost_explorer_estimates_and_missing_flags_are_not_actual_bills(self):
+        from unittest.mock import Mock,patch
+        from experiments.exp1.runner.billing import fetch_aws
+        for periods,expected in [([{'Estimated':True}],'vendor_estimated_billing'),
+                                 ([{}],'vendor_estimated_billing'),([], 'vendor_estimated_billing'),
+                                 ([{'Estimated':False}],'actual_vendor_billing')]:
+            with self.subTest(periods=periods),tempfile.TemporaryDirectory() as temporary:
+                client=Mock();client.get_cost_and_usage.return_value={'ResultsByTime':periods}
+                with patch('boto3.client',return_value=client):
+                    result=fetch_aws('2026-10-28',Path(temporary)/'snapshot.json')
+                self.assertEqual(result['basis'],expected)
+                self.assertEqual(result['attribution_status'],'unallocated')
+
+
+class NativeReadyTests(unittest.TestCase):
+    def test_ready_marker_is_invisible_until_its_json_is_complete(self):
+        import os
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock,patch
+        from benchmarks.DataSciBench.nodes.AgentTools import native_kernel as kernel
+        class StopWorker(Exception):pass
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);(root/'queue').mkdir();wake_read,wake_write=os.pipe()
+            config=root/'config.json';config.write_text(json.dumps({'root':str(root),'inputs':str(root),
+                'workspace':str(root),'confinement':'frozen_trace','process_isolation':'nested_seccomp',
+                'memory_mb':3072,'wake_read':wake_read,'wake_write':wake_write}))
+            write=Path.write_text;observed=[]
+            def interrupted_write(path,text,*args,**kwargs):
+                if path.name in ('ready','ready.tmp'):
+                    with path.open('w') as target:
+                        observed.append((root/'ready').exists())
+                        target.write(text)
+                    return len(text)
+                return write(path,text,*args,**kwargs)
+            def stopped(*args):
+                self.assertEqual(json.loads((root/'ready').read_text()),{'pid':os.getpid(),'landlock_abi':1})
+                raise StopWorker
+            modules={'sklearn':SimpleNamespace(cluster=Mock(),ensemble=Mock()),
+                'sklearn.utils.fixes':SimpleNamespace(_get_threadpool_controller=Mock()),
+                'sandbox_worker':SimpleNamespace(run=Mock())}
+            try:
+                with patch.dict(sys.modules,modules),patch.object(sys,'path',sys.path.copy()), \
+                     patch.object(kernel,'restrict_process',return_value=1), \
+                     patch.object(kernel.resource,'setrlimit'),patch.object(kernel.signal,'signal'), \
+                     patch.object(kernel.select,'select',side_effect=stopped), \
+                     patch.object(Path,'write_text',interrupted_write):
+                    with self.assertRaises(StopWorker):kernel.serve(config)
+                self.assertEqual(observed,[False])
+            finally:os.close(wake_read);os.close(wake_write)
+
+
+class MatrixInterruptionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cancel_or_aborted_window_never_starts_next_provider(self):
+        from unittest.mock import AsyncMock,patch
+        from experiments.exp1.runner import run_e1a
+        for outcome in (asyncio.CancelledError(),{'status':'failed'}):
+            with self.subTest(outcome=outcome),tempfile.TemporaryDirectory() as temporary:
+                root=Path(temporary);work=root/'work';work.mkdir();(work/'requests.csv').write_text('fixture')
+                (work/'manifest.json').write_text(json.dumps({'config':{'sequence_seeds':[11]},
+                    'request_table_sha256':sha(work/'requests.csv'),'groups':[
+                        {'sequence_seed':11,'window_role':role,'provider_order':['aws_lambda','aws_agentcore']}
+                        for role in ('low','typical','high')]}))
+                execute=AsyncMock(side_effect=outcome) if isinstance(outcome,BaseException) else AsyncMock(return_value=outcome)
+                with patch.object(run_e1a,'execute',execute),patch.object(run_e1a,'collect_local') as collect:
+                    with self.assertRaises((asyncio.CancelledError,RuntimeError)):
+                        await run_e1a.run(work,'unused',root/'output')
+                execute.assert_awaited_once();collect.assert_not_called()
+                matrix=json.loads((root/'output/matrix.json').read_text())
+                self.assertIn(matrix['status'],('interrupted','failed'))
+                self.assertTrue(all(g['status']=='not_started' for g in matrix['groups'][1:]))
+
+    async def test_sigterm_records_all_terminals_and_stops_matrix(self):
+        import signal
+        import sys
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);work=root/'work';work.mkdir();(work/'requests.csv').write_text('fixture')
+            (work/'manifest.json').write_text(json.dumps({'config':{'sequence_seeds':[11]},
+                'request_table_sha256':sha(work/'requests.csv'),'groups':[
+                    {'sequence_seed':11,'window_role':'low','provider_order':['aws_lambda','aws_agentcore']}]}))
+            script='''
+import asyncio,sys
+from pathlib import Path
+from types import SimpleNamespace
+from experiments.exp1.runner import run_e1a
+from experiments.exp1.runner.arrival_scheduler import Arrival,run_open_loop
+async def execute(workload,deployment,provider,seed,role,output,**kwargs):
+    Path(output).mkdir()
+    async def handler(arrival,started):
+        started();print('ready',flush=True);await asyncio.Event().wait()
+    arrivals=[Arrival(str(i),str(offset),'fixture','fixture','fixture','fixture') for i,offset in enumerate([0,5000])]
+    return await run_open_loop(arrivals,handler,Path(output)/'schedule',duration_ms=6000)
+run_e1a.execute=execute
+asyncio.run(run_e1a.main(SimpleNamespace(workload=Path(sys.argv[1]),deployment='unused',output=Path(sys.argv[2]),pilot=False,admission=None)))
+'''
+            process=await asyncio.create_subprocess_exec(sys.executable,'-c',script,str(work),str(root/'output'),
+                stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+            try:
+                self.assertEqual(await asyncio.wait_for(process.stdout.readline(),15),b'ready\n')
+                process.send_signal(signal.SIGTERM)
+                await asyncio.wait_for(process.communicate(),10)
+            finally:
+                if process.returncode is None:process.kill();await process.wait()
+            matrix=json.loads((root/'output/matrix.json').read_text())
+            self.assertEqual(matrix['status'],'interrupted');self.assertEqual(matrix['groups'][1]['status'],'not_started')
+            summary=json.loads((root/'output/11-low-aws_lambda/schedule/summary.json').read_text())
+            self.assertEqual(summary['terminal_counts'],{'cancelled':2});self.assertEqual(summary['submitted'],1)
+            self.assertEqual(summary['unaccounted_requests'],0)
 
 
 def report(provider,cost=None):
