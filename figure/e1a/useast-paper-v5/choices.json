@@ -1,0 +1,20 @@
+{
+  "choices": {
+    "low": {
+      "observed_p95_minimum": "aws_agentcore",
+      "minimum_budget_forecast": "aws_lambda",
+      "actual_cost_minimum": null
+    },
+    "typical": {
+      "observed_p95_minimum": "aws_agentcore",
+      "minimum_budget_forecast": "aws_lambda",
+      "actual_cost_minimum": null
+    },
+    "high": {
+      "observed_p95_minimum": "aws_lambda",
+      "minimum_budget_forecast": "ali_fc",
+      "actual_cost_minimum": null
+    }
+  },
+  "actual_cost_optimum": "unidentified; complete allocated billing unavailable"
+}

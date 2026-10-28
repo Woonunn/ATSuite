@@ -1,0 +1,91 @@
+{
+  "lambda_latency": {
+    "observations": [
+      {
+        "window": "low",
+        "tasks": 53,
+        "tasks_with_any_cold_tool_call": 7,
+        "cold_task_fraction": 0.1320754716981132,
+        "overall_p95_s": 17.8465341134,
+        "warm_only_p95_s": 15.050761415499998,
+        "cold_only_p95_s": 18.423243105199997,
+        "min_cold_latency_s": 16.285678485000002,
+        "max_warm_latency_s": 15.134691360000001,
+        "state_sync_mean_ms": 637.875962264151
+      },
+      {
+        "window": "typical",
+        "tasks": 191,
+        "tasks_with_any_cold_tool_call": 13,
+        "cold_task_fraction": 0.06806282722513089,
+        "overall_p95_s": 17.5477842435,
+        "warm_only_p95_s": 15.32010350795,
+        "cold_only_p95_s": 20.41415110339999,
+        "min_cold_latency_s": 17.461605977999998,
+        "max_warm_latency_s": 15.817677153,
+        "state_sync_mean_ms": 627.2264083769634
+      },
+      {
+        "window": "high",
+        "tasks": 478,
+        "tasks_with_any_cold_tool_call": 21,
+        "cold_task_fraction": 0.043933054393305436,
+        "overall_p95_s": 16.068465041299998,
+        "warm_only_p95_s": 15.835820167000001,
+        "cold_only_p95_s": 22.221389907,
+        "min_cold_latency_s": 17.264234251,
+        "max_warm_latency_s": 16.226042442,
+        "state_sync_mean_ms": 643.5113974895397
+      }
+    ],
+    "source_sha256": {
+      "results/phase4/e1a-formal-useast-seed11-v1/11-low-aws_lambda/request_metrics.jsonl": "35c137a1a60a73e1811f5567a66f7a5b32e76fa2b474d77fa98e9da83c4ef835",
+      "results/phase4/e1a-formal-useast-seed11-v1/11-typical-aws_lambda/request_metrics.jsonl": "ecd6a0285196bb2d9ed241a00d03675bc14adb81a3ab3dabd531673a9853f880",
+      "results/phase4/e1a-formal-useast-seed11-v1/11-high-aws_lambda/request_metrics.jsonl": "37dcef12d3a7e56a8787dbe3d28cc5fb3e2a6e063a1d87b438126c4e62868d26"
+    },
+    "interpretation": "Every cold-containing task is slower than every all-warm task in each window. Cold-containing fractions cross below 5% at high load, moving the overall p95 into the warm population. Warm-only p95 rises with offered load. This does not establish a general speedup from higher load.",
+    "cold_definition": "At least one of the seven real Tool invocations has a provider-reported cold start.",
+    "official_environment_reference": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html"
+  },
+  "cost_axis": {
+    "formula": "1000 * pre-run window budget reservation in CNY / observed successful agent tasks",
+    "actual_bill": false,
+    "example_high_ali_fc": {
+      "reserved_cny": "2.166560",
+      "successful_tasks": 478,
+      "reserved_cny_per_1000_successes": 4.5325523012552305
+    },
+    "storage_coverage": "Actual state load/save time is part of FaaS execution timing. Extra object-storage capacity/request/transfer fees are not separately metered or line-priced; only shared ancillary planning allowances are included.",
+    "ancillary_allowances": {
+      "per_task_aws_usd": 0.0001,
+      "per_window_aws_usd": 0.01,
+      "per_task_ali_cny": 0.0001,
+      "per_window_ali_cny": 0.01
+    },
+    "sources": {
+      "calibration": "experiments/exp1/runner/calibrate_e1a.py",
+      "rates": "results/phase4/planning-rates-v1.json",
+      "admission": "results/phase4/admission-useast-v1.json"
+    }
+  },
+  "input_data": {
+    "file": "data_pums_2000.csv",
+    "bytes": 1495949,
+    "MB": 1.495949,
+    "MiB": 1.4266481399536133,
+    "rows": 170669,
+    "columns": [
+      "AGE",
+      "INCTOT"
+    ],
+    "sha256": "1ecd8561b89d3091339943e2392d9b79293d98b77154b47260e7de9bfb393096",
+    "input_delivery": "Preloaded in the audited cloud images; no per-request internet dataset download.",
+    "capture_cleaned_csv_bytes": 2479887,
+    "actual_per_task_object_store_transfer_bytes": null,
+    "note": "Input file size is not the serialized snapshot or total S3/OSS read/write volume."
+  },
+  "display_label": {
+    "ali_agentrun": "Alibaba AgentRun",
+    "implementation": "Existing FC Session-exclusive MCP adapter used in this experiment; separate AgentRun API not tested."
+  }
+}

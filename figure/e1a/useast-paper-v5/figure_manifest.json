@@ -1,0 +1,36 @@
+{
+  "comparison": {
+    "path": "results/phase4/e1a-analysis-useast-seed11-v2/comparison.json",
+    "sha256": "d2fab53d8facfad99b31bc352dd2593908e7105d05b48c9207847bc5529b693e"
+  },
+  "admission": {
+    "path": "results/phase4/admission-useast-v1.json",
+    "sha256": "712a192ab06a0b2ee4fe1425acda456dd517ac05bba1f3ad7089ba4f701bcd9b"
+  },
+  "fx": {
+    "path": "/root/Wabber/results/phase4/fx-reference.json",
+    "sha256": "4904524346469e09e4ffc24b3414db92c02272cd9316d1ee98b8ef736c74f187"
+  },
+  "script_sha256": "c9d08c6c94dd7c49d6c56bc1d4360f683bb012512d5e87110f855417c4f3fe4f",
+  "files": {
+    "01_measured_performance.png": "5324f668d5d66c8db393cdb7b33d991c2ed48f516e2e92db17a729fa42155869",
+    "03_planning_cost.svg": "b06f8b67b017f0a9f9ff8aec17e7f44d463a774c2140fe6c4dadc1876a80a0d4",
+    "02_deployment_choices.png": "7c2317f027fdf50feefa53fb86aba2f7adcdbf33712884e384107b69d30b2c5d",
+    "interpretation.json": "91623d2791c8e87ff42396ec12a18bc885d68f5c1ce7202185f2f6b04d378b60",
+    "04_latency_budget_frontier.svg": "61cae3ab1d358d896a040d52764c7fda1e9bdb72c18b1d161eb0f03b6c82d756",
+    "choices.json": "1e78f836cd8b0d52febb3d6226dccbf97bdd2c9175d614849901bc95164da713",
+    "02_deployment_choices.pdf": "d46f04d6ae252129cb35803d3cebcf7712044ea9ebb83172e10fe535a302a764",
+    "figure_data.csv": "b2d21c22aeb9e2c57988f4aa2ec0af49b848cb1a9612b3cc1591ec56cc87d875",
+    "02_deployment_choices.svg": "7ac05513575d07630dd243fb6e727bb325a30419a3e56c36c5ee2417b81df292",
+    "paper_figures.pdf": "7ba7bf49ff734da25e9676108a5801491db77deb09c86b55b9941efe0a8a57d6",
+    "04_latency_budget_frontier.png": "7e73c5859c61d1bd8dc5682ccb39d6f03cca297a9e658d9edc395375c7c36f06",
+    "01_measured_performance.svg": "f005ffd31dd7314aac173d53e41941e493b5d15126f536cc4d40aa97b06fe116",
+    "captions.txt": "c9cd65ce0a34ed7665de3513597387418f5f0b95aa8990a9e0c884e96af12864",
+    "03_planning_cost.png": "c64a1fd072a088afbcd9fcbcc2c5555e298fdee2b302ece75adab9a65035394f",
+    "04_latency_budget_frontier.pdf": "c58bf49e21d99eade1e238ccff027baca2b2584c36fce33386583cabcf6797f2",
+    "01_measured_performance.pdf": "4083bb900af285af76624f80a9c9cd53ba3383ba6fdf340dc10ec971321aedd2",
+    "03_planning_cost.pdf": "4b04c2e95491d331fc4ccecdeceeb9014f1ebf345a17407adf69f6b02868919e",
+    "lambda_cold_start_breakdown.csv": "de595e806c75fab01312b729e0ecef8d46977376b02264c825b5f847bc63761a"
+  },
+  "cost_basis": "pre-run conservative budget reservations / observed successes; not actual billing"
+}

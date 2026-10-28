@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="532.8pt" height="259.2pt" viewBox="0 0 532.8 259.2" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-28T16:03:38.635577</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 259.2 
+L 532.8 259.2 
+L 532.8 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 155.256636 125.553665 
+L 268.646747 125.553665 
+L 268.646747 72.118588 
+L 155.256636 72.118588 
+z
+" clip-path="url(#p077cc68d6b)" style="fill: #56b4e9; fill-opacity: 0.094118; stroke: #56b4e9; stroke-width: 1.25; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 278.506757 125.553665 
+L 391.896867 125.553665 
+L 391.896867 72.118588 
+L 278.506757 72.118588 
+z
+" clip-path="url(#p077cc68d6b)" style="fill: #56b4e9; fill-opacity: 0.094118; stroke: #56b4e9; stroke-width: 1.25; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 401.756877 125.553665 
+L 515.146988 125.553665 
+L 515.146988 72.118588 
+L 401.756877 72.118588 
+z
+" clip-path="url(#p077cc68d6b)" style="fill: #0072b2; fill-opacity: 0.094118; stroke: #0072b2; stroke-width: 1.25; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 155.256636 198.633991 
+L 268.646747 198.633991 
+L 268.646747 145.198914 
+L 155.256636 145.198914 
+z
+" clip-path="url(#p077cc68d6b)" style="fill: #0072b2; fill-opacity: 0.094118; stroke: #0072b2; stroke-width: 1.25; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 278.506757 198.633991 
+L 391.896867 198.633991 
+L 391.896867 145.198914 
+L 278.506757 145.198914 
+z
+" clip-path="url(#p077cc68d6b)" style="fill: #0072b2; fill-opacity: 0.094118; stroke: #0072b2; stroke-width: 1.25; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 401.756877 198.633991 
+L 515.146988 198.633991 
+L 515.146988 145.198914 
+L 401.756877 145.198914 
+z
+" clip-path="url(#p077cc68d6b)" style="fill: #009e73; fill-opacity: 0.094118; stroke: #009e73; stroke-width: 1.25; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif" transform="translate(194.829192 54.593246)">Low load</text>
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif" transform="translate(170.744348 63.97659)">0.088 requests/s; n=53</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif" transform="translate(312.580171 54.616027)">Typical load</text>
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif" transform="translate(291.744468 63.953808)">0.318 requests/s; n=191</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif" transform="translate(440.577792 54.616027)">High load</text>
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif" transform="translate(414.994589 63.953808)">0.797 requests/s; n=478</text>
+   </g>
+   <g id="text_4">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'STIXGeneral', serif; text-anchor: end" x="135.536617" y="91.763837" transform="rotate(-0 135.536617 91.763837)">Latency objective</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: end; fill: #667085" x="135.536617" y="108.265846" transform="rotate(-0 135.536617 108.265846)">Measured P95 minimum</text>
+   </g>
+   <g id="text_6">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #192b3a" x="211.951692" y="90.192217" transform="rotate(-0 211.951692 90.192217)">AgentCore</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="211.951692" y="105.122606" transform="rotate(-0 211.951692 105.122606)">Session MCP</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="211.951692" y="119.267186" transform="rotate(-0 211.951692 119.267186)">P95 = 15.77 s</text>
+   </g>
+   <g id="text_9">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #192b3a" x="335.201812" y="90.192217" transform="rotate(-0 335.201812 90.192217)">AgentCore</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="335.201812" y="105.122606" transform="rotate(-0 335.201812 105.122606)">Session MCP</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="335.201812" y="119.267186" transform="rotate(-0 335.201812 119.267186)">P95 = 15.96 s</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #192b3a" x="458.451933" y="90.192217" transform="rotate(-0 458.451933 90.192217)">Lambda</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="458.451933" y="105.122606" transform="rotate(-0 458.451933 105.122606)">FaaS</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="458.451933" y="119.267186" transform="rotate(-0 458.451933 119.267186)">P95 = 16.07 s</text>
+   </g>
+   <g id="text_15">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'STIXGeneral', serif; text-anchor: end" x="135.536617" y="164.844163" transform="rotate(-0 135.536617 164.844163)">Budget objective</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: end; fill: #667085" x="135.536617" y="181.346172" transform="rotate(-0 135.536617 181.346172)">Minimum planning forecast</text>
+   </g>
+   <g id="text_17">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #192b3a" x="211.951692" y="163.272543" transform="rotate(-0 211.951692 163.272543)">Lambda</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="211.951692" y="178.202932" transform="rotate(-0 211.951692 178.202932)">FaaS</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="211.951692" y="192.347511" transform="rotate(-0 211.951692 192.347511)">6.10 CNY / 1k successes</text>
+   </g>
+   <g id="text_20">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #192b3a" x="335.201812" y="163.272543" transform="rotate(-0 335.201812 163.272543)">Lambda</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="335.201812" y="178.202932" transform="rotate(-0 335.201812 178.202932)">FaaS</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="335.201812" y="192.347511" transform="rotate(-0 335.201812 192.347511)">5.19 CNY / 1k successes</text>
+   </g>
+   <g id="text_23">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #192b3a" x="458.451933" y="163.272543" transform="rotate(-0 458.451933 163.272543)">FC</text>
+   </g>
+   <g id="text_24">
+    <text style="font-size: 9px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="458.451933" y="178.202932" transform="rotate(-0 458.451933 178.202932)">FaaS</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 8px; font-family: 'STIXGeneral', serif; text-anchor: middle; fill: #435264" x="458.451933" y="192.347511" transform="rotate(-0 458.451933 192.347511)">4.53 CNY / 1k successes</text>
+   </g>
+  </g>
+  <g id="text_26">
+   <text style="font-weight: 700; font-size: 13px; font-family: 'STIXGeneral', serif; text-anchor: start" x="29.304" y="12.96" transform="rotate(-0 29.304 12.96)">Traffic-dependent deployment choices</text>
+  </g>
+  <g id="text_27">
+   <text style="font-size: 8.5px; font-family: 'STIXGeneral', serif; text-anchor: start; fill: #986418" x="29.304" y="239.76" transform="rotate(-0 29.304 239.76)">Budget row uses pre-run reservations / observed successes. It is not an actual-cost optimum.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p077cc68d6b">
+   <rect x="15.984" y="41.472" width="511.488" height="173.664"/>
+  </clipPath>
+ </defs>
+</svg>

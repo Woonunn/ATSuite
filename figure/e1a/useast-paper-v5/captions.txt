@@ -1,0 +1,13 @@
+01_measured_performance
+Measured successful-task P95 only. The per-window P95 oracle is post hoc, not an executed adaptive policy. Feasibility: success >=99% and SLO attainment >=95% for a 120-second SLO. All 429 responses remain failures in the source data. Lines connect three observed windows; no continuous crossover threshold or confidence interval is inferred.
+
+02_deployment_choices
+Discrete deployment choices at the three measured loads. The first row minimizes observed P95 among feasible options. The second minimizes the pre-run conservative budget reservation per observed success. These are different objectives. No actual-billing cost optimum or implemented switching policy is claimed.
+
+03_planning_cost
+Pre-run group reservations divided by successful formal requests, in CNY per 1,000 successes. Conversion uses the sealed ECB reference. This is a planning metric, not actual or metered expenditure; the original cold/idle/ancillary assumptions and margins are retained. The cross marks the high-load Session configuration failing the reliability constraint. The forecast ranking changes from Lambda to Alibaba FC, but actual cost ranking remains unknown.
+
+04_latency_budget_frontier
+Discrete latency/budget trade-offs for each traffic window. Latency is measured; the horizontal axis is the planning reservation per successful request, not billed expense. Nondominance requires success >=99% and SLO attainment >=95%. The high-load Session MCP point is excluded from the frontier, retaining all 138 initialization failures. Lines are guides between tested deployments, not measurements of intermediate configurations.
+
+All figures: csv_excel_34, task seed 0, sequence seed 11, original ten-minute sampled windows; no full-product QPS claim or multi-seed confidence interval. Alibaba AgentRun is the plot label for the existing FC Session-exclusive MCP adapter used in this experiment; a separate AgentRun API was not tested.
