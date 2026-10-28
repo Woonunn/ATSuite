@@ -1,5 +1,5 @@
 """Runs only inside a credential-free Docker sandbox, including unpickling state."""
-import hashlib,json,os,pickle,sys,time,traceback
+import hashlib,json,os,pickle,sys,time,traceback,resource
 from pathlib import Path
 from types import ModuleType
 from joblib.externals import cloudpickle
@@ -66,7 +66,7 @@ def artifact(path,out):
 
 def run(request,parent,out,inputs=Path('/inputs'),branches=Path('/branches'),shared=None,resident=False):
     out.mkdir(exist_ok=True)
-    started=time.perf_counter();result={'status':'ok'}
+    started=time.perf_counter();usage=resource.getrusage(resource.RUSAGE_SELF);cpu_start=usage.ru_utime+usage.ru_stime;result={'status':'ok'}
     try:
         state_path=parent/'state.pkl'
         restored=shared is None
@@ -127,7 +127,7 @@ def run(request,parent,out,inputs=Path('/inputs'),branches=Path('/branches'),sha
             if execution['status']!='ok':
                 error_type=execution['error'].strip().splitlines()[-1].split(':',1)[0]
                 result.update(status='error',error_type=error_type,error=execution['error'].strip().splitlines()[-1].split(': ',1)[-1],traceback=execution['error'],stdout=execution['output'][:16000])
-                return finish(result,started,out)
+                return finish(result,started,out,cpu_start)
             exported=scope['state_out']
             if not isinstance(exported,dict):raise ValueError('state_out must be a dict')
             export_start=time.perf_counter()
@@ -154,10 +154,12 @@ def run(request,parent,out,inputs=Path('/inputs'),branches=Path('/branches'),sha
     except BaseException as exc:
         result={'status':'error','error_type':type(exc).__name__,'error':str(exc),'traceback':traceback.format_exc(),
                 'stdout':(out/'stdout.txt').read_text(errors='replace')[:16000] if (out/'stdout.txt').exists() else ''}
-    return finish(result,started,out)
+    return finish(result,started,out,cpu_start)
 
 
-def finish(result,started,out):
+def finish(result,started,out,cpu_start):
+    usage=resource.getrusage(resource.RUSAGE_SELF)
+    result['worker_usage']={'cpu_seconds':usage.ru_utime+usage.ru_stime-cpu_start,'peak_rss_bytes':usage.ru_maxrss*1024,'rss_scope':'worker process high-water mark; resident merge process includes prior calls'}
     result.update(exec_started_monotonic=started,exec_ended_monotonic=time.perf_counter(),pid=os.getpid())
     (out.parent/'result.json').write_text(json.dumps(result,allow_nan=False)+'\n')
     return result

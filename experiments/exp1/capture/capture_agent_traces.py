@@ -23,22 +23,24 @@ async def run(task_id,config,output,capture=None):
          config=config,source_capture=str(capture) if capture else None,execution_scope=config['tool']['execution_scope'])
     tools=model=None;state=initial
     try:
-        tools=ToolClient(config['tool'],recorder,capture)
-        model=ReplayModel(capture,recorder) if capture else DeepSeekClient(recorder,config['model'])
+        tools=await asyncio.to_thread(ToolClient,config['tool'],recorder,capture)
+        model=ReplayModel(capture,recorder,tools.comparable if tools.renderings else None) if capture else DeepSeekClient(recorder,config['model'])
         graph=build_graph(model,tools,recorder,task['output_files'],config['max_iterations'],config['model']['seed'])
         async for current in graph.astream(initial,config={'recursion_limit':150,'max_concurrency':config['max_parallel']},stream_mode='values'):
             state=current
         if state['status']!='complete':raise RuntimeError('Agent did not complete: '+state.get('feedback',''))
         if capture:model.assert_consumed();tools.assert_consumed()
-        recorder.finish(state)
         return {'status':'complete','directory':str(output),'task_id':task_id,'iterations':state['iteration']+1}
     except BaseException as exc:
         recorder.emit('run_error',error_type=type(exc).__name__,error=str(exc),traceback=traceback.format_exc())
-        recorder.finish({**state,'status':'failed','error':{'type':type(exc).__name__,'message':str(exc)}})
+        state={**state,'status':'failed','error':{'type':type(exc).__name__,'message':str(exc)}}
         raise
     finally:
-        if tools:tools.close()
-        if model and not capture:await model.client.close()
+        try:
+            if tools:await tools.aclose()
+        finally:
+            recorder.finish(state)
+            if model and not capture:await model.client.close()
 
 
 def main():

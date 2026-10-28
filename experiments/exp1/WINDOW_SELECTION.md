@@ -26,7 +26,7 @@
 
 当前 `analysis/plot_windows.py` 分别生成 low/typical/high 三张独立论文图。横轴为原始 UTC 时间，纵轴为 Requests per 10 s；统一 0–20 纵轴以保持强度对比。使用英文标注、STIX 衬线字体、简洁网格，PNG 为 360 DPI，PDF 为矢量图并嵌入 TrueType 字体。10 秒只是计数分箱，不改变调度时间。
 
-交付目录为 `experiments/exp1/figure/`：traffic_low_10min、traffic_typical_10min、traffic_high_10min，各有 .png 和 .pdf；另保留 window_bins.csv 和输入/输出 SHA 的 plot_manifest.json。原始 3×2 组合图保留为历史分析产物：
+交付目录为 `experiments/exp1/figure/traffic_windows/`：traffic_low_10min、traffic_typical_10min、traffic_high_10min，各有 .png 和 .pdf；另保留 window_bins.csv 和输入/输出 SHA 的 plot_manifest.json。原始 3×2 组合图保留为历史分析产物：
 
 - 默认图：`results/phase3/zoom-10min-v1/windows_zoom.png`、`windows_zoom.pdf`
 - 对照图：`results/phase3/zoom-15min-v1/`、`results/phase3/zoom-60min-v1/`
@@ -40,10 +40,10 @@ uv run python -m experiments.exp1.analysis.traffic \
   --arrivals results/phase3/arrivals-v1/arrivals.csv \
   --window-minutes 10 --output results/phase3/traffic-10min-v1
 uv run python -m experiments.exp1.analysis.plot_windows \
-  --traffic results/phase3/traffic-10min-v1 --output experiments/exp1/figure
+  --traffic results/phase3/traffic-10min-v1 --output experiments/exp1/figure/traffic_windows
 ```
 
-默认输出目录也是 experiments/exp1/figure；已存在的目录不会覆盖，重新绘图可通过 --output 指定新目录。
+默认输出目录也是 experiments/exp1/figure/traffic_windows；已存在的目录不会覆盖，重新绘图可通过 --output 指定新目录。
 
 改为 --window-minutes 15 或 60 即得到相同固定规则下的对照；画图不重新选择窗口。
 
@@ -57,4 +57,4 @@ uv run python -m experiments.exp1.analysis.plot_windows \
 
 独立论文图已逐一检查：每张 60 个十秒分箱，总数为 53 / 191 / 478；三个 PDF 的 STIX Regular/Italic 均嵌入为 CID TrueType，没有 Type 3 字体。
 
-新增横向三联图：experiments/exp1/figure/traffic_windows_10min_combined.png 和 .pdf。总标题为 Sampled Copilot Arrivals Across 10-Minute Traffic Windows，复用原三张图的配色、分箱、UTC 时间轴和公共纵轴；原独立图文件保持不变。analysis/plot_windows.py 会同时导出独立图及三联图。
+新增横向三联图：experiments/exp1/figure/traffic_windows/traffic_windows_10min_combined.png 和 .pdf。总标题为 Sampled Copilot Arrivals Across 10-Minute Traffic Windows，复用原三张图的配色、分箱、UTC 时间轴和公共纵轴；原独立图文件保持不变。analysis/plot_windows.py 会同时导出独立图及三联图。

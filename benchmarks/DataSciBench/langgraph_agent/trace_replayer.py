@@ -4,7 +4,8 @@ from pathlib import Path
 
 
 class ReplayModel:
-    def __init__(self,capture,recorder):
+    def __init__(self,capture,recorder,normalizer=None):
+        self.normalizer=normalizer
         if json.loads((Path(capture)/'result.json').read_text()).get('status')!='complete':
             raise ValueError('Only successful Capture traces can be replayed')
         self.events=[json.loads(line) for line in (Path(capture)/'events.jsonl').read_text().splitlines()]
@@ -14,7 +15,16 @@ class ReplayModel:
         if self.index>=len(self.llm):raise ValueError('Replay requested an uncaptured LLM decision')
         event=self.llm[self.index];self.index+=1
         if (event['phase'],event['iteration'])!=(phase,iteration):raise ValueError('LLM control flow diverged from Capture')
-        if messages!=event['request']['messages']:raise ValueError('Replay LLM inputs diverged from Capture')
+        def input_view(items):
+            if self.normalizer is None:return items
+            result=[]
+            for item in items:
+                try:content=json.loads(item['content'])
+                except (ValueError,TypeError):result.append(item)
+                else:result.append({**item,'content':self.normalizer(content)})
+            return result
+        if input_view(messages)!=input_view(event['request']['messages']):raise ValueError('Replay LLM inputs diverged from Capture')
+        if messages!=event['request']['messages']:self.recorder.emit('replay_input_equivalence',phase=phase,iteration=iteration,messages=messages,basis='sealed calibrated rendering digests; original model decision unchanged')
         # Recorded model latency is an explicit replay wait, never CPU computation.
         await asyncio.sleep(event['duration_s'])
         self.recorder.emit('llm',**{k:v for k,v in event.items() if k not in {'seq','kind','utc','monotonic_ns','request_id','session_id','source'}},source='replayed_capture_no_api_charge')

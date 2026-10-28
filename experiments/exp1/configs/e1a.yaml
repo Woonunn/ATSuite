@@ -1,0 +1,55 @@
+schema_version: 1
+experiment: E1-A
+task_id: csv_excel_34
+selection_reason: Independent Gini and Lorenz branches share cleaned Census data;
+  human_12 excluded after ARM/x86 prediction divergence.
+composition:
+  csv_excel_34: 1.0
+sequence_seeds:
+- 11
+task_seed: 0
+cloud_execution_policy: frozen_trace_only
+state_bootstrap: false
+rendering_equivalence: experiments/exp1/configs/e1a_rendering_equivalence.json
+traffic: results/phase3/traffic-10min-v1
+window_roles:
+- low
+- typical
+- high
+window_duration_ms: 600000
+time_scale: 1.0
+providers:
+- aws_lambda
+- aws_agentcore
+- ali_fc
+- ali_agentrun
+resources:
+  cpu: 1
+  memory: 2048
+  disk: 512
+  timeout: 240
+harness_concurrency: 64
+queue_capacity: 1000
+tool_rpc_timeout_s: 240
+slo_ms: 120000
+pilot_requests: 3
+budget:
+  ali_cny: 15
+  aws_cny: 30
+  aws_usd_admission_cap: 4.49
+  reserve_fraction: 0.1
+  note: 'User-approved total caps: Alibaba CNY15, AWS CNY30 including all Pilots and
+    ancillary charges. AWS USD ceiling uses the frozen ECB reference, not a bank transaction
+    rate.'
+  include:
+  - pilot
+  - runtime
+  - state_storage
+  - state_requests
+  - logs
+  - image_registry
+  - network
+  fx_reference:
+    path: results/phase4/fx-reference.json
+    sha256: 4904524346469e09e4ffc24b3414db92c02272cd9316d1ee98b8ef736c74f187
+aws_collection_delay_s: 1800

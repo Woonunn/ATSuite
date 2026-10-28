@@ -254,6 +254,8 @@ class StateRuntime:
 
     @contextmanager
     def execution(self, tool_module, uid, access="rw", domain="", snapshot=None):
+        if snapshot is not None and os.getenv("ATSUITE_ALLOW_STATE_BOOTSTRAP", "true").lower() == "false":
+            raise ValueError("State bootstrap is disabled for closed Trace replay")
         if access not in {"r", "w", "rw", "stateless"}:
             raise ValueError(f"Invalid Tool access: {access}")
         if self.runtime == "mcp":
@@ -295,7 +297,7 @@ class StateRuntime:
                 stack.enter_context(self._legacy_lock)
             invocation_root = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="call-", dir=self.root)))
             workspace = (self.root / self.service_name / session_uid / "workspace"
-                         if access in {"w", "rw"} else invocation_root / "workspace")
+                         if access in {"w", "rw"} and os.getenv("ATSUITE_EPHEMERAL_WORKSPACE", "false").lower() != "true" else invocation_root / "workspace")
             workspace.parent.mkdir(parents=True, exist_ok=True)
             ctx = {"uid": session_uid, "domain": domain, "workspace": workspace, "objects": {}}
             for named in self._registry.values():

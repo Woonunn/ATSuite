@@ -88,5 +88,5 @@ def plot(traffic,output):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--traffic',required=True,type=Path);p.add_argument('--output',type=Path,default=ROOT/'experiments/exp1/figure')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--traffic',required=True,type=Path);p.add_argument('--output',type=Path,default=ROOT/'experiments/exp1/figure/traffic_windows')
     a=p.parse_args();r=plot(a.traffic,a.output);print(json.dumps({'window_minutes':r['window_minutes'],'output':str(a.output)}))

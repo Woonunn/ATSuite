@@ -223,6 +223,12 @@ class FunctionRuntimeAdapter(_BaseRuntimeAdapter):
             provider_metadata={"is_stateful": bool(is_stateful)},
         )
 
+    def close(self):
+        with self._clients_lock:
+            clients=list(self._clients.values());self._clients.clear()
+        for client in clients:
+            client.session.close()
+
 
 class MCPRuntimeAdapter(_BaseRuntimeAdapter):
     def __init__(self, provider: str):
@@ -297,7 +303,7 @@ class MCPRuntimeAdapter(_BaseRuntimeAdapter):
                     request.tool_name, args, request_id=request_id,
                     timeout=request.timeout, run_id=run_id,
                 )
-                return replace(result, provider_metadata={**result.provider_metadata, "runtime_provider": self.provider})
+                return replace(result, provider_metadata={**result.provider_metadata, "runtime_provider": self.provider, "session_id": str(getattr(client, "session_id", "") or "")})
             provider_request_id = client.invoke(request.tool_name, args, request_id=request_id)
         except Exception as exc:
             return InvocationResult(

@@ -67,7 +67,7 @@ uv run python -m experiments.exp1.tests.validate_copilot_timing \
 
 ```bash
 uv run python -m experiments.exp1.analysis.plot_windows \
-  --traffic results/phase3/traffic-10min-v1 --output experiments/exp1/figure
+  --traffic results/phase3/traffic-10min-v1 --output experiments/exp1/figure/traffic_windows
 ```
 
 分析支持显式 --window-minutes 10/15/60；例如用同一 arrivals.csv 加 --window-minutes 15 输出至新目录，再交给该画图脚本。

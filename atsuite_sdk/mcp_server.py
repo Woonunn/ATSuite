@@ -365,7 +365,7 @@ def wrap_tool(tool_obj):
                        tool_name=tool_name, status="ok", duration_ms=elapsed_ms)
             return ToolResult(content=result, structured_content={"result": result}, meta={"atsuite": {
                 "result_envelope": True, "request_id": request_id, "run_id": run_id,
-                "execution_elapsed_ms": elapsed_ms,
+                "execution_elapsed_ms": elapsed_ms, "state_sync": metrics,
             }})
         except Exception as exc:
             emit_event("tool_execution", run_id=run_id, request_id=request_id, uid=call_args.get("uid"),

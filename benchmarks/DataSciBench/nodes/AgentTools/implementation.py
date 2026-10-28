@@ -1,12 +1,25 @@
 """Canonical state follows ATSuite MCP/FaaS semantics; branches never commit it."""
-import hashlib,io,json,os,pickle,shutil,subprocess,tarfile,tempfile,time,uuid
+import hashlib,io,json,os,pickle,shutil,subprocess,tarfile,tempfile,time,uuid,threading,platform
 from pathlib import Path
+_settings=Path(__file__).with_name('cloud_settings.json')
+if _settings.exists():
+    for _key,_value in json.loads(_settings.read_text()).items():
+        os.environ.setdefault(_key,str((Path(__file__).parent/_value).resolve()) if _key in {'WABBER_DATA_ROOT','WABBER_EVALUATION_MAPPING','WABBER_APPROVED_TRACE'} else str(_value))
 from atsuite_sdk.abstract import registry
 from atsuite_sdk.state import get_state_runtime,register_state_object
 try:
-    from .guards import identifier,relative_file
+    from .guards import identifier,relative_file,safe_files
 except ImportError:
-    from guards import identifier,relative_file
+    from guards import identifier,relative_file,safe_files
+
+try:
+    from .frozen_policy import check_preparation,check_analysis
+    from .native_kernel import NativeKernel
+    from .resident_kernel import ResidentKernel
+except ImportError:
+    from frozen_policy import check_preparation,check_analysis
+    from native_kernel import NativeKernel
+    from resident_kernel import ResidentKernel
 
 
 class AnalysisFailure(RuntimeError):
@@ -20,6 +33,11 @@ class Workspace:
 
 
 _mcp_kernel=None
+_faas_kernels={}
+_faas_kernel_lock=threading.Lock()
+_environment_id=uuid.uuid4().hex
+_first_task=True
+_environment_lock=threading.Lock()
 
 
 workspace=register_state_object('agent_workspace',Workspace(),session_scoped=True)
@@ -48,16 +66,6 @@ def store(key,source=None,destination=None):
         else:shutil.copyfile(target,destination)
 
 
-def safe_files(root,aliases=None):
-    result=[];total=0
-    for p in root.rglob('*'):
-        if p.is_symlink() and aliases and aliases.get(p.relative_to(root).as_posix())==os.readlink(p):continue
-        if p.is_symlink() or (not p.is_file() and not p.is_dir()):raise ValueError('Sandbox produced a link or special file')
-        if p.is_file():
-            total+=p.stat().st_size;result.append(p)
-    if total>1024**3 or len(result)>256:raise ValueError('Sandbox output quota exceeded')
-    return result
-
 
 def unpack(source,dest):
     with tarfile.open(source) as archive:
@@ -74,7 +82,15 @@ def sandbox(request,parent,inputs=None,branches=None):
     if get_state_runtime().runtime=='mcp':
         if _mcp_kernel is None:raise RuntimeError('Prepare the MCP Workspace first')
         return _mcp_kernel.run(request,parent,inputs,branches)
-    # shortcut: Docker launcher is local; use a provider-native sandbox before deployment to FaaS without a Docker daemon.
+    if os.getenv('WABBER_EXECUTION_BACKEND')=='native':
+        inputs=inputs or Path(os.environ['WABBER_DATA_ROOT'])/workspace.task_id
+        key=(str(get_state_runtime().root.resolve()),str(Path(inputs).resolve()))
+        with _faas_kernel_lock:
+            kernel=_faas_kernels.get(key)
+            if kernel is None or kernel.closed:
+                kernel=NativeKernel(get_state_runtime().root,inputs,resident=False)
+                _faas_kernels[key]=kernel
+        return kernel.run(request,parent,inputs,branches)
     image=os.environ['WABBER_SANDBOX_IMAGE']
     if not image.startswith('sha256:'):raise ValueError('Pin the sandbox image ID')
     with tempfile.TemporaryDirectory(prefix='wabber-sandbox-') as directory:
@@ -133,8 +149,9 @@ def current(uid,version):
 
 @registry.tool(access='rw',domain='agent_workspace')
 def prepare_workspace(task_id:str,dataset_refs:list,uid:str)->dict:
-    global _mcp_kernel
+    global _mcp_kernel,_first_task
     identifier(task_id)
+    if os.getenv('WABBER_NATIVE_CONFINEMENT')=='frozen_trace':check_preparation(task_id,dataset_refs)
     if workspace.task_id:raise ValueError('Workspace already prepared; create a new Session')
     inputs=Path(os.environ['WABBER_DATA_ROOT'])/task_id
     for ref in dataset_refs:
@@ -143,11 +160,16 @@ def prepare_workspace(task_id:str,dataset_refs:list,uid:str)->dict:
     root=get_state_runtime().session_dir(uid)/'v0';(root/'artifacts').mkdir(parents=True,exist_ok=False)
     if get_state_runtime().runtime!='mcp':(root/'state.pkl').write_bytes(pickle.dumps({},protocol=5))
     workspace.task_id=task_id;workspace.inputs=dataset_refs
-    result={'status':'ok','snapshot':0,'workspace_id':uid,'inputs':dataset_refs}
+    with _environment_lock:
+        first_task=_first_task;_first_task=False
+    result={'status':'ok','snapshot':0,'workspace_id':uid,'inputs':dataset_refs,
+        'execution_environment':{'environment_id':_environment_id,'first_task_in_process':first_task,
+          'implementation_sha256':sha(Path(__file__)),'python':platform.python_version(),'architecture':platform.machine(),
+          'confinement':os.getenv('WABBER_NATIVE_CONFINEMENT','docker')}}
     if get_state_runtime().runtime=='mcp':
-        try:from .resident_kernel import ResidentKernel
-        except ImportError:from resident_kernel import ResidentKernel
-        _mcp_kernel=ResidentKernel(root.parent,inputs,os.environ['WABBER_SANDBOX_IMAGE'])
+        if os.getenv('WABBER_EXECUTION_BACKEND')=='native':
+            _mcp_kernel=NativeKernel(root.parent,inputs,resident=True)
+        else:_mcp_kernel=ResidentKernel(root.parent,inputs,os.environ['WABBER_SANDBOX_IMAGE'])
         result['kernel']={'container_name':_mcp_kernel.name,'pid':_mcp_kernel.pid,'session_start_s':_mcp_kernel.start_s,'lifecycle':'resident'}
     return result
 
@@ -155,6 +177,7 @@ def prepare_workspace(task_id:str,dataset_refs:list,uid:str)->dict:
 @registry.tool(access='r',domain='agent_workspace')
 def execute_analysis(step_id:str,code:str,outputs:list,snapshot:int,seed:int,call_id:str,uid:str)->dict:
     identifier(step_id);identifier(call_id)
+    if os.getenv('WABBER_NATIVE_CONFINEMENT')=='frozen_trace':check_analysis(workspace.task_id,step_id,code,outputs,snapshot,seed)
     for name in outputs:relative_file(name)
     parent=current(uid,snapshot);inputs=Path(os.environ['WABBER_DATA_ROOT'])/workspace.task_id
     result,bundle=sandbox({'mode':'analyze','task_id':workspace.task_id,'code':code,'outputs':outputs,'seed':seed},parent,inputs=inputs)
@@ -234,7 +257,7 @@ def validate_result(outputs:list,snapshot:int,uid:str)->dict:
         inputs=Path(os.environ['WABBER_DATA_ROOT'])/workspace.task_id)
     if bundle:bundle.unlink()
     if result['status']!='ok':raise AnalysisFailure(result)
-    mapping_path=Path(__file__).resolve().parents[2]/'tasks/evaluation_alignment.json'
+    mapping_path=Path(os.environ['WABBER_EVALUATION_MAPPING']) if 'WABBER_EVALUATION_MAPPING' in os.environ else Path(__file__).resolve().parents[2]/'tasks/evaluation_alignment.json'
     mapping=json.loads(mapping_path.read_text())
     task=next(t for t in mapping['tasks'] if t['task_id']==workspace.task_id)
     result['evaluation_basis']={'mode':'custom_prompt_checks','official_pass':None,

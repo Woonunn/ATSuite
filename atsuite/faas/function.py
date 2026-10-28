@@ -75,7 +75,7 @@ class FunctionClient:
                 except ValueError:
                     body = {"error": response.text}
                 return ToolResponse(
-                    provider_request_id=response.headers.get("X-Fc-Request-Id") or response.headers.get("x-amzn-requestid") or "",
+                    provider_request_id=body.get("metadata", {}).get("native_request_id") or response.headers.get("X-Fc-Request-Id") or response.headers.get("x-amzn-requestid") or "",
                     request_id=request_id, run_id=run_id, status=body.get("status", "error"),
                     result=body.get("result"), error=str(body.get("error") or body),
                     client_elapsed_ms=(time.perf_counter() - start) * 1000,
@@ -115,7 +115,7 @@ class FunctionClient:
 
         if full_response:
             return ToolResponse(
-                provider_request_id=request_id or "", request_id=client_request_id, run_id=run_id or rsp.get("run_id", ""),
+                provider_request_id=rsp.get("metadata", {}).get("native_request_id") or request_id or "", request_id=client_request_id, run_id=run_id or rsp.get("run_id", ""),
                 status=rsp.get("status", "ok"), result=result, error=rsp.get("error", ""),
                 client_elapsed_ms=(time.perf_counter() - start) * 1000,
                 execution_elapsed_ms=rsp.get("execution_elapsed_ms"),

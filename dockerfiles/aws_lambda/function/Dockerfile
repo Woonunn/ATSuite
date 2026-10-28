@@ -44,10 +44,12 @@ RUN set -eux; \
     fi
 
 WORKDIR /app
-COPY . /app
+COPY requirements.txt /app/requirements.txt
 
 # 依赖安装遵循 requirements.txt 中的索引源配置，避免先访问默认 PyPI。
 RUN python3 -m pip install --user --prefer-binary -r /app/requirements.txt
+
+COPY . /app
 
 ENV PYTHONPATH=/app:/app/.python_user/lib/python${VERSION}/site-packages
 ENV ATSUITE_NODE_MODULE=${ATSUITE_NODE_MODULE}

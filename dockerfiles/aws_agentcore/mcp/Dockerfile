@@ -16,6 +16,7 @@ COPY requirements.txt .
 
 # 跨平台下载所有包的 wheel（binary 包取 aarch64，纯 Python 包取 none-any），并直接安装到 /pkg
 RUN pip install -q \
+    --platform manylinux_2_28_aarch64 \
     --platform manylinux2014_aarch64 \
     --platform manylinux_2_17_aarch64 \
     --platform linux_aarch64 \
@@ -47,9 +48,9 @@ ENV PYTHON_VERSION=${VERSION}
 # contains them, or enable a separate native ARM64/system-package build path.
 
 WORKDIR /app
-COPY . /app
-
 COPY --from=installer /pkg /app/deps
+
+COPY . /app
 
 ENV PYTHONPATH=/app/deps:/app
 ENV ATSUITE_NODE_MODULE=${ATSUITE_NODE_MODULE}

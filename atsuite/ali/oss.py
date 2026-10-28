@@ -1,3 +1,4 @@
+import os
 import alibabacloud_oss_v2 as oss
 from alibabacloud_oss_v2.exceptions import OperationError
 
@@ -14,6 +15,7 @@ class AliOSS(StorageBase):
         cfg.connect_timeout = 300
         cfg.readwrite_timeout = 300
         cfg.region = location
+        cfg.use_internal_endpoint = os.getenv("ATSUITE_OSS_INTERNAL", "false").lower() == "true"
         cfg.credentials_provider = oss.credentials.EnvironmentVariableCredentialsProvider()
         return oss.Client(cfg)
 

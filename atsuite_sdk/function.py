@@ -220,6 +220,14 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
                 "request_wall_ns": _wall_ns(),
             }
             status = 200
+            native_request_id = None
+            try:
+                native_context = json.loads(self.headers.get("x-amzn-lambda-context", "{}"))
+                if isinstance(native_context, dict):
+                    native_request_id = native_context.get("request_id")
+            except (ValueError, TypeError):
+                pass
+            response_metadata = {"native_request_id": native_request_id}
             try:
                 request_ctx["tool_start_ns"] = _now_ns()
                 try:
@@ -246,7 +254,7 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
                            duration_ms=elapsed_ms, error=str(e), traceback=traceback.format_exc())
                 self._send_json(500, {"status": "timeout" if isinstance(e, TimeoutError) else "error", "error": str(e),
                                      "result": getattr(e, "result", None), "request_id": request_id, "run_id": run_id,
-                                     "execution_elapsed_ms": elapsed_ms}, custom_headers={"X-Request-Id": request_id})
+                                     "execution_elapsed_ms": elapsed_ms, "metadata": {**response_metadata, "state_sync": get_state_runtime().get_sync_metrics()}}, custom_headers={"X-Request-Id": request_id})
                 return
 
             breakdown = _build_function_breakdown_payload(
@@ -260,7 +268,7 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
             emit_event("tool_execution", run_id=run_id, request_id=request_id, uid=args.get("uid"),
                        tool_name=tool_name, status="ok", duration_ms=elapsed_ms)
             self._send_json(200, {"status": "ok", "result": result, "error": "", "request_id": request_id,
-                                 "run_id": run_id, "execution_elapsed_ms": elapsed_ms},
+                                 "run_id": run_id, "execution_elapsed_ms": elapsed_ms, "metadata": {**response_metadata, "state_sync": get_state_runtime().get_sync_metrics()}},
                             custom_headers={"X-Tool-Stateful": is_stateful, "X-Request-Id": request_id})
 
     return ToolHandler

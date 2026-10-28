@@ -161,3 +161,5 @@ PyTorch CPU 安装方式参照官方说明：https://pytorch.org/get-started/pre
 已完成整周下载/清洗、固定窗口选择与原速 Open-loop 轻量验证。复现见 [PHASE3_README.md](PHASE3_README.md)，实际计数、到达误差、丢失率及限制见 [PHASE3_VALIDATION.md](PHASE3_VALIDATION.md)。不将抽样到达率当作完整产品 QPS。
 
 默认流量窗口已改为 10 分钟，并支持 15/60 分钟比较；独立绘图脚本为 analysis/plot_windows.py，选择依据与放大图索引见 [WINDOW_SELECTION.md](WINDOW_SELECTION.md)。保持 time_scale=1.0，缩短的是连续观测区间。
+
+图表按类别保存在 figure/traffic_windows/（流量窗口图及其分箱、哈希记录）和 figure/task_profiles/（六个候选任务的资源特征图）。任务图使用现有 profile，不重新执行任务；运行 uv run python -m experiments.exp1.analysis.plot_task_profiles 生成 PNG/PDF。两类绘图脚本均保留已有输出，重绘时需指定新的 --output 路径。

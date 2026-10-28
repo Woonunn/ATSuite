@@ -76,7 +76,8 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
             root=Path(directory);capture=root/'capture';capture.mkdir()
             event={'kind':'tool','key':'call','tool_name':'execute_analysis','args':{'code':'x'},'result':{'status':'ok','state_signature':'expected'}}
             (capture/'events.jsonl').write_text(json.dumps(event)+'\n')
-            adapter=MagicMock();adapter.targets={'t':object()};adapter.invoke.return_value=ToolResponse(result={'status':'ok','state_signature':'changed'})
+            from atsuite.runtime import RuntimeSession
+            adapter=MagicMock();adapter.open_session.return_value=RuntimeSession(uid='unit-session',target_id='t');adapter.targets={'t':object()};adapter.invoke.return_value=ToolResponse(result={'status':'ok','state_signature':'changed'})
             recorder=TraceRecorder(root/'replay','r','s')
             with patch('benchmarks.DataSciBench.langgraph_agent.tool_client.create_runtime_adapter',return_value=adapter):
                 client=ToolClient({'provider':'unit','family':'faas','target_id':'t','endpoint':'local'},recorder,capture)

@@ -1,0 +1,51 @@
+{
+  "task_id": "csv_excel_34",
+  "capture_events_sha256": "ff15f9734c7c76c92869b555135c855fdf698d3af13ebb0848f13889d1c0f901",
+  "basis": "One exact, calibrated RGBA rounding variant from the same original program, data and seed; all numerical outputs remain strict. Not a general tolerance or arbitrary-image whitelist.",
+  "pixel_comparison": {
+    "shape": [
+      1050,
+      1050,
+      4
+    ],
+    "differing_pixels": 393,
+    "differing_pixel_fraction": 0.00035646258503401363,
+    "max_channel_difference": 1.0,
+    "channel_rmse": 0.011971242942834796
+  },
+  "evidence": [
+    {
+      "path": "results/phase4/csv34-render-comparison.json",
+      "sha256": "30f2e4dc35874ee6ad98b83322d0542f3c3e10f3e3c705d6c4b56e9fca1ad1b2"
+    },
+    {
+      "path": "results/phase4/csv34-architecture-x86-v1/diagnostic/i0-lorenz.json",
+      "sha256": "0f0a0253e84e4b997ef1348e7689780b45804915168f48a032a34bf351bfdcfc"
+    },
+    {
+      "path": "results/phase4/csv34-architecture-arm-v1/diagnostic/i0-lorenz.json",
+      "sha256": "5168d8b4c81bc6eca6ba6c3621dbb0cf0d2bc97b4c3efd149fee9104ee7ba83c"
+    },
+    {
+      "path": "results/phase4/csv34-architecture-validation.json",
+      "sha256": "2917b15f78ed3961f915a4770250b2aa9df872c59a0e83df47c9ab6bcbe557e1"
+    },
+    {
+      "path": "results/phase4/csv34-architecture-arm-v2/diagnostic/validate-i0.json",
+      "sha256": "99a4dacf46f905b422ac5dfe5d7d8d789f8781bae262702415b7106945b44018"
+    },
+    {
+      "path": "results/phase4/csv34-architecture-x86-v1/diagnostic/validate-i0.json",
+      "sha256": "535e2c30707ee9a85e18430598fdbe0f389d738a6dbf2b8e8c6656e43806f2da"
+    }
+  ],
+  "approved_renderings": {
+    "lorenz_curve.png": {
+      "reference_signature": "45f185024a3d2322619969fff8e62564a3c7a0258aac1d7840d2e99a1a4476af",
+      "accepted_signatures": [
+        "45f185024a3d2322619969fff8e62564a3c7a0258aac1d7840d2e99a1a4476af",
+        "81b1dd97aebe9a488d5bd3a9db19ca03a73e02021099697d2189cea69c448e46"
+      ]
+    }
+  }
+}

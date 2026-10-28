@@ -606,7 +606,7 @@ class AgentCoreMCPClient:
             ) as response:
                 response.raise_for_status()
                 request_id = response.headers.get("x-amzn-RequestId")
-                self.session_id = response.headers.get("Mcp-Session-Id")
+                self.session_id = response.headers.get("Mcp-Session-Id") or self.session_id
                 response_payload = self._read_streamable_response(response)
                 if not full_response:
                     self._raise_if_mcp_error(response_payload)
@@ -630,7 +630,7 @@ class AgentCoreMCPClient:
         # 从响应头获取 request_id 和 session_id
         request_id = response.headers.get("x-amzn-RequestId")
         # 如果响应中有session_id，保存它以便后续请求复用
-        self.session_id = response.headers.get("Mcp-Session-Id")
+        self.session_id = response.headers.get("Mcp-Session-Id") or self.session_id
 
         response_payload = self._read_response_payload(response)
         if not full_response:
