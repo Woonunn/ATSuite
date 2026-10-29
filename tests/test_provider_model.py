@@ -369,6 +369,7 @@ class ProfilingTests(unittest.TestCase):
             (run_dir / "run.json").write_text(json.dumps(run))
             record = {
                 "arrival_id": "request",
+                "task_id": "fixture-task",
                 "trace_id": str(capture),
                 "data_version": "data",
                 "status": "succeeded",
@@ -396,6 +397,8 @@ class ProfilingTests(unittest.TestCase):
             with patch("atsuite.provider_model.e1a.load_capture", return_value=trace()):
                 rows, provenance = load_e1a(root)
             self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["task_id"], "fixture-task")
+            self.assertEqual(rows[1]["task_id"], "fixture-task")
             self.assertEqual(rows[0]["available_ns"], 2 * 10**9)
             self.assertIsNone(rows[0]["cost"])
             self.assertEqual(rows[1]["available_ns"], 30 * 10**9)

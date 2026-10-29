@@ -13,7 +13,19 @@ from benchmarks.DataSciBench.langgraph_agent.trace_replayer import ReplayModel
 ROOT=Path(__file__).resolve().parents[3]
 
 
-async def run(task_id,config,output,capture=None,workload_model=None,provider_model=None,provider_context=None,*,calibration=False):
+async def run(task_id,config,output,capture=None,workload_model=None,provider_model=None,provider_context=None,*,calibration=False,router=None,routing_context=None):
+    if router is not None:
+        if workload_model is not None or provider_model is not None:
+            raise ValueError('Router owns both model completion hooks')
+        if not routing_context or set(routing_context['targets']) != set(router.pools):
+            raise ValueError('Routing requires one audited target per pool')
+        if routing_context.get('shadow'):
+            actual=routing_context.get('actual_pool')
+            if actual not in router.pools or routing_context['targets'][actual]['tool'] != config['tool']:
+                raise ValueError('Shadow actual pool must match the unchanged Tool configuration')
+        for key,target in routing_context['targets'].items():
+            if target['tool']['provider'] != router.pools[key]['provider']:
+                raise ValueError('Routing target/provider mismatch')
     if calibration and not capture:raise ValueError("Calibration requires a frozen Capture")
     if provider_model is not None:
         from atsuite.provider_model.observation import validate_pool,features
@@ -40,10 +52,21 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
         if workload is None:workload=prediction if workload_model is not None else []
         write_json(output/'provider_prediction.json',provider_model.predict(
             workload,[provider_context['pool']],provider_context['load_rps'],as_of_ns=arrival_ns))
-    recorder.emit('run_start',mode='environment_reference' if calibration else 'replay' if capture else 'capture',task_id=task_id,prompt_sha256=task['prompt_sha256'],
-         config=config,source_capture=str(capture) if capture else None,execution_scope=config['tool']['execution_scope'])
     tools=model=None;state=initial
     try:
+        if router is not None:
+            decision=router.decide(request_id,task_id,routing_context['load_rps'],as_of_ns=arrival_ns,
+                                   shadow=routing_context.get('shadow',False),
+                                   pool_load_rps=routing_context.get('pool_load_rps'))
+            from atsuite.tracing.storage import write_json
+            write_json(output/'routing_decision.json',decision)
+            if not decision['shadow']:
+                if decision['selected'] is None:raise RuntimeError('No trusted feasible execution pool')
+                target=routing_context['targets'][decision['selected']]
+                config={**config,'tool':target['tool']}
+                capture=target.get('capture',capture)
+        recorder.emit('run_start',mode='environment_reference' if calibration else 'replay' if capture else 'capture',task_id=task_id,prompt_sha256=task['prompt_sha256'],
+             config=config,source_capture=str(capture) if capture else None,execution_scope=config['tool']['execution_scope'])
         tools=await asyncio.to_thread(ToolClient,config['tool'],recorder,capture,calibration)
         model=ReplayModel(capture,recorder,tools.comparable if tools.renderings else None,calibration) if capture else DeepSeekClient(recorder,config['model'])
         graph=build_graph(model,tools,recorder,task['output_files'],config['max_iterations'],config['model']['seed'])
@@ -71,6 +94,11 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
             if provider_model is not None:
                 observation=provider_model.complete(trace,provider_context['pool'],provider_context['load_rps'],
                     reference_profile=provider_context.get('reference_profile'))
+                write_json(output/'provider_observation.json',observation)
+            if router is not None and (request_id in router.active or
+                    router.decisions.get(request_id,{}).get('shadow')):
+                observation=router.complete(request_id,trace,actual_pool=routing_context.get('actual_pool')
+                                            if routing_context.get('shadow') else None)
                 write_json(output/'provider_observation.json',observation)
             if model and not capture:await model.client.close()
 

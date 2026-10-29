@@ -8,6 +8,8 @@ ATSuite documentation is grouped by purpose:
 - [Provider](./provider/): cloud provider and runtime background notes.
 - [Provider performance and cost model](./developer-guide/provider-model.zh.md): prediction API, evidence contracts and offline validation.
 
+- [Risk-aware request routing](../atsuite/routing/README.md): admission, causal calibration, shadow replay and remaining cloud acceptance work.
+
 Most documents have paired English and Chinese versions:
 
 - English: `name.md`

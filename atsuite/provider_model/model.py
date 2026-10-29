@@ -123,6 +123,15 @@ class ProviderModel:
         )
         with self.lock:
             history = self.samples.setdefault(key, [])
+            if history:
+                for field in ("task_id", "prompt_id", "logical_id"):
+                    if field in history[-1]:
+                        value = history[-1][field]
+                        if row.get(field, value) != value:
+                            raise ValueError(
+                                f"Revision changes request context: {field}"
+                            )
+                        row[field] = value
             if row in history:
                 return
             if history:

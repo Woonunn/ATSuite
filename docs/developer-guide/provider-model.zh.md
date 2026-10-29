@@ -1,6 +1,6 @@
 # Provider Performance & Cost Model（PoC）
 
-`atsuite.provider_model` 在 `main` 的 Workload Model、Analyzer、PricingPolicy 和 E1-A 记录上增加离线/在线统计模型。无新增运行依赖，无云端副作用，无 Router 或 Scaling Controller。`ali_agentrun` 的名称仅为现有 Adapter ID，模型显示名称为 **Aliyun FC Session MCP**。
+`atsuite.provider_model` 在 `main` 的 Workload Model、Analyzer、PricingPolicy 和 E1-A 记录上增加离线/在线统计模型。无新增运行依赖，无云端副作用；请求路由由独立的 [atsuite.routing](../../atsuite/routing/README.md) 提供，尚无 Scaling Controller。`ali_agentrun` 的名称仅为现有 Adapter ID，模型显示名称为 **Aliyun FC Session MCP**。
 
 ## 接口与数据口径
 

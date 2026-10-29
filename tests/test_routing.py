@@ -1,0 +1,245 @@
+"""Causal admission checks; synthetic fixtures are not cloud evidence."""
+
+import copy
+import tempfile
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+from atsuite.provider_model import ProviderModel
+from atsuite.routing import OnlineRouter
+from atsuite.routing.evaluate import evaluate
+from atsuite.routing.router import risk_estimate
+from atsuite.workload import WorkloadModel
+from tests.test_provider_model import observation, pool
+from tests.test_workload import trace
+
+
+class RoutingTests(unittest.TestCase):
+    def router(self, limit=1, count=100):
+        model = ProviderModel()
+        for i in range(count):
+            row = observation(i)
+            row["task_id"] = "task"
+            model.update(row)
+        return OnlineRouter(WorkloadModel(), model, {"aws": pool()}, {"aws": limit})
+
+    def test_unknown_ood_and_capacity_fail_closed(self):
+        for limit, task, load in [
+            (None, "task", 0.5),
+            (0, "task", 0.5),
+            (1, "new", 0.5),
+            (1, "task", 2),
+        ]:
+            router = self.router(limit)
+            self.assertIsNone(
+                router.decide("r", task, load, as_of_ns=20000)["selected"]
+            )
+
+    def test_pool_load_snapshot_overrides_offered_load(self):
+        router = self.router()
+        result = router.decide(
+            "pool-load", "task", 100, as_of_ns=20000, pool_load_rps={"aws": 0.5}
+        )
+        self.assertEqual(result["selected"], "aws")
+        self.assertEqual(result["load_basis"], "per_pool_snapshot")
+        row = router.complete(
+            "pool-load",
+            trace("pool-load", arrival=20000, end=30000),
+            available_ns=30000,
+        )
+        self.assertEqual(row["load_rps"], 0.5)
+
+    def test_failures_and_unknown_latency_are_violations(self):
+        rows = [observation(i) for i in range(60)]
+        rows[0]["status"] = "failed"
+        rows[1]["measurements"]["latency_s"] = None
+        rows[2]["measurements"]["latency_s"] = 121
+        self.assertEqual(risk_estimate(rows, 120)["violations"], 3)
+        self.assertGreater(risk_estimate(rows, 120)["upper"], 0.05)
+        self.assertGreater(risk_estimate(rows[:20], 120)["upper"], 0.05)
+
+    def test_cutoff_no_revision_multiplication_and_shadow(self):
+        router = self.router()
+        self.assertIsNone(router.decide("early", "task", 0.5, as_of_ns=10)["selected"])
+        shadow = router.decide("s", "task", 0.5, as_of_ns=20000, shadow=True)
+        self.assertEqual(shadow["selected"], "aws")
+        self.assertFalse(router.active)
+        row = observation(0)
+        row.update(task_id="task", available_ns=21000)
+        row["measurements"]["latency_s"] = 999
+        router.provider.update(row)
+        self.assertEqual(
+            router.decide("x", "task", 0.5, as_of_ns=21000)["candidates"][0]["risk"][
+                "violations"
+            ],
+            0,
+        )
+        self.assertEqual(
+            router.decide("y", "task", 0.5, as_of_ns=21001)["candidates"][0]["risk"][
+                "n"
+            ],
+            100,
+        )
+
+    def test_atomic_session_binding_and_feedback(self):
+        router = self.router()
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            decisions = list(
+                executor.map(
+                    lambda i: router.decide(
+                        "live-" + str(i), "task", 0.5, as_of_ns=20000
+                    ),
+                    range(8),
+                )
+            )
+        selected = [d for d in decisions if d["selected"]]
+        self.assertEqual(len(selected), 1)
+        rid = selected[0]["request_id"]
+        self.assertEqual(
+            router.decide(rid, "different", 100, as_of_ns=30000), selected[0]
+        )
+        completed = trace(rid, arrival=20000, end=30000)
+        completed["request_status"] = "failed"
+        row = router.complete(rid, completed, available_ns=30000)
+        self.assertEqual(row["status"], "failed")
+        row["pool"]["environment"] = "tampered"
+        self.assertEqual(router.pools["aws"]["environment"], "frozen-test-v1")
+        self.assertFalse(router.active)
+        self.assertIn(rid, router.workload.samples)
+        next_decision = router.decide("next", "task", 0.5, as_of_ns=40000)
+        self.assertIsNone(next_decision["selected"])
+        self.assertEqual(next_decision["candidates"][0]["available_sessions"], 1)
+
+    def test_logging_and_defensive_copies(self):
+        router = self.router()
+        with tempfile.TemporaryDirectory() as tmp:
+            router.log_path = Path(tmp) / "events.jsonl"
+            result = router.decide("r", "task", 0.5, as_of_ns=20000)
+            result["selected"] = "tampered"
+            self.assertEqual(router.active["r"]["selected"], "aws")
+            self.assertIn("empirical_fallback", router.log_path.read_text())
+
+    def test_cost_ranking_requires_comparable_complete_forecasts(self):
+        from tests.test_provider_model import cost
+
+        provider = ProviderModel()
+        workload = WorkloadModel()
+        for backend, amount in [("aws_lambda", 5), ("aws_agentcore", 1)]:
+            for i in range(100):
+                row = observation(i, provider=backend)
+                row.update(task_id="task", cost=cost(amount=amount, complete=True))
+                provider.update(row)
+        router = OnlineRouter(
+            workload,
+            provider,
+            {"lambda": pool(), "agent": pool("aws_agentcore")},
+            {"lambda": 1, "agent": 1},
+        )
+        # A prior profile supplies joint workload input; empty history cannot price it.
+        workload.update(observation()["profile"], 10000)
+        result = router.decide("priced", "task", 0.5, as_of_ns=20000, shadow=True)
+        self.assertTrue(result["cost_comparable"])
+        self.assertEqual(result["selected"], "agent")
+        self.assertFalse(result["slo_guarantee"])
+
+    def test_late_measurements_preserve_task_identity(self):
+        router = self.router()
+        revision = observation(0)
+        revision["available_ns"] = 20000
+        revision["measurements"]["queue_s"] = 0.1
+        router.provider.update(revision)
+        router.provider.update(revision)
+        result = router.decide("later", "task", 0.5, as_of_ns=30000, shadow=True)
+        self.assertEqual(result["candidates"][0]["risk"]["n"], 100)
+        revision.update(available_ns=25000, task_id="different")
+        with self.assertRaisesRegex(ValueError, "request context"):
+            router.provider.update(revision)
+
+    def test_task_holdout_and_future_outcome_invariance(self):
+        rows = [observation(i) for i in range(10)]
+        for r in rows:
+            r["task_id"] = "held"
+        report = evaluate(rows, held_task="held")
+        self.assertTrue(
+            all(r["p50"] is None and r["risk"]["n"] == 0 for r in report["predictions"])
+        )
+        before = evaluate(rows)["predictions"]
+        changed = copy.deepcopy(rows)
+        changed[-1]["measurements"]["latency_s"] = 10000
+        after = evaluate(changed)["predictions"]
+        self.assertEqual([r["p50"] for r in before], [r["p50"] for r in after])
+
+
+class CaptureRoutingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_capture_binds_target_and_shadow_preserves_target(self):
+        from unittest.mock import AsyncMock, Mock, patch
+
+        from experiments.exp1.capture import capture_agent_traces as capture
+
+        class Adapter:
+            def __init__(self, collector):
+                self.collector = collector
+
+            async def astream(self, *args, **kwargs):
+                yield {"status": "complete", "iteration": 0}
+
+        for shadow in (False, True):
+            router = RoutingTests().router()
+            for history in router.provider.samples.values():
+                history[0]["task_id"] = "csv_excel_34"
+            collector = Mock()
+            collector.snapshot.return_value = trace("online")
+            tools = Mock(renderings=False, aclose=AsyncMock(), assert_consumed=Mock())
+            original = {"provider": "aws_lambda", "execution_scope": "original"}
+            selected = {"provider": "aws_lambda", "execution_scope": "selected"}
+            config = {
+                "tool": original,
+                "model": {"seed": 0},
+                "max_iterations": 1,
+                "max_parallel": 2,
+            }
+            target = original if shadow else selected
+            with (
+                tempfile.TemporaryDirectory() as directory,
+                patch.object(capture.uuid, "uuid4", return_value=Mock(hex="online")),
+                patch.object(capture, "TraceCollector", return_value=collector),
+                patch.object(capture, "LangGraphTracingAdapter", Adapter),
+                patch.object(capture, "TraceRecorder"),
+                patch.object(capture, "ToolClient", return_value=tools) as client,
+                patch.object(
+                    capture, "ReplayModel", return_value=Mock(assert_consumed=Mock())
+                ),
+                patch.object(capture, "build_graph"),
+            ):
+                await capture.run(
+                    "csv_excel_34",
+                    config,
+                    Path(directory),
+                    capture=Path(directory),
+                    router=router,
+                    routing_context={
+                        "targets": {"aws": {"tool": target}},
+                        "load_rps": 0.5,
+                        "shadow": shadow,
+                        "actual_pool": "aws",
+                    },
+                )
+                self.assertEqual(client.call_args.args[0], target)
+                self.assertFalse(router.active)
+                self.assertIn("online", router.completed)
+                self.assertEqual(config["tool"], original)
+
+    async def test_baseline_diagnostics_do_not_claim_mixed_latency(self):
+        from atsuite.routing.shadow import baseline_choices, decision_quality
+
+        router = RoutingTests().router()
+        decision = router.decide("shadow", "task", 0.5, as_of_ns=20000, shadow=True)
+        choices = baseline_choices(decision["candidates"], 0, None, rho_threshold=1000)
+        self.assertEqual(choices["round_robin"], "aws")
+        self.assertIsNone(choices["rho_rule"])
+        report = decision_quality(
+            [decision], {"shadow": {"aws": observation()}}, rho_threshold=1000
+        )
+        self.assertEqual(report["paired_best_fraction"]["risk_aware"], 1)
+        self.assertIn("not mixed-routing", report["scope"])

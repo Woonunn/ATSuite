@@ -271,6 +271,8 @@ def load_e1a(root: Path) -> tuple[list[dict], dict]:
             row = {
                 "kind": "request",
                 "id": directory.name + ":" + record["arrival_id"],
+                "task_id": record.get("task_id", "e1a-fixed"),
+                "logical_id": record["arrival_id"],
                 "profile": profile,
                 "status": "success" if record["status"] == "succeeded" else "failed",
                 "pool": pool,
