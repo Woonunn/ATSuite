@@ -48,22 +48,29 @@ def sha(path):
 
 
 def store(key,source=None,destination=None):
-    provider=os.getenv('ATSUITE_BRANCH_PROVIDER') or os.getenv('PROVIDER','')
-    if get_state_runtime().runtime=='mcp':provider=''
-    if provider:
-        from atsuite_sdk.storage import create_storage
-        storage=create_storage(provider,bucket=os.environ['PROJECT'])
-        if source is not None:
-            if not storage.try_create(key,Path(source).read_bytes()):raise ValueError('Immutable branch already exists')
-        else:storage.download(key,str(destination))
-    else:
-        target=get_state_runtime().root/'branch_artifacts'/key
-        if source is not None:
-            target.parent.mkdir(parents=True,exist_ok=True);temp=target.with_suffix('.tmp-'+uuid.uuid4().hex)
-            shutil.copyfile(source,temp)
-            try:os.link(temp,target)
-            finally:temp.unlink(missing_ok=True)
-        else:shutil.copyfile(target,destination)
+    counter='branch_write_bytes' if source is not None else 'branch_read_bytes'
+    try:
+        provider=os.getenv('ATSUITE_BRANCH_PROVIDER') or os.getenv('PROVIDER','')
+        if get_state_runtime().runtime=='mcp':provider=''
+        if provider:
+            from atsuite_sdk.storage import create_storage
+            storage=create_storage(provider,bucket=os.environ['PROJECT'])
+            if source is not None:
+                if not storage.try_create(key,Path(source).read_bytes()):raise ValueError('Immutable branch already exists')
+            else:storage.download(key,str(destination))
+        else:
+            target=get_state_runtime().root/'branch_artifacts'/key
+            if source is not None:
+                target.parent.mkdir(parents=True,exist_ok=True);temp=target.with_suffix('.tmp-'+uuid.uuid4().hex)
+                shutil.copyfile(source,temp)
+                try:os.link(temp,target)
+                finally:temp.unlink(missing_ok=True)
+            else:shutil.copyfile(target,destination)
+    except BaseException:
+        get_state_runtime().record_transfer_bytes(counter,None)
+        raise
+    get_state_runtime().record_transfer_bytes(counter,
+        Path(source if source is not None else destination).stat().st_size)
 
 
 
@@ -233,7 +240,7 @@ def merge_artifacts(branches:list,snapshot:int,uid:str)->dict:
             workspace.version=snapshot+1
             shutil.rmtree(parent)
             return {'status':'ok','snapshot':workspace.version,'artifacts':workspace.artifacts,'state_signature':result['state_signature'],
-                'kernel_execution':{k:result[k] for k in ('state_lifecycle','sandbox_wall_s','container_name','resident_kernel_pid','exec_started_monotonic','exec_ended_monotonic') if k in result}}
+                'kernel_execution':{k:result[k] for k in ('state_lifecycle','worker_usage','sandbox_wall_s','container_name','resident_kernel_pid','exec_started_monotonic','exec_ended_monotonic') if k in result}}
         finally:
             if get_state_runtime().runtime=='mcp' and not resident_committed:
                 _mcp_kernel.run({'mode':'abort','token':result['merge_token']},parent)

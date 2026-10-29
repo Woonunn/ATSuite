@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 
 
 class TraceRecorder:
-    def __init__(self,directory,request_id,session_id):
+    def __init__(self,directory,request_id,session_id,tracing=None):
         self.directory=Path(directory);self.directory.mkdir(parents=True,exist_ok=False)
         self.request_id=request_id;self.session_id=session_id;self.lock=threading.Lock();self.events=[]
+        self.tracing=tracing
 
     def emit(self,kind,**values):
         with self.lock:
@@ -16,11 +17,13 @@ class TraceRecorder:
                    'utc':datetime.now(timezone.utc).isoformat(),'monotonic_ns':time.perf_counter_ns(),**values}
             with (self.directory/'events.jsonl').open('a') as f:f.write(json.dumps(event,ensure_ascii=False,allow_nan=False)+'\n')
             self.events.append(event)
+        if self.tracing:self.tracing.record_event(event)
         return event
 
     def finish(self,state):
         (self.directory/'result.json').write_text(json.dumps(state,ensure_ascii=False,indent=2,allow_nan=False)+'\n')
-        export_atg(self.events,self.directory/'trace.atg.json')
+        if self.tracing:self.tracing.collector.save()
+        else:export_atg(self.events,self.directory/'trace.atg.json')
 
 
 def export_atg(events,path):

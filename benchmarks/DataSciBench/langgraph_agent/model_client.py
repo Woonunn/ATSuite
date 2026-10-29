@@ -18,6 +18,7 @@ class DeepSeekClient:
         request={'model':'deepseek-flash','messages':messages,'response_format':{'type':'json_object'},
                  **{k:self.config[k] for k in ('temperature','top_p','max_tokens')},
                  'extra_body':{'thinking':{'type':'disabled'}}}
+        self.recorder.emit('llm_start',phase=phase,iteration=iteration,request=request)
         start=time.perf_counter();started=datetime.now(timezone.utc).isoformat()
         for attempt in range(self.config.get('retries',2)+1):
             attempt_start=time.perf_counter();raw=None

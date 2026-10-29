@@ -130,7 +130,7 @@ class ModelRetryTests(unittest.IsolatedAsyncioTestCase):
                 model=DeepSeekClient(recorder,config);self.assertEqual(await model.decide('PLAN',0,[]),{})
                 self.assertEqual(factory.call_args.kwargs['max_retries'],0)
                 self.assertEqual(client.chat.completions.create.await_count,2);sleep.assert_awaited_once()
-            self.assertEqual(recorder.events[0]['status_code'],429)
+            self.assertEqual(next(e for e in recorder.events if e['kind']=='llm_error')['status_code'],429)
             self.assertEqual(recorder.events[-1]['input_tokens'],3)
             self.assertEqual(recorder.events[-1]['output_tokens'],2)
             self.assertEqual(recorder.events[-1]['attempts'],2)

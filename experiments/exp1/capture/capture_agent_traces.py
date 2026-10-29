@@ -1,6 +1,8 @@
 """Live LangGraph Capture and decision Replay, using real ATSuite Tool RPC."""
 import argparse,asyncio,json,traceback,uuid
 from pathlib import Path
+from atsuite.tracing import TraceCollector
+from atsuite.tracing.langgraph import LangGraphTracingAdapter
 from dotenv import load_dotenv
 from benchmarks.DataSciBench.langgraph_agent.graph import build_graph
 from benchmarks.DataSciBench.langgraph_agent.model_client import DeepSeekClient
@@ -15,7 +17,8 @@ async def run(task_id,config,output,capture=None):
     tasks=json.loads((ROOT/'benchmarks/DataSciBench/tasks/manifest.json').read_text())
     task=next(t for t in tasks['tasks'] if t['task_id']==task_id)
     session_id=uuid.uuid4().hex;request_id=uuid.uuid4().hex
-    recorder=TraceRecorder(output,request_id,session_id)
+    tracing=LangGraphTracingAdapter(TraceCollector(request_id,session_id,output))
+    recorder=TraceRecorder(output,request_id,session_id,tracing)
     initial={'request_id':request_id,'session_id':session_id,'task_id':task_id,'user_prompt':task['prompt'],
          'messages':[],'workspace_id':'','dataset_refs':[{k:f[k] for k in ('name','sha256','bytes')} for f in task['readiness']['inputs']['files']],
          'execution_plan':[],'tool_results':{},'artifacts':[],'iteration':0,'status':'new','error':None,'completed':[],'snapshot':0}
@@ -26,7 +29,7 @@ async def run(task_id,config,output,capture=None):
         tools=await asyncio.to_thread(ToolClient,config['tool'],recorder,capture)
         model=ReplayModel(capture,recorder,tools.comparable if tools.renderings else None) if capture else DeepSeekClient(recorder,config['model'])
         graph=build_graph(model,tools,recorder,task['output_files'],config['max_iterations'],config['model']['seed'])
-        async for current in graph.astream(initial,config={'recursion_limit':150,'max_concurrency':config['max_parallel']},stream_mode='values'):
+        async for current in tracing.astream(graph,initial,config={'recursion_limit':150,'max_concurrency':config['max_parallel']}):
             state=current
         if state['status']!='complete':raise RuntimeError('Agent did not complete: '+state.get('feedback',''))
         if capture:model.assert_consumed();tools.assert_consumed()

@@ -198,9 +198,10 @@ class StateRuntime:
         return path.open(mode, *args, **kwargs)
 
     def reset_sync_metrics(self) -> None:
-        _SYNC_TIMING.set({"load_ms": 0.0, "save_ms": 0.0})
+        _SYNC_TIMING.set({"load_ms": 0.0, "save_ms": 0.0,
+                          "load_bytes": 0, "save_bytes": 0, "branch_read_bytes": 0, "branch_write_bytes": 0})
 
-    def get_sync_metrics(self) -> Dict[str, float]:
+    def get_sync_metrics(self) -> Dict[str, Any]:
         raw = _SYNC_TIMING.get()
         if not isinstance(raw, dict):
             raw = {"load_ms": 0.0, "save_ms": 0.0}
@@ -210,7 +211,17 @@ class StateRuntime:
             "load_ms": round(load_ms, 3),
             "save_ms": round(save_ms, 3),
             "total_ms": round(load_ms + save_ms, 3),
+            **{key: raw.get(key) for key in ("load_bytes", "save_bytes", "branch_read_bytes", "branch_write_bytes")},
         }
+
+    def record_transfer_bytes(self, key: str, size: int | None) -> None:
+        """Count completed snapshot/branch I/O at its actual storage boundary."""
+        if key not in {"load_bytes", "save_bytes", "branch_read_bytes", "branch_write_bytes"} or (size is not None and size < 0):
+            raise ValueError("Invalid state transfer counter")
+        raw = _SYNC_TIMING.get()
+        if isinstance(raw, dict):
+            previous = raw.get(key, 0)
+            raw[key] = previous + size if previous is not None and size is not None else None
 
     @staticmethod
     def _coerce_metric_ms(value: Any) -> float:
@@ -359,11 +370,16 @@ class StateRuntime:
 
     def _get_snapshot(self, uid: Optional[str]) -> Dict[str, Any]:
         key = self._snapshot_key(uid)
-        if self._storage is not None:
-            content = self._storage.read(key)
-        else:
-            path = self.root / ".snapshots" / key
-            content = path.read_bytes() if path.exists() else b""
+        try:
+            if self._storage is not None:
+                content = self._storage.read(key)
+            else:
+                path = self.root / ".snapshots" / key
+                content = path.read_bytes() if path.exists() else b""
+        except BaseException:
+            self.record_transfer_bytes("load_bytes", None)
+            raise
+        self.record_transfer_bytes("load_bytes", len(content.encode("utf-8") if isinstance(content, str) else content))
         if not content:
             return {}
         payload = json.loads(content)
@@ -374,17 +390,23 @@ class StateRuntime:
     def _set_snapshot(self, uid: Optional[str], snapshot: Dict[str, Any]) -> None:
         key = self._snapshot_key(uid)
         blob = json.dumps(snapshot, ensure_ascii=False).encode("utf-8")
-        if self._storage is not None:
-            self._storage.put(key, blob)
-        else:
-            path = self.root / ".snapshots" / key
-            path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = path.with_name(path.name + "." + uuid.uuid4().hex)
-            try:
-                temporary.write_bytes(blob)
-                temporary.replace(path)
-            finally:
-                temporary.unlink(missing_ok=True)
+        try:
+            if self._storage is not None:
+                self._storage.put(key, blob)
+            else:
+                path = self.root / ".snapshots" / key
+                path.parent.mkdir(parents=True, exist_ok=True)
+                temporary = path.with_name(path.name + "." + uuid.uuid4().hex)
+                try:
+                    temporary.write_bytes(blob)
+                    temporary.replace(path)
+                finally:
+                    temporary.unlink(missing_ok=True)
+
+        except BaseException:
+            self.record_transfer_bytes("save_bytes", None)
+            raise
+        self.record_transfer_bytes("save_bytes", len(blob))
 
     def prime_snapshot(self, uid: Optional[str], snapshot: Dict[str, Any]) -> None:
         if not isinstance(snapshot, dict):

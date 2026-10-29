@@ -374,7 +374,7 @@ def wrap_tool(tool_obj):
             return FailedToolResult(content=str(exc), structured_content={"result": getattr(exc, "result", None)},
                                     meta={"atsuite": {"result_envelope": True, "request_id": request_id, "run_id": run_id,
                                                       "status": "timeout" if isinstance(exc, TimeoutError) else "error",
-                                                      "execution_elapsed_ms": _ns_to_ms(_now_ns() - started)}})
+                                                      "execution_elapsed_ms": _ns_to_ms(_now_ns() - started), "state_sync": metrics}})
         finally:
             if ctx is not None:
                 ctx["tool_end_ns"] = _now_ns()

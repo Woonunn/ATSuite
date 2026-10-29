@@ -52,11 +52,16 @@ class ToolClient:
             if expected is None or expected['tool_name']!=name or self.comparable(expected['args'])!=self.comparable(args):
                 raise DivergenceError('Replay Tool parameters diverged: '+key)
         start=time.perf_counter()
-        self.recorder.emit('tool_start',key=key,tool_name=name,args=args,wave=wave)
         request=InvocationRequest(target_id=self.target_id,tool_name=name,args=args,uid=self.uid,
             call_id=uuid.uuid4().hex,session=self.session,timeout=self.timeout,run_id=self.recorder.request_id)
+        self.recorder.emit('tool_start',key=key,tool_name=name,args=args,wave=wave,call_id=request.call_id,
+            runtime_uid=self.uid,target_id=self.target_id,provider_session_id=self.session.provider_session_id)
         async def invoke():
-            response=await asyncio.to_thread(self.adapter.invoke,request)
+            try:
+                response=await asyncio.to_thread(self.adapter.invoke,request)
+            except BaseException as exc:
+                self.recorder.emit('tool_error',key=key,tool_name=name,error_type=type(exc).__name__,error=str(exc))
+                raise
             self.recorder.emit('tool',key=key,tool_name=name,args=args,wave=wave,result=response.result,
                 transport=response.to_dict(),duration_s=time.perf_counter()-start)
             return response

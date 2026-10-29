@@ -74,3 +74,15 @@ WABBER_SANDBOX_IMAGE="$WABBER_SANDBOX_IMAGE" PROVIDER="" ATSUITE_RUNTIME=functio
 单元测试中的模型和 Tool doubles 只用于控制流检查，不作为真实执行证据。真实验收及失败诊断见 `experiments/exp1/PHASE2_VALIDATION.md`。
 
 新增 Capture 的 Docker 自检使用 `experiments/exp1/tests/check_extended_validators.py`（镜像内 /opt/wabber 导入路径）。Torch checkpoint 使用 weights_only 加载并按数值签名比较，实际 optimizer hook 记录步数和前后权重哈希；这些是执行证据，不是官方 MAE 评分。
+
+## Harness TracingAdapter
+
+Capture/Replay 入口现在默认启用 LangGraph TracingAdapter。除原事件和结果外，额外输出
+`trace.json`、`spans.jsonl`，并用实际 Harness 依赖生成 `trace.atg.json`。
+统一 schema、独立接入示例、状态传输边界和 rho 的缺失值规则见
+[Tracing 说明](../../../atsuite/tracing/README.md)；本轮验证见
+[TRACING_VALIDATION.md](../../../experiments/exp1/TRACING_VALIDATION.md)。
+
+Adapter 已支持嵌套 StateGraph、原生 interrupt/static breakpoint 以及 checkpoint 续跑。
+使用 `TraceCollector.load` 可以加载之前的观测并关联恢复后的执行；接入方式见上述 Tracing 说明。
+当前 Capture/Replay CLI 仍按原流程运行，未新增业务 checkpoint 或 Tool Session 的持久化机制。

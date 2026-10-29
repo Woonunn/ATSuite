@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -413,11 +413,13 @@ wheels = [
 name = "atsuite"
 version = "0.1.0"
 source = { editable = "." }
+default-groups = ["aliyun"]
 dependencies = [
     { name = "alibabacloud-sls20201230" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "langchain" },
+    { name = "langchain-core" },
     { name = "langchain-mcp-adapters" },
     { name = "langchain-openai" },
     { name = "langgraph" },
@@ -462,9 +464,10 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "fastmcp", specifier = ">=2.13.2" },
     { name = "langchain", specifier = ">=1.1.3" },
+    { name = "langchain-core", specifier = "==1.2.6" },
     { name = "langchain-mcp-adapters", specifier = ">=0.2.1" },
     { name = "langchain-openai", specifier = ">=1.1.3" },
-    { name = "langgraph", specifier = ">=1.0.5" },
+    { name = "langgraph", specifier = "==1.0.5" },
     { name = "mcp", specifier = ">=1.23.3" },
     { name = "openai", specifier = ">=2.11.0" },
     { name = "openpyxl", specifier = ">=3.1.5" },

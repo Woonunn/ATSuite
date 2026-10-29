@@ -25,6 +25,7 @@ class ReplayModel:
             return result
         if input_view(messages)!=input_view(event['request']['messages']):raise ValueError('Replay LLM inputs diverged from Capture')
         if messages!=event['request']['messages']:self.recorder.emit('replay_input_equivalence',phase=phase,iteration=iteration,messages=messages,basis='sealed calibrated rendering digests; original model decision unchanged')
+        self.recorder.emit('llm_start',phase=phase,iteration=iteration,request=event['request'])
         # Recorded model latency is an explicit replay wait, never CPU computation.
         await asyncio.sleep(event['duration_s'])
         self.recorder.emit('llm',**{k:v for k,v in event.items() if k not in {'seq','kind','utc','monotonic_ns','request_id','session_id','source'}},source='replayed_capture_no_api_charge')

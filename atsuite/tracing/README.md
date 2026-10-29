@@ -1,0 +1,144 @@
+# Harness tracing（PoC）
+
+`TracingAdapter` 只负责将 Harness 的真实调用和因果关系送入每请求一个的 `TraceCollector`。
+本阶段实现 `LangGraphTracingAdapter`，固定使用 LangGraph **1.0.5**、langchain-core **1.2.6**（`uv.lock`）。
+Tool 的固定依赖仍使用 `benchmarks/DataSciBench/nodes/AgentTools/requirements.txt`，Docker 环境仍按原 README 固定镜像 ID。
+
+```python
+from pathlib import Path
+from atsuite.tracing import TraceCollector
+from atsuite.tracing.langgraph import LangGraphTracingAdapter
+
+collector = TraceCollector(request_id="request-1", session_id="session-1", directory=Path("results/my-trace"))
+adapter = LangGraphTracingAdapter(collector)
+async for state in adapter.astream(compiled_graph, inputs, {"max_concurrency": 3}):
+    pass  # state 与原 graph.astream(..., stream_mode="values") 相同
+print(collector.snapshot()["summary"])
+```
+
+编译图可以共享；每个独立请求使用新 Adapter/Collector 和独立目录，同一请求的 checkpoint 续跑复用原 Collector。
+已有 callbacks 会保留，同一个 Adapter 的续跑须串行执行。
+原生 LangChain model/tool 回调自动捕获。直接调用其他 SDK 不会自动生成这些回调；DataSciBench
+通过现有 `TraceRecorder.emit` 桥接 DeepSeek 和 `ToolClient`，不更改 Agent 节点业务流程。
+
+## 数据与依赖
+
+- `trace.json`：版本化统一 Trace，包含 request/session、session/workflow/llm/tool spans、诊断、summary。
+- `spans.jsonl`：每行一个最终 span；在请求完成或异常退出时输出，不是实时消息基础设施。
+- `trace.atg.json`：保留实际执行 fork/join 的 ATSuite ATG，可用 `atsuite_sdk.workflow.Trace.from_file` 读取。
+- DataSciBench 原 `events.jsonl`、`result.json` 继续保留原字段，新增 start/关联字段；历史 Capture 仍用原 Replay 校验模型输入、Tool 参数和输出签名。
+
+Span 的 `parent_id` 表示调用包含关系，`dependencies` 表示前置执行实例；循环的每次执行都有独立 ID。
+时间使用进程单调时钟纳秒，`duration_s` 使用秒。LLM 输入/响应、Tool 输入/结果、错误、重试、usage、
+Runtime request ID/Session UID、state lifecycle 和可观测 worker CPU/RSS 保存在 span 中。
+`resources=null` 表示没有测量。原始 JSONL 另外保留 UTC 时间与完整 API 决策证据。
+
+Workflow 边来自编译 StateGraph 的静态边、实际执行的条件路由返回值、Command/Send、
+callback 中的 superstep/task path。Send 使用 LangGraph 的确定性 task path 次序对应真实发送者，
+普通边匹配前一 superstep 的实际执行实例，barrier 边保留跨 superstep 的待汇合来源并在消费后清空。
+同节点内已结束调用形成后续调用的执行前置关系；重叠调用保留并行。
+ATG 用零耗时控制节点表达包含关系，LLM/Tool 时间只计一次。
+
+支持 LangGraph 能发现的嵌套 StateGraph：通过 `get_subgraphs(recurse=True)` 取得图定义，按实际 checkpoint namespace
+隔离同名节点、条件路由、superstep 与 Send 来源；`parent_id` 保留实际子图包含关系。
+子图中的 `Command.PARENT` 按返回父图的控制流记录，不当作业务异常。
+`parallel_workflow_peak` 统计叶子 Workflow 节点的并发峰值，避免把父图容器和内部节点重复算成并行。
+当前仍未实现 deferred 节点及运行时无法发现的动态子图的完整依赖追踪。
+遇到无法重建的来源会留下 diagnostics，并停止发布完整性与 rho 结论；不要把这种 Trace 当作完整 ATG。
+回调只有控制依赖证据，不声称追踪 Python 对象内部的数据血缘。
+
+## 嵌套子图与断点恢复
+
+按原生 LangGraph 方式将编译子图放进父图节点，再为最外层图配置 checkpointer。Adapter 不创建业务状态数据库，
+也不改变原生暂停、重试和 pending writes 的执行语义。
+
+```python
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
+
+# child_builder / parent_builder 是正常的 StateGraph；父图也可以包含多层、并行子图。
+parent_builder.add_node("agent", child_builder.compile())
+graph = parent_builder.compile(checkpointer=InMemorySaver())
+config = {"configurable": {"thread_id": "request-1"}}
+
+# 动态 interrupt() 或 compile(interrupt_before=[...], interrupt_after=[...]) 会结束当前采集段。
+async for state in adapter.astream(graph, initial_state, config):
+    pass
+
+# 原生动态中断用 Command(resume=...)；静态断点和异常重试用 None。
+async for state in adapter.astream(graph, Command(resume="approved"), config):
+    pass
+```
+
+在中断位置，最后的 session span 为 `interrupted`，`summary.complete/successful` 为 false，rho 为 null。
+恢复会追加新的 session 段及实际节点执行实例；重跑节点通过 `metadata.retry_of` 和依赖边关联上一次尝试。
+之前成功的 sibling/pending write 复用原 span，不凭 checkpoint 伪造新的 LLM/Tool 调用。
+中断节点在恢复时从头执行，其前置 LLM/Tool 若真正重跑，仍按实际次数累计；Adapter 不提供业务副作用去重。
+
+跨 Adapter 或进程续跑时加载原 Trace：
+
+```python
+collector = TraceCollector.load(Path("results/my-trace"))
+adapter = LangGraphTracingAdapter(collector)
+# graph 的 checkpointer 必须由应用恢复；继续使用原 thread_id 和对应的 checkpoint。
+async for state in adapter.astream(graph, None, config):
+    pass
+```
+
+`TraceCollector.load` 仅恢复观测 JSON，不反序列化/恢复 Agent 业务对象。
+`InMemorySaver` 只适用于同进程；跨进程必须由应用提供持久化或恢复后的 checkpointer，Tool Runtime Session/UID 也由应用保持。
+`trace.json` 原子替换，保存 thread、各层 checkpoint ID、pending task 与 resume/interrupt/error 控制记录。
+续跑前核对这些记录；错误 thread、旧 checkpoint、未经采集的中间 resume 不会静默并入当前 Trace。
+需要回退/分叉到其他历史 checkpoint 时，应使用匹配的历史 Trace 副本和独立输出目录。
+
+如果直接从已有 checkpoint 开始而没有历史 Trace，会保留缺失历史诊断，停止发布完整 workload 结论。
+若进程被强制终止，Trace 与业务 checkpoint 可能无法同时提交；两者不匹配时必须补齐对应的观测记录，不能声称完整恢复。
+`workflow_duration_s` 为各执行段耗时之和，不包含两段之间的人为等待；LLM/Tool 统计包含所有真实尝试。
+并发峰值按执行段分别计算，不跨进程拼接单调时钟。
+
+## 状态传输与 rho(G)
+
+Harness 不估算状态大小。Runtime 在实际 I/O 成功后按 payload/bundle 的字节数累加：
+
+| Runtime `state_sync` 字段 | 测量边界 |
+| --- | --- |
+| `load_bytes` / `save_bytes` | SDK snapshot 对象读取/提交；含 JSON/base64 编码后的实际对象内容 |
+| `branch_read_bytes` / `branch_write_bytes` | AgentTools 不可变 branch bundle 的读取/发布；含状态、声明产物和归档开销 |
+
+MCP 不执行 canonical snapshot 恢复/提交，对应计数为实测 0；branch 通信仍单独计数。
+FaaS 每次调用恢复，写调用提交。重复读取同一对象重复累计；不使用文件最终大小代替累计传输。
+传输失败且无法确定实际量时该方向保留 null，已有旧 Runtime 未返回计数也保留 null。
+这里只计对象 payload，不计 TLS/HTTP 头、重传、锁对象等协议/协调流量。
+内核 `canonical_restore_bytes`、`canonical_save_bytes`、`branch_export_bytes` 是另一个序列化层的诊断，
+保留原值但不再次加入总量，避免把同一份状态的序列化与存储传输重复计数。
+
+`state_read_bytes=load_bytes+branch_read_bytes`，写方向同理。
+未启用 checkpoint 时，`S_G` 是所有 Tool 读写量之和；`D_G` 是所有 LLM span 的 `duration_s` 之和。
+启用 checkpoint 后，session span 的状态读写字段预留给 checkpointer 存储 I/O，目前无法实测，保持 null。
+这部分不能用 checkpoint JSON 的长度或 Tool Runtime 字节数代替，因此即使执行 DAG 完整，
+`state_measurements_complete` 仍为 false，完整 `state_transfer_bytes` 和 rho 为 null。
+`observed_state_transfer_bytes` 继续累计各段中已实测的 Tool I/O，包含重跑发生的真实重复传输。
+DataSciBench 沿用原 Replay 的完整模型调用等待间隔，包含显式重试/退避；并行 LLM 间隔相加，不做时间并集。
+`rho_kb_s=S_G/1000/D_G`（十进制 KB/s），只在运行成功、Trace 完整、所有 Tool 计数已知且 D_G>0 时提供。
+缺失时 `state_transfer_bytes` 和 rho 为 null；`observed_state_transfer_bytes` 仅为已观测部分，不能冒充完整 S_G。
+`tool_elapsed_s` 是客户端 Tool RPC 耗时之和，包含传输/状态同步；worker 执行耗时和资源信息在 Runtime 原始证据中。
+
+Analyzer 的 RunRecorder 是既有 ATG Replay 的观测接口，依赖整数节点和 Provider 配置；本轮不重构该接口。
+新 Collector 负责 Harness 调用实例，复用现有 ToolResponse/SDK 观测、ATG schema 和 Trace 解析器。
+后续 Harness 只需实现统一 span/依赖采集，不需要复用 LangGraph 回调类。
+
+## DataSciBench 示例
+
+按 [Agent README](../../benchmarks/DataSciBench/langgraph_agent/README.md) 准备输入、固定镜像并启动 Tool RPC，
+在仓库 `.env` 设置 `DEEPSEEK_API_KEY` 后，原入口默认启用 Adapter：
+
+```bash
+uv run python -m experiments.exp1.capture.capture_agent_traces \
+  --task csv_excel_34 --output results/tracing-capture
+uv run python -m experiments.exp1.capture.capture_agent_traces \
+  --task csv_excel_34 --replay results/tracing-capture --output results/tracing-replay
+uv run python -m unittest tests.test_tracing tests.test_tracing_continuation tests.test_langgraph_agent -q
+```
+
+本轮实测结果见 [验证记录](../../experiments/exp1/TRACING_VALIDATION.md)。
+未加入在线学习、路由、扩缩容、数据库或新的分布式采集服务。
