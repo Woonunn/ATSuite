@@ -4,6 +4,7 @@ from pathlib import Path
 from types import ModuleType
 from joblib.externals import cloudpickle
 from kernel import execute_code
+from logical_state import StateObservation
 
 
 def canonical(value,depth=0):
@@ -67,6 +68,7 @@ def artifact(path,out):
 def run(request,parent,out,inputs=Path('/inputs'),branches=Path('/branches'),shared=None,resident=False):
     out.mkdir(exist_ok=True)
     started=time.perf_counter();usage=resource.getrusage(resource.RUSAGE_SELF);cpu_start=usage.ru_utime+usage.ru_stime;result={'status':'ok'}
+    observation=StateObservation();state_ready=False
     try:
         state_path=parent/'state.pkl'
         restored=shared is None
@@ -76,9 +78,13 @@ def run(request,parent,out,inputs=Path('/inputs'),branches=Path('/branches'),sha
             'canonical_restore_performed':restored,'canonical_restore_s':time.perf_counter()-restore_start if restored else None,
             'canonical_restore_bytes':state_path.stat().st_size if restored and state_path.exists() else None,
             'canonical_save_performed':False,'canonical_save_s':None,'canonical_save_bytes':None}
+        observation.record('canonical/state', 'read', lambda: len(cloudpickle.dumps(shared,protocol=5)))
+        state_ready=True
         if request['mode']=='merge':
             for step in request['steps']:
+                observation.record('branch/'+step+'/state', 'read', lambda: (branches/step/'state.pkl').stat().st_size)
                 shared[step]=cloudpickle.loads((branches/step/'state.pkl').read_bytes())
+            observation.record('canonical/state', 'write', lambda: len(cloudpickle.dumps(shared,protocol=5)))
             if not resident:
                 save_start=time.perf_counter()
                 (out/'state.pkl').write_bytes(cloudpickle.dumps(shared,protocol=5))
@@ -127,11 +133,14 @@ def run(request,parent,out,inputs=Path('/inputs'),branches=Path('/branches'),sha
             if execution['status']!='ok':
                 error_type=execution['error'].strip().splitlines()[-1].split(':',1)[0]
                 result.update(status='error',error_type=error_type,error=execution['error'].strip().splitlines()[-1].split(': ',1)[-1],traceback=execution['error'],stdout=execution['output'][:16000])
-                return finish(result,started,out,cpu_start)
+                observation.complete=False
+                observation.errors.append('Analysis did not reach its output boundary')
+                return finish(observation.attach(result),started,out,cpu_start)
             exported=scope['state_out']
             if not isinstance(exported,dict):raise ValueError('state_out must be a dict')
             export_start=time.perf_counter()
             (out/'state.pkl').write_bytes(cloudpickle.dumps(exported,protocol=5))
+            observation.record('branch/state', 'write', lambda: (out/'state.pkl').stat().st_size)
             result['state_lifecycle'].update(branch_export_s=time.perf_counter()-export_start,branch_export_bytes=(out/'state.pkl').stat().st_size)
             files=[artifact(out/name,out) for name in request['outputs']]
             for f in files:
@@ -152,9 +161,13 @@ def run(request,parent,out,inputs=Path('/inputs'),branches=Path('/branches'),sha
             result.update(artifacts=files,state_signature=digest(canonical(shared)),checks=checks)
         else:raise ValueError('Unknown sandbox mode')
     except BaseException as exc:
+        # A failed validator still consumed a complete read-only input snapshot.
+        if request.get('mode')!='validate' or not state_ready:
+            observation.complete=False
+        observation.errors.append('Worker execution failed: '+type(exc).__name__)
         result={'status':'error','error_type':type(exc).__name__,'error':str(exc),'traceback':traceback.format_exc(),
                 'stdout':(out/'stdout.txt').read_text(errors='replace')[:16000] if (out/'stdout.txt').exists() else ''}
-    return finish(result,started,out,cpu_start)
+    return finish(observation.attach(result),started,out,cpu_start)
 
 
 def finish(result,started,out,cpu_start):

@@ -45,7 +45,7 @@ def audit_image(provider, config_path):
     prefix='/app/mcp/AgentTools/' if target.family=='session' else '/app/'
     files={};approved=None
     try:
-        expected={prefix+f:ROOT/'benchmarks/DataSciBench/nodes/AgentTools'/f for f in ('implementation.py','native_kernel.py','guards.py','sandbox_worker.py','frozen_policy.py')}
+        expected={prefix+f:ROOT/'benchmarks/DataSciBench/nodes/AgentTools'/f for f in ('implementation.py','native_kernel.py','guards.py','sandbox_worker.py','logical_state.py','frozen_policy.py')}
         expected[prefix+'kernel.py']=ROOT/'benchmarks/DataSciBench/nodes/DataSci/kernel.py'
         expected.update({'/app/atsuite_sdk/'+f:ROOT/'atsuite_sdk'/f for f in ('state.py','response.py','function.py','mcp_server.py')})
         if provider.startswith('ali_'):expected['/app/atsuite_sdk/oss.py']=ROOT/'atsuite/ali/oss.py'

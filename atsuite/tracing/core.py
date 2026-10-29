@@ -129,10 +129,36 @@ class TraceCollector:
                     span[key] = sum(values)
             result = transport.get("result")
             if isinstance(result, dict):
+                logical = result.get("logical_state")
+                if isinstance(logical, dict):
+                    span["metadata"].pop("state_accesses", None)
+                    span["metadata"]["logical_state"] = json_value(logical)
+                    if logical.get("contract") == "datasci-tool-snapshot-v1" and logical.get("complete") is True:
+                        try:
+                            self.observe_state_accesses(span_id, logical.get("accesses"))
+                        except ValueError:
+                            span["metadata"]["logical_state"]["complete"] = False
+                            span["metadata"]["logical_state"]["errors"] = ["Invalid logical state accesses"]
                 span["resources"] = result.get("worker_usage") or result.get("kernel_execution", {}).get("worker_usage")
                 span["metadata"]["state_lifecycle"] = result.get("state_lifecycle") or result.get(
                     "kernel_execution", {}
                 ).get("state_lifecycle")
+
+    def observe_state_accesses(self, span_id: str, accesses: list[dict]) -> None:
+        """Record exhaustive logical externalization needs, independent of transport.
+
+        Repeated accesses must appear repeatedly. Use [] only for proven stateless
+        calls; omit the observation when object sizes or access coverage are unknown.
+        """
+        if not isinstance(accesses, list):
+            raise ValueError("Logical state accesses must be a list")
+        for access in accesses:
+            if (not isinstance(access, dict) or not isinstance(access.get("object_id"), str) or not access["object_id"] or
+                    access.get("operation") not in ("read", "write") or
+                    not isinstance(access.get("bytes"), int) or isinstance(access["bytes"], bool) or access["bytes"] < 0):
+                raise ValueError("Invalid logical state access")
+        with self.lock:
+            self.spans[span_id]["metadata"]["state_accesses"] = json_value(accesses)
 
     def snapshot(self) -> dict:
         """Return a standalone JSON trace with workload features and optional rho."""
@@ -169,7 +195,7 @@ class TraceCollector:
             (max(accumulate(delta for _, delta in sorted(events)), default=0) for events in boundaries.values()),
             default=0,
         )
-        return {
+        payload = {
             "schema_version": 1,
             "request_id": self.request_id,
             "session_id": self.session_id,
@@ -192,9 +218,17 @@ class TraceCollector:
                 "observed_state_transfer_bytes": observed,
                 "state_measurements_complete": state_complete,
                 "state_transfer_bytes": total,
-                "rho_kb_s": total / 1000 / idle if successful and total is not None and idle > 0 else None,
+                "rho_kb_s": None,
             },
         }
+
+        # Transport counters remain available, but cannot define workload coupling.
+        from atsuite.workload.profile import extract_profile
+
+        features = extract_profile(payload)
+        payload["summary"]["workload_state_bytes"] = features["metrics"]["state_bytes"]
+        payload["summary"]["rho_kb_s"] = features["metrics"]["rho_kb_s"] if successful else None
+        return payload
 
     def save(self) -> None:
         """Atomically save the canonical compressed trace; derived formats are exported on demand."""

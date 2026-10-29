@@ -1,6 +1,8 @@
 """Canonical state follows ATSuite MCP/FaaS semantics; branches never commit it."""
 import hashlib,io,json,os,pickle,shutil,subprocess,tarfile,tempfile,time,uuid,threading,platform
 from pathlib import Path
+from contextvars import ContextVar
+from functools import wraps
 _settings=Path(__file__).with_name('cloud_settings.json')
 if _settings.exists():
     for _key,_value in json.loads(_settings.read_text()).items():
@@ -8,8 +10,10 @@ if _settings.exists():
 from atsuite_sdk.abstract import registry
 from atsuite_sdk.state import get_state_runtime,register_state_object
 try:
+    from .logical_state import StateObservation,json_size
     from .guards import identifier,relative_file,safe_files
 except ImportError:
+    from logical_state import StateObservation,json_size
     from guards import identifier,relative_file,safe_files
 
 try:
@@ -41,6 +45,48 @@ _environment_lock=threading.Lock()
 
 
 workspace=register_state_object('agent_workspace',Workspace(),session_scoped=True)
+
+
+_observations=ContextVar('datasci_logical_state')
+
+
+def workspace_metadata():
+    return {key:getattr(workspace,key) for key in ('version','task_id','inputs','artifacts')}
+
+
+def branch_metadata(result):
+    # Runtime measurements and stdout are telemetry, not reusable branch state.
+    return {key:result[key] for key in ('artifacts','state_signature','state_names') if key in result}
+
+
+def observe_workspace(access):
+    """Observe the same metadata boundary inside either Runtime's execution lock."""
+    def decorate(function):
+        @wraps(function)
+        def measured(*args,**kwargs):
+            observation=StateObservation();token=_observations.set(observation)
+            try:
+                observation.record('workspace/metadata','read',lambda:json_size(workspace_metadata()))
+                result=function(*args,**kwargs)
+                if access=='rw':
+                    observation.record('workspace/metadata','write',lambda:json_size(workspace_metadata()))
+                return observation.attach(result)
+            except BaseException as exc:
+                if not (access=='r' and isinstance(exc,AnalysisFailure) and exc.result.get('logical_state',{}).get('complete') is True):
+                    observation.complete=False
+                observation.errors.append('Tool failed: '+type(exc).__name__)
+                if isinstance(getattr(exc,'result',None),dict):observation.attach(exc.result)
+                raise
+            finally:_observations.reset(token)
+        return measured
+    return decorate
+
+
+def observe_artifacts(root,operation):
+    # Full visible artifact snapshot is the externalization unit, not individual open() calls.
+    for path in sorted(root.rglob('*')):
+        if path.is_file():
+            _observations.get().record('canonical/artifacts/'+path.relative_to(root).as_posix(),operation,lambda:path.stat().st_size)
 
 
 def sha(path):
@@ -155,6 +201,7 @@ def current(uid,version):
 
 
 @registry.tool(access='rw',domain='agent_workspace')
+@observe_workspace('rw')
 def prepare_workspace(task_id:str,dataset_refs:list,uid:str)->dict:
     global _mcp_kernel,_first_task
     identifier(task_id)
@@ -166,6 +213,7 @@ def prepare_workspace(task_id:str,dataset_refs:list,uid:str)->dict:
         if not path.resolve().is_relative_to(inputs.resolve()) or sha(path)!=ref['sha256']:raise ValueError('Dataset checksum mismatch')
     root=get_state_runtime().session_dir(uid)/'v0';(root/'artifacts').mkdir(parents=True,exist_ok=False)
     if get_state_runtime().runtime!='mcp':(root/'state.pkl').write_bytes(pickle.dumps({},protocol=5))
+    _observations.get().record('canonical/state','write',lambda:len(pickle.dumps({},protocol=5)))
     workspace.task_id=task_id;workspace.inputs=dataset_refs
     with _environment_lock:
         first_task=_first_task;_first_task=False
@@ -182,15 +230,23 @@ def prepare_workspace(task_id:str,dataset_refs:list,uid:str)->dict:
 
 
 @registry.tool(access='r',domain='agent_workspace')
+@observe_workspace('r')
 def execute_analysis(step_id:str,code:str,outputs:list,snapshot:int,seed:int,call_id:str,uid:str)->dict:
     identifier(step_id);identifier(call_id)
     if os.getenv('WABBER_NATIVE_CONFINEMENT')=='frozen_trace':check_analysis(workspace.task_id,step_id,code,outputs,snapshot,seed)
     for name in outputs:relative_file(name)
     parent=current(uid,snapshot);inputs=Path(os.environ['WABBER_DATA_ROOT'])/workspace.task_id
+    observe_artifacts(parent/'artifacts','read')
     result,bundle=sandbox({'mode':'analyze','task_id':workspace.task_id,'code':code,'outputs':outputs,'seed':seed},parent,inputs=inputs)
+    _observations.get().include(result)
+    for event in _observations.get().accesses:
+        if event['object_id']=='branch/state':event['object_id']='branch/'+step_id+'/state'
     if result['status']!='ok':raise AnalysisFailure(result)
     if bundle:
         try:
+            for artifact in result['artifacts']:
+                _observations.get().record('branch/'+step_id+'/artifacts/'+artifact['name'],'write',lambda:artifact['bytes'])
+            _observations.get().record('branch/'+step_id+'/metadata','write',lambda:json_size(branch_metadata(result)))
             with tarfile.open(bundle,'a') as archive:
                 raw=json.dumps(result).encode();info=tarfile.TarInfo('branch_manifest.json');info.size=len(raw);archive.addfile(info,io.BytesIO(raw))
             store(f'{identifier(uid)}/{call_id}.tar',source=bundle)
@@ -200,15 +256,18 @@ def execute_analysis(step_id:str,code:str,outputs:list,snapshot:int,seed:int,cal
 
 
 @registry.tool(access='rw',domain='agent_workspace')
+@observe_workspace('rw')
 def merge_artifacts(branches:list,snapshot:int,uid:str)->dict:
     if not branches:raise ValueError('Cannot commit an empty branch batch')
     parent=current(uid,snapshot);root=get_state_runtime().session_dir(uid)
+    observe_artifacts(parent/'artifacts','read')
     with tempfile.TemporaryDirectory(prefix='wabber-merge-') as directory:
         branch_root=Path(directory);names=[];new_artifacts=[];seen=set()
         for ref in branches:
             name=identifier(ref['step_id']);call=identifier(ref['branch_ref']);names.append(name)
             dest=branch_root/name;dest.mkdir();archive=branch_root/(name+'.tar');store(f'{identifier(uid)}/{call}.tar',destination=archive);unpack(archive,dest)
             metadata=json.loads((dest/'branch_manifest.json').read_text())
+            _observations.get().record('branch/'+name+'/metadata','read',lambda:json_size(branch_metadata(metadata)))
             expected=[{k:a[k] for k in ('name','signature','comparison')} for a in metadata['artifacts']]
             if expected!=ref['artifacts']:raise ValueError('Branch semantic outputs changed before merge')
             for a in metadata['artifacts']:
@@ -216,8 +275,10 @@ def merge_artifacts(branches:list,snapshot:int,uid:str)->dict:
                 if output in seen:raise ValueError('Conflicting branch output writes')
                 seen.add(output)
                 if sha(dest/output)!=a['sha256']:raise ValueError('Branch artifact corrupted before merge')
+                _observations.get().record('branch/'+name+'/artifacts/'+output,'read',lambda:(dest/output).stat().st_size)
                 new_artifacts.append(a)
         result,bundle=sandbox({'mode':'merge','steps':names},parent,branches=branch_root)
+        _observations.get().include(result)
         if result['status']!='ok':raise AnalysisFailure(result)
         target=root/f'v{snapshot+1}';staging=root/('.pending-'+uuid.uuid4().hex)
         staging.mkdir();(staging/'artifacts').mkdir();resident_committed=False
@@ -238,6 +299,7 @@ def merge_artifacts(branches:list,snapshot:int,uid:str)->dict:
                 resident_committed=True
             workspace.artifacts=[a for a in workspace.artifacts if a['name'] not in seen]+new_artifacts
             workspace.version=snapshot+1
+            observe_artifacts(target/'artifacts','write')
             shutil.rmtree(parent)
             return {'status':'ok','snapshot':workspace.version,'artifacts':workspace.artifacts,'state_signature':result['state_signature'],
                 'kernel_execution':{k:result[k] for k in ('state_lifecycle','worker_usage','sandbox_wall_s','container_name','resident_kernel_pid','exec_started_monotonic','exec_ended_monotonic') if k in result}}
@@ -249,6 +311,7 @@ def merge_artifacts(branches:list,snapshot:int,uid:str)->dict:
 
 
 @registry.tool(access='r',domain='agent_workspace')
+@observe_workspace('r')
 def read_workspace(snapshot:int,uid:str)->dict:
     root=current(uid,snapshot)
     return {'status':'ok','snapshot':snapshot,'artifacts':workspace.artifacts,
@@ -257,11 +320,14 @@ def read_workspace(snapshot:int,uid:str)->dict:
 
 
 @registry.tool(access='r',domain='agent_workspace')
+@observe_workspace('r')
 def validate_result(outputs:list,snapshot:int,uid:str)->dict:
     for name in outputs:relative_file(name)
+    observe_artifacts(current(uid,snapshot)/'artifacts','read')
     result,bundle=sandbox({'mode':'validate','outputs':outputs,'task_id':workspace.task_id,
         'artifact_evidence':{a['name']:a.get('evidence') for a in workspace.artifacts}},current(uid,snapshot),
         inputs=Path(os.environ['WABBER_DATA_ROOT'])/workspace.task_id)
+    _observations.get().include(result)
     if bundle:bundle.unlink()
     if result['status']!='ok':raise AnalysisFailure(result)
     mapping_path=Path(os.environ['WABBER_EVALUATION_MAPPING']) if 'WABBER_EVALUATION_MAPPING' in os.environ else Path(__file__).resolve().parents[2]/'tasks/evaluation_alignment.json'

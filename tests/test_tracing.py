@@ -252,7 +252,7 @@ class TracingTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(any(s["status"] == "error" for s in collector.spans.values()))
             self.assertTrue((Path(directory) / "trace.json.gz").is_file())
 
-    def test_rho_requires_all_actual_measurements_and_counts_repeated_io(self):
+    def test_rho_requires_logical_measurements_and_counts_repeated_io(self):
         collector = TraceCollector("r", "s")
         collector.start("session", "session", "graph")
         collector.end("session")
@@ -276,6 +276,12 @@ class TracingTests(unittest.IsolatedAsyncioTestCase):
                     }
                 },
             )
+        self.assertIsNone(collector.snapshot()["summary"]["rho_kb_s"])
+        for index in range(2):
+            collector.observe_state_accesses(str(index), [
+                {"object_id": "state", "operation": "read", "bytes": 2500},
+                {"object_id": "state", "operation": "write", "bytes": 1500},
+            ])
         self.assertEqual(collector.snapshot()["summary"]["rho_kb_s"], 4)
         collector.start("unknown", "tool", "old runtime")
         collector.end("unknown")
