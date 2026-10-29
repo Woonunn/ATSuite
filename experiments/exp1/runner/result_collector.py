@@ -10,6 +10,7 @@ from experiments.exp1.data.prepare_e1a import ROOT,sha
 from experiments.exp1.runner.arrival_scheduler import stats
 from atsuite.analysis.collectors import create_collector
 from atsuite.analysis.model import RunContext,NodeObservation,InvocationObservation,SessionObservation
+from atsuite.tracing.storage import read_text
 
 
 def interval_union(intervals):
@@ -30,7 +31,9 @@ def parallel_peak(intervals):
 def known_sum(values):return sum(values) if values and all(v is not None for v in values) else None
 
 
-def read_events(path):return [json.loads(line) for line in Path(path).read_text().splitlines()] if Path(path).exists() else []
+def read_events(path):
+    try:return [json.loads(line) for line in read_text(Path(path)).splitlines()]
+    except FileNotFoundError:return []
 
 
 def request_metrics(row,terminal,directory):

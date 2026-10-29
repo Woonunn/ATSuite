@@ -18,6 +18,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, Send
 
 from atsuite.tracing import TraceCollector
+from atsuite.tracing.export import export_trace
 from atsuite.tracing.langgraph import LangGraphTracingAdapter
 from atsuite_sdk.workflow import Trace
 
@@ -76,7 +77,8 @@ class TracingTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(tasks[2]["dependencies"], [tasks[0]["id"]])
             self.assertEqual(set(tasks[3]["dependencies"]), {tasks[1]["id"], tasks[2]["id"]})
             self.assertEqual(tasks[4]["dependencies"], [tasks[3]["id"]])
-            loaded = Trace.from_file(Path(directory) / "trace.atg.json")
+            self.assertFalse((Path(directory) / "trace.atg.json").exists())
+            loaded = Trace.from_file(export_trace(Path(directory), "atg"))
             self.assertEqual(sum(n.node_type == "llm" for n in loaded.nodes), 2)
             # Every exported node is reachable, and a topological traversal consumes all nodes.
             nodes = json.loads((Path(directory) / "trace.atg.json").read_text())["nodes"]
@@ -248,7 +250,7 @@ class TracingTests(unittest.IsolatedAsyncioTestCase):
                 async for _ in LangGraphTracingAdapter(collector).astream(graph, {"values": [], "count": -1}):
                     pass
             self.assertTrue(any(s["status"] == "error" for s in collector.spans.values()))
-            self.assertTrue((Path(directory) / "trace.json").is_file())
+            self.assertTrue((Path(directory) / "trace.json.gz").is_file())
 
     def test_rho_requires_all_actual_measurements_and_counts_repeated_io(self):
         collector = TraceCollector("r", "s")

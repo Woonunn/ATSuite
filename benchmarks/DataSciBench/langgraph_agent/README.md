@@ -28,7 +28,7 @@ uv run python -m experiments.exp1.capture.capture_agent_traces \
   --task human_12 --replay results/phase2/<capture-id>
 ```
 
-默认配置是 `config/langgraph_experiment.json`。`--output` 必须为不存在的目录，防止覆盖旧执行。结果包括完整事件 JSONL、最终控制状态和 ATSuite ATG。正式接受的六份真实 Capture 位于 `trace/captured/manifest.json` 索引内；范围为 manifest 中的六个已准备候选，不代表所有目录任务均可执行。
+默认配置是 `config/langgraph_experiment.json`。`--output` 必须为不存在的目录，防止覆盖旧执行。结果包括压缩后的完整事件 JSONL、最终控制状态和统一 Trace；ATSuite ATG 按需导出。正式接受的六份真实 Capture 位于 `trace/captured/manifest.json` 索引内；范围为 manifest 中的六个已准备候选，不代表所有目录任务均可执行。
 
 ## Tool Runtime 与隔离
 
@@ -77,8 +77,15 @@ WABBER_SANDBOX_IMAGE="$WABBER_SANDBOX_IMAGE" PROVIDER="" ATSUITE_RUNTIME=functio
 
 ## Harness TracingAdapter
 
-Capture/Replay 入口现在默认启用 LangGraph TracingAdapter。除原事件和结果外，额外输出
-`trace.json`、`spans.jsonl`，并用实际 Harness 依赖生成 `trace.atg.json`。
+Capture/Replay 入口默认启用 LangGraph TracingAdapter。完成后仅默认保存
+`trace.json.gz`、`events.jsonl.gz` 和 `result.json.gz`，历史明文 Capture 仍可直接 Replay。
+按需生成派生文件：
+
+```bash
+uv run python -m atsuite.tracing.export results/tracing-capture atg
+uv run python -m atsuite.tracing.export results/tracing-capture spans
+```
+
 统一 schema、独立接入示例、状态传输边界和 rho 的缺失值规则见
 [Tracing 说明](../../../atsuite/tracing/README.md)；本轮验证见
 [TRACING_VALIDATION.md](../../../experiments/exp1/TRACING_VALIDATION.md)。

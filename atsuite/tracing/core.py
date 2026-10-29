@@ -14,6 +14,8 @@ from itertools import accumulate
 from pathlib import Path
 from typing import Any
 
+from atsuite.tracing.storage import read_text, write_json
+
 
 def json_value(value: Any) -> Any:
     """Keep JSON results, including LangChain messages, without pickling objects."""
@@ -48,7 +50,7 @@ class TraceCollector:
     def load(cls, directory: Path) -> TraceCollector:
         """Continue a saved trace using the caller's separately persisted Harness checkpoint."""
         directory = Path(directory)
-        payload = json.loads((directory / "trace.json").read_text())
+        payload = json.loads(read_text(directory / "trace.json"))
         if payload.get("schema_version") != 1:
             raise ValueError("Unsupported trace schema")
         collector = cls(payload["request_id"], payload["session_id"], directory)
@@ -195,18 +197,11 @@ class TraceCollector:
         }
 
     def save(self) -> None:
-        """Write unified JSON/JSONL and an ATG understood by existing Trace readers."""
+        """Atomically save the canonical compressed trace; derived formats are exported on demand."""
         if self.directory is None:
             return
         self.directory.mkdir(parents=True, exist_ok=True)
-        trace = self.snapshot()
-        temporary = self.directory / "trace.json.tmp"
-        temporary.write_text(json.dumps(trace, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
-        temporary.replace(self.directory / "trace.json")
-        (self.directory / "spans.jsonl").write_text(
-            "".join(json.dumps(s, ensure_ascii=False, allow_nan=False) + "\n" for s in trace["spans"])
-        )
-        export_atg(trace, self.directory / "trace.atg.json")
+        write_json(self.directory / "trace.json", self.snapshot())
 
 
 class TracingAdapter(ABC):

@@ -1,6 +1,7 @@
 import asyncio,json,time,uuid
 from pathlib import Path
 from atsuite.runtime import InvocationRequest,create_runtime_adapter
+from atsuite.tracing.storage import read_text
 
 
 class DivergenceError(RuntimeError):pass
@@ -24,7 +25,7 @@ class ToolClient:
         self.recorder.emit('tool_session_open',uid=self.uid,target_id=self.target_id,provider_session_id=self.session.provider_session_id,metadata=self.session.metadata)
         self.expected={}
         if capture:
-            for line in (Path(capture)/'events.jsonl').read_text().splitlines():
+            for line in read_text(Path(capture)/'events.jsonl').splitlines():
                 event=json.loads(line)
                 if event['kind']=='tool':
                     if event['key'] in self.expected:raise ValueError('Duplicate captured Tool key')

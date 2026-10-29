@@ -3,6 +3,7 @@ from pathlib import Path
 import threading
 import time
 from datetime import datetime, timezone
+from atsuite.tracing.storage import compress_log, write_json
 
 
 class TraceRecorder:
@@ -21,9 +22,9 @@ class TraceRecorder:
         return event
 
     def finish(self,state):
-        (self.directory/'result.json').write_text(json.dumps(state,ensure_ascii=False,indent=2,allow_nan=False)+'\n')
+        write_json(self.directory/'result.json',state)
         if self.tracing:self.tracing.collector.save()
-        else:export_atg(self.events,self.directory/'trace.atg.json')
+        with self.lock:compress_log(self.directory/'events.jsonl')
 
 
 def export_atg(events,path):

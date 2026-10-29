@@ -18,7 +18,9 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, Send, interrupt
 
 from atsuite.tracing import TraceCollector
+from atsuite.tracing.export import export_trace
 from atsuite.tracing.langgraph import LangGraphTracingAdapter
+from atsuite.tracing.storage import read_text
 from atsuite_sdk.workflow import Trace
 
 
@@ -36,7 +38,7 @@ def tasks(collector, name=None):
 
 
 def assert_dag(test, directory):
-    path = Path(directory) / "trace.atg.json"
+    path = export_trace(Path(directory), "atg")
     Trace.from_file(path)
     nodes = json.loads(path.read_text())["nodes"]
     incoming = {n["id"]: 0 for n in nodes}
@@ -472,7 +474,7 @@ save_checkpoint(saver, root / 'checkpoint.fixture')
                 )
             self.assertIn("Checkpoint observation failed", collector.diagnostics[0])
             self.assertFalse(collector.snapshot()["summary"]["complete"])
-            self.assertTrue((Path(directory) / "trace.json").exists())
+            self.assertTrue((Path(directory) / "trace.json.gz").exists())
 
     async def test_unfinished_segment_marker_keeps_lost_history_incomplete(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -482,7 +484,7 @@ save_checkpoint(saver, root / 'checkpoint.fixture')
             abandoned_dir.mkdir()
 
             async def node(state):
-                payload = json.loads((trace_dir / "trace.json").read_text())
+                payload = json.loads(read_text(trace_dir / "trace.json"))
                 self.assertTrue(payload["harness_state"]["in_progress"])
                 self.assertFalse(payload["summary"]["complete"])
                 (abandoned_dir / "trace.json").write_text(json.dumps(payload))

@@ -1,14 +1,15 @@
 import asyncio
 import json
 from pathlib import Path
+from atsuite.tracing.storage import read_text
 
 
 class ReplayModel:
     def __init__(self,capture,recorder,normalizer=None):
         self.normalizer=normalizer
-        if json.loads((Path(capture)/'result.json').read_text()).get('status')!='complete':
+        if json.loads(read_text(Path(capture)/'result.json')).get('status')!='complete':
             raise ValueError('Only successful Capture traces can be replayed')
-        self.events=[json.loads(line) for line in (Path(capture)/'events.jsonl').read_text().splitlines()]
+        self.events=[json.loads(line) for line in read_text(Path(capture)/'events.jsonl').splitlines()]
         self.llm=[e for e in self.events if e['kind']=='llm'];self.index=0;self.recorder=recorder
 
     async def decide(self,phase,iteration,messages):

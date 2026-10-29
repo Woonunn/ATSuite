@@ -4,6 +4,7 @@ import asyncio
 import json
 from pathlib import Path
 import uuid
+from atsuite.tracing.storage import read_text
 from experiments.exp1.capture.capture_agent_traces import run
 from experiments.exp1.tests.check_agent_lifecycle import ROOT,service
 
@@ -18,7 +19,7 @@ def main():
             target=area/(case['task_id']+'-'+family)
             with service(family,target/'environment',a.image) as config:
                 result=asyncio.run(run(case['task_id'],{**base,'tool':config},target/'replay',ROOT/case['capture']))
-                events=[json.loads(line) for line in (target/'replay/events.jsonl').read_text().splitlines()]
+                events=[json.loads(line) for line in read_text(target/'replay/events.jsonl').splitlines()]
                 tools=[e for e in events if e['kind']=='tool'];analyses=[e for e in tools if e['tool_name']=='execute_analysis']
                 names={e['result']['container_name'] for e in analyses}
                 if family=='mcp':
@@ -36,7 +37,7 @@ def main():
                         duration=min(u['exec_ended_monotonic'],v['exec_ended_monotonic'])-max(u['exec_started_monotonic'],v['exec_started_monotonic'])
                         if duration>0:overlap.append({'steps':[x['key'],y['key']],'seconds':duration})
                 reports.append({**result,'family':family,'analysis_containers':len(names),'tool_calls':len(tools),
-                    'parallel_execution':overlap,'validation':json.loads((target/'replay/result.json').read_text())['validation']})
+                    'parallel_execution':overlap,'validation':json.loads(read_text(target/'replay/result.json'))['validation']})
                 print(case['task_id'],family,'passed',flush=True)
     (area/'validation.json').write_text(json.dumps({'scope':'new real Tool execution, recorded DeepSeek decisions and delays; no new LLM charges; no cloud billing',
         'image':a.image,'cases':reports},indent=2)+'\n');print(area)

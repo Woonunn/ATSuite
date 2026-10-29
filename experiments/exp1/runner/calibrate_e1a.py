@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from experiments.exp1.data.prepare_e1a import ROOT,sha,load_requests
 from experiments.exp1.runner.result_collector import read_events
+from atsuite.tracing.storage import trace_path
 
 
 def peak_arrivals(rows,span_ms):
@@ -52,7 +53,7 @@ def calibration(workload,deployment,pilots,rates,output,agentcore_usage=None):
     for provider,path in pilots.items():
         info,report,records,events,init_s=load_pilot(path,manifest);entry=next(r for r in deploy['results'] if r['provider']==provider)
         if entry['status']!='deployed' or info['deployment']['config_sha256']!=entry['config_sha256']:raise ValueError('Pilot resources differ from the formal deployment')
-        path=Path(path);evidence += [path/'run.json',path/'window_report.json',path/'request_metrics.jsonl',*(directory/'events.jsonl' for directory in (path/'requests').iterdir())]
+        path=Path(path);evidence += [path/'run.json',path/'window_report.json',path/'request_metrics.jsonl',*(trace_path(directory/'events.jsonl') for directory in (path/'requests').iterdir())]
         source=next((path/name for name in ('provider_evidence.json','provider_evidence-early.json') if (path/name).exists()),None)
         index=path/'provider_collection_status.json'
         if index.exists():

@@ -1,12 +1,15 @@
 """Diagnostic only: original captured programs, executed in the container Tool Runtime."""
 import json
+import gzip
 import sys
 from pathlib import Path
 import implementation as tool
 
 
 def main():
-    events=[json.loads(line) for line in Path('/work/capture/events.jsonl').read_text().splitlines()]
+    path=Path('/work/capture/events.jsonl');compressed=path.with_name(path.name+'.gz')
+    source=gzip.open(compressed,'rt',encoding='utf-8') if compressed.exists() else path.open(encoding='utf-8')
+    with source:events=[json.loads(line) for line in source]
     out=Path('/work/diagnostic');out.mkdir(exist_ok=False)
     observed={}
     try:

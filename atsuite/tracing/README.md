@@ -23,10 +23,20 @@ print(collector.snapshot()["summary"])
 
 ## 数据与依赖
 
-- `trace.json`：版本化统一 Trace，包含 request/session、session/workflow/llm/tool spans、诊断、summary。
-- `spans.jsonl`：每行一个最终 span；在请求完成或异常退出时输出，不是实时消息基础设施。
-- `trace.atg.json`：保留实际执行 fork/join 的 ATSuite ATG，可用 `atsuite_sdk.workflow.Trace.from_file` 读取。
-- DataSciBench 原 `events.jsonl`、`result.json` 继续保留原字段，新增 start/关联字段；历史 Capture 仍用原 Replay 校验模型输入、Tool 参数和输出签名。
+- 默认仅保存 `trace.json.gz`：gzip level 6 压缩的统一 Trace，保留 request/session、全部 spans、诊断、恢复记录及 summary。
+- DataSciBench 同时保存 `events.jsonl.gz`、`result.json.gz`，内容字段和 Replay 校验规则保持不变。
+  事件日志在运行中逐条写入 `events.jsonl`，结束后原子压缩，成功后才移除明文日志；中途退出或压缩失败时保留原日志。
+- 历史明文 Capture/Trace 仍可读取；同名压缩文件与明文文件并存时优先读取压缩文件，损坏时直接报错。
+- `spans.jsonl` 和 `trace.atg.json` 改为按需导出。后者仍可用 `atsuite_sdk.workflow.Trace.from_file` 读取：
+
+```bash
+uv run python -m atsuite.tracing.export results/my-trace spans
+uv run python -m atsuite.tracing.export results/my-trace atg
+```
+
+分析脚本可用 `atsuite.tracing.storage.read_text(Path("results/my-trace/trace.json"))` 透明读取新旧格式。
+新运行不自动生成派生格式，也不自动迁移或删除历史文件；按需导出的明文文件由调用方管理。
+压缩只改变日志存储，不改变 Runtime 实测状态字节、LLM 等待间隔或 rho 的计算。
 
 Span 的 `parent_id` 表示调用包含关系，`dependencies` 表示前置执行实例；循环的每次执行都有独立 ID。
 时间使用进程单调时钟纳秒，`duration_s` 使用秒。LLM 输入/响应、Tool 输入/结果、错误、重试、usage、
@@ -87,7 +97,7 @@ async for state in adapter.astream(graph, None, config):
 
 `TraceCollector.load` 仅恢复观测 JSON，不反序列化/恢复 Agent 业务对象。
 `InMemorySaver` 只适用于同进程；跨进程必须由应用提供持久化或恢复后的 checkpointer，Tool Runtime Session/UID 也由应用保持。
-`trace.json` 原子替换，保存 thread、各层 checkpoint ID、pending task 与 resume/interrupt/error 控制记录。
+`trace.json.gz` 原子替换，保存 thread、各层 checkpoint ID、pending task 与 resume/interrupt/error 控制记录。
 续跑前核对这些记录；错误 thread、旧 checkpoint、未经采集的中间 resume 不会静默并入当前 Trace。
 需要回退/分叉到其他历史 checkpoint 时，应使用匹配的历史 Trace 副本和独立输出目录。
 
