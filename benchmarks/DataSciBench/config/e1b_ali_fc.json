@@ -1,0 +1,86 @@
+{
+  "trace_file": "./trace/captured/csv_excel_34-cda3485fdcfd40e4ab0e8599e4c47c43/trace.atg.json",
+  "nodes": [
+    {
+      "name": "AgentTools",
+      "dir": "./nodes/AgentTools",
+      "trace_names": [
+        {
+          "name": "prepare_workspace",
+          "tool": "prepare_workspace",
+          "access": "rw",
+          "domain": "agent_workspace"
+        },
+        {
+          "name": "execute_analysis",
+          "tool": "execute_analysis",
+          "access": "r",
+          "domain": "agent_workspace"
+        },
+        {
+          "name": "read_workspace",
+          "tool": "read_workspace",
+          "access": "r",
+          "domain": "agent_workspace"
+        },
+        {
+          "name": "merge_artifacts",
+          "tool": "merge_artifacts",
+          "access": "rw",
+          "domain": "agent_workspace"
+        },
+        {
+          "name": "validate_result",
+          "tool": "validate_result",
+          "access": "r",
+          "domain": "agent_workspace"
+        }
+      ]
+    }
+  ],
+  "pipeline": {
+    "faas": {
+      "build": {
+        "python_version": "3.11.1"
+      },
+      "units": [
+        {
+          "name": "E1bAliFc",
+          "node": "AgentTools",
+          "trace_names": [
+            "prepare_workspace",
+            "execute_analysis",
+            "read_workspace",
+            "merge_artifacts",
+            "validate_result"
+          ],
+          "deploy": {
+            "cpu": 2,
+            "memory": 4096,
+            "disk": 10240,
+            "timeout": 240
+          }
+        }
+      ]
+    },
+    "mcp_serverless": {
+      "build": {
+        "python_version": "3.11.1"
+      },
+      "servers": [
+        {
+          "name": "E1bAliFc",
+          "nodes": [
+            "AgentTools"
+          ],
+          "deploy": {
+            "cpu": 2,
+            "memory": 4096,
+            "disk": 10240,
+            "timeout": 240
+          }
+        }
+      ]
+    }
+  }
+}

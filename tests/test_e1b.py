@@ -1,6 +1,7 @@
 import copy
 import csv
 import json
+import hashlib
 from pathlib import Path
 import random
 import tempfile
@@ -28,6 +29,29 @@ class CompositionTests(unittest.TestCase):
         bad=copy.deepcopy(tasks[0]['profiling']);bad['peak_rss_bytes_max']=float('nan')
         with self.assertRaises(ValueError):p.classify(bad,self.config['thresholds'])
 
+    def test_frozen_policy_keeps_task_programs_separate(self):
+        from benchmarks.DataSciBench.nodes.AgentTools.frozen_policy import check_analysis, check_preparation
+
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'approved.json'
+            tasks = {}
+            for task_id, code in [('a', 'state_out={"value":1}'), ('b', 'state_out={"value":2}')]:
+                tasks[task_id] = {
+                    'task_id': task_id, 'dataset_refs': [{'name': task_id + '.csv'}],
+                    'analyses': [{'step_id': 'step', 'code_sha256': hashlib.sha256(code.encode()).hexdigest(),
+                                  'outputs': [], 'snapshot': 0, 'seed': 0}],
+                }
+            path.write_text(json.dumps({'tasks': tasks}))
+            with patch.dict('os.environ', {'WABBER_APPROVED_TRACE': str(path)}):
+                check_analysis('a', 'step', 'state_out={"value":1}', [], 0, 0)
+                check_preparation('b', [{'name': 'b.csv'}])
+                with self.assertRaises(ValueError):
+                    check_analysis('b', 'step', 'state_out={"value":1}', [], 0, 0)
+                with self.assertRaises(ValueError):
+                    check_preparation('a', [{'name': 'b.csv'}])
+                with self.assertRaises(ValueError):
+                    check_preparation('unknown', [])
+
     def test_quotas_reproduce_without_dropping(self):
         a=p.allocate({'a':.1,'b':.9},53,random.Random(11))
         self.assertEqual(a,p.allocate({'a':.1,'b':.9},53,random.Random(11)))
@@ -46,15 +70,19 @@ class CompositionTests(unittest.TestCase):
             p.prepare(self.config,a);p.prepare(self.config,b)
             self.assertEqual((a/'requests.csv').read_bytes(),(b/'requests.csv').read_bytes())
             manifest,rows=p.load(a)
-            self.assertEqual(len(rows),2166)
-            for role in self.config['window_roles']:
-                signatures=[]
-                for scenario in self.config['scenarios']:
-                    signatures.append([(r['arrival_id'],r['relative_arrival_ms']) for r in rows if r['scenario']==scenario and r['window_role']==role])
-                self.assertTrue(all(s==signatures[0] for s in signatures))
-            groups=[g for g in manifest['groups'] if g['window_role']=='typical' and g['scenario']=='cpu_ramp']
-            ratios=[g['actual_task_counts'].get('human_142',0)/g['requests'] for g in groups]
-            self.assertEqual(ratios,sorted(ratios));self.assertGreater(ratios[-1]-ratios[0],.6)
+            self.assertEqual(len(rows), 191)
+            self.assertEqual({r['scenario'] for r in rows}, {'fixed'})
+            self.assertEqual({r['window_role'] for r in rows}, {'typical'})
+            arrivals, _ = p.load_span(p.ROOT / self.config['traffic'], 'typical', 0, 600000)
+            self.assertEqual(
+                [(r['arrival_id'], p.ms_ns(r['relative_arrival_ms']), r['original_timestamp_utc']) for r in rows],
+                [(r.arrival_id, p.ms_ns(r.relative_arrival_ms), r.original_timestamp_utc) for r in arrivals],
+            )
+            self.assertEqual([g['requests'] for g in manifest['groups']], [55, 66, 70])
+            for group in manifest['groups']:
+                counts = list(group['actual_task_counts'].values())
+                self.assertEqual(len(counts), 6)
+                self.assertLessEqual(max(counts) - min(counts), 1)
             with (a/'requests.csv').open('a') as f:f.write('corruption\n')
             with self.assertRaises(ValueError):p.load(a)
 
@@ -71,7 +99,10 @@ class CompositionTests(unittest.TestCase):
     def test_analysis_matched_control_and_missing_results(self):
         # Synthetic metrics test arithmetic only; never represent measured costs/performance.
         with tempfile.TemporaryDirectory(dir=p.ROOT/'results') as temp:
-            root=Path(temp);workload=root/'workload';p.prepare(self.config,workload)
+            config = copy.deepcopy(self.config)
+            config['window_roles'] = ['low']
+            config['scenarios']['cpu_ramp'] = copy.deepcopy(config['scenarios']['fixed'])
+            root=Path(temp);workload=root/'workload';p.prepare(config,workload)
             manifest,rows=p.load(workload);runs=[]
             for scenario,latency in [('fixed',100),('cpu_ramp',300)]:
                 run=root/scenario;run.mkdir();runs.append(run)

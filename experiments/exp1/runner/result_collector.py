@@ -127,7 +127,8 @@ def provider_observations(run):
     endpoint_map=json.loads((ROOT/'url_results'/Path(entry['config']).name).read_text());target_id,target=next(iter(endpoint_map['targets'].items()))
     observability={'aws_lambda':'aws_lambda_cloudwatch','aws_agentcore':'aws_agentcore_cloudwatch','ali_fc':'ali_sls','ali_agentrun':'ali_sls'}[provider]
     schedule=read_events(run/'schedule/events.jsonl');end=max(e['logged_utc'] for e in schedule)
-    context=RunContext(uid=run.name,provider=provider,observability_provider=observability,benchmark='DataSciBench',trace=workload_manifest(info)['task_id'],family=target['family'],
+    workload=workload_manifest(info)
+    context=RunContext(uid=run.name,provider=provider,observability_provider=observability,benchmark='DataSciBench',trace=workload.get('task_id') or workload['experiment'],family=target['family'],
         config_path=entry['config'],run_id=run.name,start_time=info['started_epoch'],end_time=datetime.fromisoformat(end.replace('Z','+00:00')).timestamp(),
         targets={target_id:{'name':actual['runtime_name'],'runtime':target['resources']}},endpoint_map=endpoint_map)
     nodes={};invocations=[];sessions=[];index=0

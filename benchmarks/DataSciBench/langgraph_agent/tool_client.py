@@ -17,7 +17,9 @@ def semantic(result):
 
 
 class ToolClient:
-    def __init__(self,config,recorder,capture=None):
+    def __init__(self,config,recorder,capture=None,calibration=False):
+        if calibration and not capture:raise ValueError("Calibration requires a frozen Capture")
+        self.calibration=calibration
         self.recorder=recorder;self.target_id=config['target_id'];self.expected_impl=config.get('expected_implementation_sha256');self.uid=uuid.uuid4().hex
         self.adapter=create_runtime_adapter(config['provider'],config['family'])
         self.adapter.connect({'targets':{self.target_id:{'endpoint':config['endpoint'],'family':config['family']}}})
@@ -47,10 +49,18 @@ class ToolClient:
             result['signature']=policy['reference_signature']
         return result
 
+    def calibration_view(self,value):
+        """Keep control flow and artifact identities while collecting new numeric evidence."""
+        if isinstance(value,list):return [self.calibration_view(v) for v in value]
+        if not isinstance(value,dict):return value
+        return {k:self.calibration_view(v) for k,v in value.items()
+                if k not in {'state_signature','checks'} and not (k=='signature' and 'comparison' in value)}
+
     async def call(self,name,args,key,wave=None):
         if self.replay:
             expected=self.expected.get(key)
-            if expected is None or expected['tool_name']!=name or self.comparable(expected['args'])!=self.comparable(args):
+            compare=self.calibration_view if self.calibration and name=='merge_artifacts' else self.comparable
+            if expected is None or expected['tool_name']!=name or compare(expected['args'])!=compare(args):
                 raise DivergenceError('Replay Tool parameters diverged: '+key)
         start=time.perf_counter()
         request=InvocationRequest(target_id=self.target_id,tool_name=name,args=args,uid=self.uid,
@@ -75,10 +85,13 @@ class ToolClient:
         structured_failure=isinstance(result,dict) and result.get('status') in {'error','timeout'} and result.get('error_type')
         if response.status!='ok' and not structured_failure:raise RuntimeError(f'Tool transport {response.status}: {response.error}')
         if self.replay:
-            if self.comparable(semantic(result))!=self.comparable(semantic(expected['result'])):
+            compare=self.calibration_view if self.calibration else self.comparable
+            if compare(semantic(result))!=compare(semantic(expected['result'])):
                 self.recorder.emit('divergence',key=key,expected=semantic(expected['result']),actual=semantic(result))
                 raise DivergenceError('Actual Tool output incompatible with Capture: '+key)
-            if semantic(result)!=semantic(expected['result']):self.recorder.emit('calibrated_rendering_equivalence',key=key,policy=self.renderings)
+            if semantic(result)!=semantic(expected['result']):
+                if self.calibration:self.recorder.emit('environment_reference_difference',key=key,expected=semantic(expected['result']),actual=semantic(result))
+                else:self.recorder.emit('calibrated_rendering_equivalence',key=key,policy=self.renderings)
             self.consumed.add(key)
         return result
 

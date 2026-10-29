@@ -3,9 +3,7 @@ seed: 11
 time_scale: 1.0
 traffic: results/phase3/traffic-10min-v1
 window_roles:
-- low
 - typical
-- high
 window_duration_ms: 600000
 stage_boundaries_ms:
 - 0
@@ -45,41 +43,3 @@ scenarios:
     human_142: 1
     human_12: 1
     human_7: 1
-  cpu_ramp:
-  - human_15: 0.18
-    csv_excel_34: 0.18
-    csv_excel_29: 0.18
-    human_142: 0.1
-    human_12: 0.18
-    human_7: 0.18
-  - human_15: 0.1
-    csv_excel_34: 0.1
-    csv_excel_29: 0.1
-    human_142: 0.5
-    human_12: 0.1
-    human_7: 0.1
-  - human_15: 0.039999999999999994
-    csv_excel_34: 0.039999999999999994
-    csv_excel_29: 0.039999999999999994
-    human_142: 0.8
-    human_12: 0.039999999999999994
-    human_7: 0.039999999999999994
-  memory_state_ramp:
-  - human_15: 0.225
-    csv_excel_34: 0.225
-    csv_excel_29: 0.225
-    human_142: 0.225
-    human_12: 0.05
-    human_7: 0.05
-  - human_15: 0.125
-    csv_excel_34: 0.125
-    csv_excel_29: 0.125
-    human_142: 0.125
-    human_12: 0.25
-    human_7: 0.25
-  - human_15: 0.04999999999999999
-    csv_excel_34: 0.04999999999999999
-    csv_excel_29: 0.04999999999999999
-    human_142: 0.04999999999999999
-    human_12: 0.4
-    human_7: 0.4

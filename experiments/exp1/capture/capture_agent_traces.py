@@ -13,7 +13,8 @@ from benchmarks.DataSciBench.langgraph_agent.trace_replayer import ReplayModel
 ROOT=Path(__file__).resolve().parents[3]
 
 
-async def run(task_id,config,output,capture=None,workload_model=None,provider_model=None,provider_context=None):
+async def run(task_id,config,output,capture=None,workload_model=None,provider_model=None,provider_context=None,*,calibration=False):
+    if calibration and not capture:raise ValueError("Calibration requires a frozen Capture")
     if provider_model is not None:
         from atsuite.provider_model.observation import validate_pool,features
         if provider_context is None:raise ValueError('Provider modeling requires pool and load context')
@@ -39,12 +40,12 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
         if workload is None:workload=prediction if workload_model is not None else []
         write_json(output/'provider_prediction.json',provider_model.predict(
             workload,[provider_context['pool']],provider_context['load_rps'],as_of_ns=arrival_ns))
-    recorder.emit('run_start',mode='replay' if capture else 'capture',task_id=task_id,prompt_sha256=task['prompt_sha256'],
+    recorder.emit('run_start',mode='environment_reference' if calibration else 'replay' if capture else 'capture',task_id=task_id,prompt_sha256=task['prompt_sha256'],
          config=config,source_capture=str(capture) if capture else None,execution_scope=config['tool']['execution_scope'])
     tools=model=None;state=initial
     try:
-        tools=await asyncio.to_thread(ToolClient,config['tool'],recorder,capture)
-        model=ReplayModel(capture,recorder,tools.comparable if tools.renderings else None) if capture else DeepSeekClient(recorder,config['model'])
+        tools=await asyncio.to_thread(ToolClient,config['tool'],recorder,capture,calibration)
+        model=ReplayModel(capture,recorder,tools.comparable if tools.renderings else None,calibration) if capture else DeepSeekClient(recorder,config['model'])
         graph=build_graph(model,tools,recorder,task['output_files'],config['max_iterations'],config['model']['seed'])
         async for current in tracing.astream(graph,initial,config={'recursion_limit':150,'max_concurrency':config['max_parallel']}):
             state=current

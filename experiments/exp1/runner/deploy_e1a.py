@@ -22,14 +22,15 @@ def make_configs(config):
     base=json.loads((ROOT/'benchmarks/DataSciBench/config/langgraph_atg.json').read_text())
     captures=json.loads((ROOT/'benchmarks/DataSciBench/trace/captured/manifest.json').read_text())['captures']
     selected=next(t for t in captures if t['task_id']==config['task_id'])
-    paths={}
+    paths={};experiment=config['experiment'].lower().replace('-','')
     for provider in config['providers']:
-        value=json.loads(json.dumps(base));name='E1a'+''.join(p.title() for p in provider.split('_'))
+        value=json.loads(json.dumps(base));name=experiment.capitalize()+''.join(p.title() for p in provider.split('_'))
+        resources=config.get('provider_resources',{}).get(provider,config['resources'])
         if provider=='aws_lambda':value['pipeline']['faas']['build']['python_version']='3.12'
         value['trace_file']='./trace/captured/'+Path(selected['capture']).name+'/trace.atg.json'
-        unit=value['pipeline']['faas']['units'][0];unit['name']=name;unit['deploy']=config['resources']
-        server=value['pipeline']['mcp_serverless']['servers'][0];server['name']=name;server['deploy']=config['resources']
-        path=ROOT/'benchmarks/DataSciBench/config'/('e1a_'+provider+'.json')
+        unit=value['pipeline']['faas']['units'][0];unit['name']=name;unit['deploy']=resources
+        server=value['pipeline']['mcp_serverless']['servers'][0];server['name']=name;server['deploy']=resources
+        path=ROOT/'benchmarks/DataSciBench/config'/(experiment+'_'+provider+'.json')
         path.write_text(json.dumps(value,indent=2)+'\n');resolve_benchmark.cache_clear();resolve_benchmark(path,provider)
         paths[provider]=path
     return paths
@@ -58,17 +59,27 @@ def audit_image(provider, config_path):
         raw=subprocess.check_output(['docker','cp',name+':'+prefix+'approved_trace.json','-'])
         with tarfile.open(fileobj=io.BytesIO(raw)) as archive:
             member=next(m for m in archive.getmembers() if m.isfile());approved_raw=archive.extractfile(member).read();approved=json.loads(approved_raw)
-        trace=json.loads(Path(config_path).read_text())['trace_file']
-        capture=ROOT/'benchmarks/DataSciBench'/Path(trace).parent
-        if approved['capture_events_sha256']!=sha(capture/'events.jsonl'):raise ValueError('Image contains another Capture policy')
+        policies=approved.get('tasks') or {approved['task_id']:approved}
+        captures={r['task_id']:r for r in json.loads((ROOT/'benchmarks/DataSciBench/trace/captured/manifest.json').read_text())['captures']}
+        for task_id,policy in policies.items():
+            if policy['task_id']!=task_id or policy['capture_events_sha256']!=sha(ROOT/captures[task_id]['capture']/'events.jsonl'):raise ValueError('Image contains another Capture policy')
+        if 'tasks' not in approved:
+            trace=json.loads(Path(config_path).read_text())['trace_file']
+            capture=ROOT/'benchmarks/DataSciBench'/Path(trace).parent
+            if approved['capture_events_sha256']!=sha(capture/'events.jsonl'):raise ValueError('Image contains another Capture policy')
         files[prefix+'approved_trace.json']=hashlib.sha256(approved_raw).hexdigest()
-        for ref in approved['dataset_refs']:
-            raw=subprocess.check_output(['docker','cp',name+':'+prefix+'datasets/'+approved['task_id']+'/'+ref['name'],'-'])
-            with tarfile.open(fileobj=io.BytesIO(raw)) as archive:
-                member=next(m for m in archive.getmembers() if m.isfile());actual=hashlib.sha256(archive.extractfile(member).read()).hexdigest()
-            if actual!=ref['sha256']:raise ValueError('Image dataset differs from the approved Capture')
+        for policy in policies.values():
+            for ref in policy['dataset_refs']:
+                raw=subprocess.check_output(['docker','cp',name+':'+prefix+'datasets/'+policy['task_id']+'/'+ref['name'],'-'])
+                with tarfile.open(fileobj=io.BytesIO(raw)) as archive:
+                    member=next(m for m in archive.getmembers() if m.isfile());actual=hashlib.sha256(archive.extractfile(member).read()).hexdigest()
+                if actual!=ref['sha256']:raise ValueError('Image dataset differs from the approved Capture')
     finally:subprocess.run(['docker','rm',name],check=True,stdout=subprocess.DEVNULL)
-    return {'tag':image,'id':metadata['Id'],'size_bytes':metadata['Size'],'architecture':metadata['Architecture'],'os':metadata['Os'],'source_sha256':files,'approved_task_id':approved['task_id'],'capture_events_sha256':approved['capture_events_sha256']}
+    result={'tag':image,'id':metadata['Id'],'size_bytes':metadata['Size'],'architecture':metadata['Architecture'],'os':metadata['Os'],'source_sha256':files}
+    if 'tasks' in approved:
+        result.update(approved_tasks={k:v['capture_events_sha256'] for k,v in policies.items()},workload_manifest_sha256=approved['workload_manifest_sha256'])
+    else:result.update(approved_task_id=approved['task_id'],capture_events_sha256=approved['capture_events_sha256'])
+    return result
 
 
 def agentcore_usage_delivery(runtime_arn, runtime_id, region):
@@ -117,9 +128,10 @@ def configure(provider, config_path, *, push_image=True):
         current=api.get_agent_runtime(agentRuntimeId=entry['agentRuntimeId'])
         # CPU/memory are provider-managed in this API version; never claim that requested values were applied.
         kwargs={k:current[k] for k in ('agentRuntimeArtifact','roleArn','networkConfiguration','protocolConfiguration')}
+        # Long Tools must finish before the platform can reclaim their resident Session.
         updated=api.update_agent_runtime(agentRuntimeId=entry['agentRuntimeId'],**kwargs,
             environmentVariables={**current.get('environmentVariables',{}),**common},
-            lifecycleConfiguration={'idleRuntimeSessionTimeout':60,'maxLifetime':900})
+            lifecycleConfiguration={'idleRuntimeSessionTimeout':max(60,target.runtime.timeout+60),'maxLifetime':900})
         deadline=time.monotonic()+300
         while True:
             observed=api.get_agent_runtime(agentRuntimeId=entry['agentRuntimeId'])
@@ -130,7 +142,7 @@ def configure(provider, config_path, *, push_image=True):
                 'runtime_arn':entry['agentRuntimeArn'],'resource_policy':'provider-managed; API exposes no CPU/memory setting',
                 'cpu_requested':target.runtime.cpu,'memory_requested_mb':target.runtime.memory,
                 'cpu_actual':None,'memory_actual_mb':None,'instance_concurrency':'platform-managed; measured in Pilot',
-                'usage_delivery':agentcore_usage_delivery(entry['agentRuntimeArn'],entry['agentRuntimeId'],api.meta.region_name),'runtime_version':observed.get('agentRuntimeVersion'),'lifecycle_configuration':observed.get('lifecycleConfiguration'),'idle_timeout_s':60,'max_lifetime_s':900,'state_bucket':bucket,'warmup':'none'}
+                'usage_delivery':agentcore_usage_delivery(entry['agentRuntimeArn'],entry['agentRuntimeId'],api.meta.region_name),'runtime_version':observed.get('agentRuntimeVersion'),'lifecycle_configuration':observed.get('lifecycleConfiguration'),'idle_timeout_s':observed['lifecycleConfiguration']['idleRuntimeSessionTimeout'],'max_lifetime_s':900,'state_bucket':bucket,'warmup':'none'}
     common['ATSUITE_OSS_INTERNAL']='true'
     from atsuite.ali.ali import Ali
     from alibabacloud_fc20230330 import models
@@ -138,7 +150,7 @@ def configure(provider, config_path, *, push_image=True):
     current=api.get_function(function,models.GetFunctionRequest()).body
     image=target_image_tag(resolved.bench_name,target)
     metadata=json.loads(subprocess.check_output(['docker','image','inspect',image],text=True))[0]
-    versioned=os.environ['DOCKERHUB_NAME']+':e1a-'+provider+'-'+metadata['Id'].split(':')[1][:16]
+    versioned=os.environ['DOCKERHUB_NAME']+':'+name.lower()+'-'+metadata['Id'].split(':')[1][:16]
     subprocess.run(['docker','tag',metadata['Id'],versioned],check=True)
     if push_image:subprocess.run(['docker','push',versioned],check=True)
     container=models.CustomContainerConfig(image=versioned,port=current.custom_container_config.port,entrypoint=current.custom_container_config.entrypoint)
@@ -165,6 +177,9 @@ def configure(provider, config_path, *, push_image=True):
 
 async def execute(config,output,*,deploy=False,providers=None,deploy_only=False):
     output=Path(output).resolve();output.mkdir(parents=True,exist_ok=False);paths=make_configs(config)
+    env=dict(os.environ)
+    env['PATH']=str(Path(sys.executable).parent)+os.pathsep+env.get('PATH','')
+    if config.get('workload'):env['WABBER_BUILD_WORKLOAD']=str((ROOT/config['workload']).resolve())
     async def one(provider):
         path=paths[provider];start=time.time();record={'provider':provider,'config':str(path.relative_to(ROOT)),'config_sha256':sha(path),'start_utc_epoch':start}
         with (output/(provider+'.log')).open('w') as log:
@@ -178,7 +193,7 @@ async def execute(config,output,*,deploy=False,providers=None,deploy_only=False)
                         record.update(status='failed',failed_stage='image_audit',error=str(exc));break
                 for attempt in range(1,4):
                     process=await asyncio.create_subprocess_exec(sys.executable,'-m',module,'--config',str(path),'--provider',provider,*extra,
-                        cwd=ROOT,stdout=log,stderr=asyncio.subprocess.STDOUT)
+                        cwd=ROOT,env=env,stdout=log,stderr=asyncio.subprocess.STDOUT)
                     code=await process.wait()
                     record.setdefault('stage_attempts',[]).append({'stage':stage,'attempt':attempt,'exit_code':code})
                     if not code:break

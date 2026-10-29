@@ -165,6 +165,8 @@ def build_node_image(
 
     if no_cache:
         cmd.append("--no-cache")
+    if provider in {"aws_lambda", "aws_agentcore"}:
+        cmd.append("--provenance=false")
     if python_version:
         cmd.extend(["--build-arg", f"VERSION={python_version}"])
     if module_name:
@@ -310,9 +312,6 @@ def build_resolved_targets(
                 node_target_dir = mcp_root / node.name
                 node_target_dir.mkdir(parents=True, exist_ok=True)
                 copy_node_source(node.dir, node_target_dir)
-                all_requirements.update(
-                    read_requirements(node.dir / "requirements.txt")
-                )
                 all_system_packages.update(read_system_requirements(node.dir))
                 if (node_target_dir / "init.sh").exists():
                     env = dict(os.environ)
@@ -326,6 +325,9 @@ def build_resolved_targets(
                         cwd=node_target_dir,
                         env=env,
                     )
+                all_requirements.update(
+                    read_requirements(node_target_dir / "requirements.txt")
+                )
             write_requirements(
                 target_dir / "requirements.txt", sorted(all_requirements)
             )

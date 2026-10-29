@@ -6,20 +6,25 @@ from pathlib import Path
 import sys
 
 
-def policy():
+def policy(task_id):
     path=os.environ.get('WABBER_APPROVED_TRACE')
     if not path:raise ValueError('Frozen replay requires an image-baked approved Trace')
-    return json.loads(Path(path).read_text())
+    approved = json.loads(Path(path).read_text())
+    if 'tasks' in approved:
+        if task_id not in approved['tasks']:
+            raise ValueError('Frozen replay accepts only an approved task')
+        approved = approved['tasks'][task_id]
+    return approved
 
 
 def check_preparation(task_id,dataset_refs):
-    approved=policy()
+    approved=policy(task_id)
     if task_id!=approved['task_id'] or dataset_refs!=approved['dataset_refs']:
         raise ValueError('Frozen replay accepts only its approved task and dataset version')
 
 
 def check_analysis(task_id,step_id,code,outputs,snapshot,seed):
-    approved=policy()
+    approved=policy(task_id)
     actual={'step_id':step_id,'code_sha256':hashlib.sha256(code.encode()).hexdigest(),'outputs':outputs,'snapshot':snapshot,'seed':seed}
     if task_id!=approved['task_id'] or actual not in approved['analyses']:
         raise ValueError('Unapproved code or parameters: cloud replay never accepts new generated Python')

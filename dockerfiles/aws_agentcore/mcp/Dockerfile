@@ -14,15 +14,13 @@ ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
 WORKDIR /build
 COPY requirements.txt .
 
-# 跨平台下载所有包的 wheel（binary 包取 aarch64，纯 Python 包取 none-any），并直接安装到 /pkg
-RUN pip install -q \
-    --platform manylinux_2_28_aarch64 \
-    --platform manylinux2014_aarch64 \
-    --platform manylinux_2_17_aarch64 \
-    --platform linux_aarch64 \
-    --platform any \
-    --python-version $(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')") \
+# pip evaluates dependency markers on the x86 host even with --platform; uv uses the ARM target.
+RUN pip install -q uv==0.13.6 && uv pip install \
+    --python-platform aarch64-manylinux_2_28 \
+    --python-version ${VERSION} \
     --only-binary=:all: \
+    --index-url ${PIP_INDEX_URL} \
+    --index-strategy unsafe-best-match \
     --target /pkg \
     -r requirements.txt
 

@@ -345,7 +345,7 @@ class ReplayRenderingTests(unittest.IsolatedAsyncioTestCase):
         client=object.__new__(ToolClient);client.renderings={'p.png':{'reference_signature':'a'*64,'accepted_signatures':['a'*64,'b'*64]}}
         source={'artifacts':[{'name':'p.png','comparison':'decoded-rgba','signature':'a'*64}],'snapshot':2}
         actual=copy.deepcopy(source);actual['artifacts'][0]['signature']='b'*64
-        model=object.__new__(ReplayModel);model.normalizer=client.comparable;model.recorder=Mock();model.index=0
+        model=object.__new__(ReplayModel);model.calibration=False;model.normalizer=client.comparable;model.recorder=Mock();model.index=0
         model.llm=[{'phase':'REVIEW','iteration':0,'request':{'messages':[{'role':'user','content':json.dumps(source)}]},'duration_s':0,'decision':{'status':'complete'}}]
         self.assertEqual(await model.decide('REVIEW',0,[{'role':'user','content':json.dumps(actual)}]),{'status':'complete'})
         model.index=0;actual['snapshot']=3
