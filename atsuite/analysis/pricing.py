@@ -128,7 +128,9 @@ class AWSLambdaPricingPolicy(BasePricingPolicy):
                 continue
             f = metric.fields
             billed_ms = _num(f.get("billed_duration_ms"), _num(f.get("duration_ms"), _num(f.get("elapsed_time_ms"))))
-            billed_ms += _num(f.get("init_duration_ms"))
+            # Provider Billed Duration already includes billable initialization.
+            if f.get("billed_duration_ms") is None:
+                billed_ms += _num(f.get("init_duration_ms"))
             memory_mb = max(128.0, _num(f.get("memory"), _num(f.get("memory_limit_mb"), 1024.0)))
             disk_mb = _num(f.get("disk"), 512.0)
             request_cost = 0.0000002

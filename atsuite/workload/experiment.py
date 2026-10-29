@@ -44,6 +44,14 @@ def load_capture(directory: Path) -> dict:
                 raise ValueError("Capture ATG/event order mismatch")
             end = event["monotonic_ns"]
             payload = event.get("result") or {}
+            logical = payload.get("logical_state")
+            metadata = {"logical_state": logical} if isinstance(logical, dict) else {}
+            if (
+                isinstance(logical, dict)
+                and logical.get("complete") is True
+                and isinstance(logical.get("accesses"), list)
+            ):
+                metadata["state_accesses"] = logical["accesses"]
             spans.append(
                 {
                     "id": str(node["id"]),
@@ -55,7 +63,7 @@ def load_capture(directory: Path) -> dict:
                     "end_ns": end,
                     "duration_s": event["duration_s"],
                     "status": "error" if payload.get("status") == "error" else "ok",
-                    "metadata": {},
+                    "metadata": metadata,
                     "resources": payload.get("worker_usage")
                     or payload.get("kernel_execution", {}).get("worker_usage"),
                 }

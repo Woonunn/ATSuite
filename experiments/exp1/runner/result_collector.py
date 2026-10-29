@@ -10,7 +10,7 @@ from experiments.exp1.data.prepare_e1a import ROOT,sha
 from experiments.exp1.runner.arrival_scheduler import stats
 from atsuite.analysis.collectors import create_collector
 from atsuite.analysis.model import RunContext,NodeObservation,InvocationObservation,SessionObservation
-from atsuite.tracing.storage import read_text
+from atsuite.tracing.storage import read_text,trace_path
 
 
 def interval_union(intervals):
@@ -53,8 +53,17 @@ def request_metrics(row,terminal,directory):
     usage=[r['worker_usage'] for r in results if 'worker_usage' in r]
     end=terminal.get('completed_monotonic_ns');arrival=terminal.get('planned_arrival_monotonic_ns');start=terminal.get('harness_started_monotonic_ns');submitted=terminal.get('submitted_monotonic_ns')
     status=terminal['status']
+    profile=None
+    if trace_path(directory/'workload_profile.json').exists():
+        profile=json.loads(read_text(directory/'workload_profile.json'))
+    elif events and trace_path(directory/'result.json').exists() and (trace_path(directory/'trace.json').exists() or trace_path(directory/'trace.atg.json').exists()):
+        from atsuite.workload import extract_profile
+        from atsuite.workload.experiment import load_capture
+        profile=extract_profile(load_capture(directory))
+    logical=(profile or {}).get('metrics',{})
     if status=='failed' and any(e.get('transport',{}).get('status')=='timeout' for e in tools):status='timeout'
-    return {**row,'status':status,'request_arrival_utc':terminal.get('planned_arrival_utc'),'request_start_utc':terminal.get('harness_started_utc'),
+    return {**row,'status':status,'workload_profile':profile,'S_G_bytes':logical.get('state_bytes'),'D_G_s':logical.get('llm_idle_s'),'rho_kb_s':logical.get('rho_kb_s'),
+        'request_arrival_utc':terminal.get('planned_arrival_utc'),'request_start_utc':terminal.get('harness_started_utc'),
         'request_end_utc':terminal.get('completed_utc'),'end_to_end_ms':(end-arrival)/1e6 if end is not None and arrival is not None and submitted is not None else None,
         'harness_latency_ms':(end-start)/1e6 if end is not None and start is not None else None,
         'harness_queue_ms':(start-submitted)/1e6 if start is not None and submitted is not None else None,
@@ -100,7 +109,7 @@ def collect_local(run):
         'active_tool_path_ms':stats([r['active_tool_path_ms'] for r in success if r['active_tool_path_ms'] is not None]),
         'state_sync_ms':stats([r['state_synchronization_ms'] for r in success if r['state_synchronization_ms'] is not None]),
         'cost_status':'pending_vendor_billing','cost_breakdown':None,'total_cost':None,'currency':None,'total_cost_cny':None,
-        'metric_coverage':{key:sum(r[key] is not None for r in records) for key in ('peak_memory_bytes','worker_peak_rss_bytes','worker_cpu_seconds','cold_start','state_synchronization_ms','provider_queue_ms','tool_parallelism')},
+        'metric_coverage':{key:sum(r[key] is not None for r in records) for key in ('peak_memory_bytes','worker_peak_rss_bytes','worker_cpu_seconds','cold_start','state_synchronization_ms','provider_queue_ms','tool_parallelism','S_G_bytes','D_G_s','rho_kb_s')},
         'cost_note':'No missing metrics or absent bill lines are replaced with zero. Tool usage is not an invoice.'}
     schedule=json.loads((run/'schedule/summary.json').read_text());summary['completion_throughput_per_s']=len(success)/(schedule['actual_total_ms']/1000)
     summary['scheduler_status']=schedule['status']

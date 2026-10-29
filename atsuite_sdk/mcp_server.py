@@ -1,10 +1,9 @@
 import importlib
-import asyncio
 import uuid
 import traceback
 from datetime import datetime, timezone
 from fastmcp.tools.tool import ToolResult
-from atsuite_sdk.events import emit_event
+from atsuite_sdk.events import emit_event,runtime_metadata
 import json
 import os
 import sys
@@ -12,12 +11,14 @@ import inspect
 import time
 
 from contextvars import ContextVar
+from contextlib import asynccontextmanager
 from functools import wraps
 from fastmcp import FastMCP
 from pathlib import Path
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.concurrency import run_in_threadpool
 import uvicorn
 
 from atsuite_sdk.abstract import registry
@@ -243,7 +244,16 @@ if MCP_DIR.exists():
 
             os.chdir(prev_cwd)
 
-server = FastMCP(name=os.environ.get("ATSUITE_MCP_NAME", "atsuite-mcp"))
+@asynccontextmanager
+async def runtime_lifespan(server):
+    emit_event("runtime_started")
+    try:
+        yield {}
+    finally:
+        emit_event("runtime_stopped")
+
+
+server = FastMCP(name=os.environ.get("ATSUITE_MCP_NAME", "atsuite-mcp"),lifespan=runtime_lifespan)
 
 
 def _load_allowed_tools() -> set[str] | None:
@@ -359,13 +369,13 @@ def wrap_tool(tool_obj):
             finally:
                 metrics.update(get_state_runtime().get_sync_metrics())
         try:
-            result = await asyncio.to_thread(execute)
+            result = await run_in_threadpool(execute)
             elapsed_ms = _ns_to_ms(_now_ns() - started)
             emit_event("tool_execution", run_id=run_id, request_id=request_id, uid=call_args.get("uid"),
                        tool_name=tool_name, status="ok", duration_ms=elapsed_ms)
             return ToolResult(content=result, structured_content={"result": result}, meta={"atsuite": {
                 "result_envelope": True, "request_id": request_id, "run_id": run_id,
-                "execution_elapsed_ms": elapsed_ms, "state_sync": metrics,
+                "execution_elapsed_ms": elapsed_ms, "state_sync": metrics, "runtime": runtime_metadata(),
             }})
         except Exception as exc:
             emit_event("tool_execution", run_id=run_id, request_id=request_id, uid=call_args.get("uid"),
@@ -374,7 +384,7 @@ def wrap_tool(tool_obj):
             return FailedToolResult(content=str(exc), structured_content={"result": getattr(exc, "result", None)},
                                     meta={"atsuite": {"result_envelope": True, "request_id": request_id, "run_id": run_id,
                                                       "status": "timeout" if isinstance(exc, TimeoutError) else "error",
-                                                      "execution_elapsed_ms": _ns_to_ms(_now_ns() - started), "state_sync": metrics}})
+                                                      "execution_elapsed_ms": _ns_to_ms(_now_ns() - started), "state_sync": metrics, "runtime": runtime_metadata()}})
         finally:
             if ctx is not None:
                 ctx["tool_end_ns"] = _now_ns()

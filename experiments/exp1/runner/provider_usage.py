@@ -19,6 +19,16 @@ def session_usage(events, session_id):
     for name,key in fields.items():
         values=[r.get('metrics',{}).get(key) for r in rows]
         if values and all(isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) and v>=0 for v in values):result[name]=sum(values)
+    elapsed=[r.get('attributes',{}).get('time_elapsed_seconds') for r in rows]
+    def valid(v):return isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) and v>=0
+    stamps=[r.get('event_timestamp') for r in rows]
+    result['residence']={
+        'reported_usage_seconds':sum(elapsed) if elapsed and all(valid(v) for v in elapsed) else None,
+        'first_usage_epoch_ms':min(stamps) if stamps and all(valid(v) for v in stamps) else None,
+        'last_usage_epoch_ms':max(stamps) if stamps and all(valid(v) for v in stamps) else None,
+        'complete':False,
+        'scope':'observed session usage only; no creation or termination evidence',
+    }
     return result
 
 
@@ -67,7 +77,7 @@ def collect_ali(context, invocations):
         if isinstance(row,list):row=dict(zip(columns,row))
         row={k.lower():v for k,v in row.items()}
         if row.get('requestid'):rows[str(row['requestid'])]=row
-    names={'duration_ms':'durationms','memory_usage_mb':'memoryusagemb','is_cold_start':'iscoldstart','cold_start_latency_ms':'coldstartlatencyms','schedule_latency_ms':'schedulelatencyms','instance_id':'instanceid'}
+    names={'duration_ms':'durationms','memory_usage_mb':'memoryusagemb','is_cold_start':'iscoldstart','cold_start_latency_ms':'coldstartlatencyms','schedule_latency_ms':'schedulelatencyms','instance_id':'instanceid','invoke_start_epoch_ms':'invokefunctionstarttimestamp'}
     for invocation in invocations:
         row=rows.get(invocation.provider_request_id,{})
         fields={k:row.get(v) for k,v in names.items()}

@@ -152,6 +152,7 @@ class WorkloadModel:
             return {
                 "as_of_ns": as_of_ns,
                 "sample_count": n,
+                "joint_profiles": copy.deepcopy(samples),
                 "status_counts": dict(Counter(p["status"] for p in eligible)),
                 "low_confidence": n < 10
                 or any(p["source"] == "capture" for p in samples),

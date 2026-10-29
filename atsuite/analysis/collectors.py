@@ -1134,6 +1134,7 @@ class AWSCloudWatchCollector:
                             "vcpu_hours": usage.get("vcpu_hours", 0.0),
                             "memory_gb_hours": usage.get("memory_gb_hours", 0.0),
                             "log_entries": usage.get("log_entries", 0),
+                            "residence": usage.get("residence"),
                         },
                         evidence_refs=[evidence_id],
                     )

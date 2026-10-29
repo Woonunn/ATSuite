@@ -12,7 +12,7 @@ from typing import Dict, Type, Optional
 from urllib.parse import urlparse
 
 from atsuite_sdk.abstract import registry
-from atsuite_sdk.events import emit_event
+from atsuite_sdk.events import emit_event,runtime_metadata
 from atsuite_sdk.state import get_state_runtime
 
 module_name = os.environ.get("ATSUITE_NODE_MODULE", "implementation")
@@ -227,7 +227,7 @@ def create_handler() -> Type[BaseHTTPRequestHandler]:
                     native_request_id = native_context.get("request_id")
             except (ValueError, TypeError):
                 pass
-            response_metadata = {"native_request_id": native_request_id}
+            response_metadata = {"native_request_id": native_request_id, "runtime": runtime_metadata()}
             try:
                 request_ctx["tool_start_ns"] = _now_ns()
                 try:
