@@ -115,6 +115,10 @@ def validate_cost(cost: dict | None, provider: str) -> None:
 
 def validate_observation(row: dict) -> None:
     """Reject malformed observations before they enter persistent statistics."""
+    if "capacity_transition" in row and not isinstance(
+        row["capacity_transition"], bool
+    ):
+        raise ValueError("Invalid capacity transition marker")
     validate_pool(row["pool"])
     for key in ("arrival_ns", "completed_ns", "available_ns", "load_rps"):
         if not number(row.get(key)):

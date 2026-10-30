@@ -89,6 +89,23 @@ class OnlineRouter:
             with self.log_path.open("a") as stream:
                 stream.write(json.dumps(event, allow_nan=False) + "\n")
 
+    def set_capacity(self, key: str, pool: dict, limit: int | None) -> None:
+        """Publish read-back capacity atomically without rebinding active sessions."""
+        validate_pool(pool)
+        if limit is not None and (
+            isinstance(limit, bool) or not isinstance(limit, int) or limit < 0
+        ):
+            raise ValueError("Invalid session admission limit")
+        with self.lock:
+            old = self.pools[key]
+            if any(old[k] != pool[k] for k in ("provider", "environment")):
+                raise ValueError("Capacity updates cannot replace an execution pool")
+            if old != pool:
+                for session in self.active.values():
+                    if session["selected"] == key:
+                        session["capacity_transition"] = True
+            self.pools[key], self.limits[key] = copy.deepcopy(pool), limit
+
     def decide(
         self,
         request_id: str,
@@ -98,9 +115,12 @@ class OnlineRouter:
         as_of_ns=None,
         shadow=False,
         pool_load_rps: dict | None = None,
+        allowed_pools: set | None = None,
+        arrival_ns: int | None = None,
     ) -> dict:
-        """Freeze pre-arrival predictions and atomically reserve a session if admitted."""
+        """Freeze pre-dispatch predictions and reserve a Session within its remaining SLO."""
         now = time.time_ns() if as_of_ns is None else as_of_ns
+        arrival = now if arrival_ns is None else arrival_ns
         if (
             not isinstance(request_id, str)
             or not request_id
@@ -109,6 +129,8 @@ class OnlineRouter:
             or not isinstance(shadow, bool)
             or not number(load_rps)
             or not number(now)
+            or not number(arrival)
+            or arrival > now
         ):
             raise ValueError("Invalid routing input")
         rates = (
@@ -118,6 +140,8 @@ class OnlineRouter:
         )
         if set(rates) != set(self.pools) or any(not number(v) for v in rates.values()):
             raise ValueError("Every pool needs a finite nonnegative load")
+        if allowed_pools is not None and not set(allowed_pools) <= self.pools.keys():
+            raise ValueError("Unknown routing policy pool")
         with self.lock:
             if request_id in self.decisions:
                 return copy.deepcopy(self.decisions[request_id])
@@ -146,16 +170,22 @@ class OnlineRouter:
                     r
                     for r in visible
                     if r["kind"] == "request"
+                    and not r.get("capacity_transition")
                     and _compatible(r["pool"], pool)
                     and r["pool"].get("instances") == pool.get("instances")
                     and r.get("task_id") == task
                     and r["load_rps"] >= rate
                     and r["load_rps"] <= max(rate * 1.25, rate + 0.01)
                 ]
-                risk = risk_estimate(rows, self.slo_s)
+                remaining_slo_s = max(0, self.slo_s - (now - arrival) / 1e9)
+                risk = risk_estimate(rows, remaining_slo_s)
                 limit = self.limits.get(key)
                 occupied = sum(v["selected"] == key for v in self.active.values())
                 flags = []
+                if remaining_slo_s == 0:
+                    flags.append("slo_budget_exhausted")
+                if allowed_pools is not None and key not in allowed_pools:
+                    flags.append("excluded_by_control_policy")
                 if limit is None:
                     flags.append("capacity_unknown")
                 elif occupied >= limit:
@@ -214,16 +244,19 @@ class OnlineRouter:
             result = {
                 "request_id": request_id,
                 "task_id": task,
-                "arrival_ns": now,
+                "arrival_ns": arrival,
+                "decision_ns": now,
                 "load_rps": load_rps,
                 "pool_load_rps": rates,
                 "load_basis": "per_pool_snapshot"
                 if pool_load_rps is not None
                 else "offered_load_per_candidate",
                 "slo_s": self.slo_s,
+                "remaining_slo_s": max(0, self.slo_s - (now - arrival) / 1e9),
                 "max_risk": self.max_risk,
                 "shadow": shadow,
                 "selected": selected["key"] if selected else None,
+                "pool_snapshot": copy.deepcopy(self.pools),
                 "mode": selected["prediction"]["mode"] if selected else None,
                 "reason": (
                     "cost_within_risk_constraint" if comparable else "lowest_risk"
@@ -277,7 +310,10 @@ class OnlineRouter:
                 "id": request_id,
                 "task_id": decision["task_id"],
                 "profile": profile,
-                "pool": copy.deepcopy(self.pools[selected]),
+                "pool": copy.deepcopy(decision["pool_snapshot"][selected]),
+                "capacity_transition": self.active.get(request_id, {}).get(
+                    "capacity_transition", False
+                ),
                 "load_rps": decision["pool_load_rps"][selected],
                 "status": profile["status"],
                 "arrival_ns": trace["arrival_ns"],

@@ -86,9 +86,11 @@ The hook records decisions before opening ToolClient and handles success/failure
 feedback in the existing `finally` path. It does not add retries or migrations.
 
 This hook does not replace deployment verification, Pilot, budget admission or
-arrival scheduling. Paid mixed-run orchestration is not yet supplied. Reuse the
-existing sealed workload, `run_open_loop`, deployment/reference verification,
+arrival scheduling. The Stage 5 `experiments.exp1.runner.run_joint` driver reuses
+the sealed workload, `run_open_loop`, deployment/reference verification,
 Pilot correctness checks and cumulative budget ledger before any cloud dispatch.
+Its independent simulation and capacity evidence prerequisites are documented in
+[JOINT_CONTROL.md](JOINT_CONTROL.md); the current evidence does not pass them.
 Do not reuse a static-provider admission as evidence for an unvalidated mixed run.
 
 ## Reproduce offline validation
@@ -150,6 +152,14 @@ are also unknown. Refusal to admit from this evidence is expected.
 
 Completed: routing core, LangGraph live/shadow hooks, empirical calibration,
 E1-B ingestion, causal temporal/task evaluation, baseline/ranking utilities and
-local regression coverage. Not completed: a budget-admitted mixed-cloud driver,
-real shadow campaign, controlled mixed routing comparisons, and actual-bill cost
+local regression coverage. Stage 5 adds a guarded mixed-cloud driver. Not completed:
+a real shadow campaign, controlled mixed routing comparisons, and actual-bill cost
 optimization. No paid requests or deployments were made for this implementation.
+
+## Stage 5 joint control
+
+[Joint control, capacity APIs, simulation and cloud-run contract](JOINT_CONTROL.md)
+adds `JointController`, real capacity readback and scaling adapters, a validated
+Tool-level simulator, and a budget-reserved mixed Replay driver. Existing Stage 4
+callers remain supported. The Stage 5 evidence audit still blocks paid joint-run
+acceptance; implementation and synthetic tests are not measured cloud benefits.

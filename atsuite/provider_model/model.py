@@ -124,7 +124,12 @@ class ProviderModel:
         with self.lock:
             history = self.samples.setdefault(key, [])
             if history:
-                for field in ("task_id", "prompt_id", "logical_id"):
+                for field in (
+                    "task_id",
+                    "prompt_id",
+                    "logical_id",
+                    "capacity_transition",
+                ):
                     if field in history[-1]:
                         value = history[-1][field]
                         if row.get(field, value) != value:
@@ -255,7 +260,11 @@ class ProviderModel:
         for pool in pools:
             validate_pool(pool)
             queries = [features(p, pool, load_rps) for p in profiles]
-            candidates = [r for r in visible if _compatible(r["pool"], pool)]
+            candidates = [
+                r
+                for r in visible
+                if _compatible(r["pool"], pool) and not r.get("capacity_transition")
+            ]
             requests = [r for r in candidates if r["kind"] == "request"]
             successes = [r for r in requests if r["status"] == "success"]
             selected, coverage = [], []

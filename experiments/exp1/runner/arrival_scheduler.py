@@ -49,7 +49,7 @@ async def wait_until(deadline_ns):
         await asyncio.sleep(min(remaining,.1))
 
 
-async def run_open_loop(arrivals,handler,output,*,duration_ms,concurrency=4,queue_capacity=1000,time_scale=1.0,trace_scaled=False,metadata=None):
+async def run_open_loop(arrivals,handler,output,*,duration_ms,concurrency=4,queue_capacity=1000,time_scale=1.0,trace_scaled=False,metadata=None,observer=None):
     if concurrency<1 or queue_capacity<1:raise ValueError('Capacity must be positive')
     scale=Decimal(str(time_scale))
     if not scale.is_finite() or scale<=0 or (scale!=1 and not trace_scaled):raise ValueError('Changed time_scale requires explicit trace_scaled=True')
@@ -64,6 +64,7 @@ async def run_open_loop(arrivals,handler,output,*,duration_ms,concurrency=4,queu
         stamp=time.monotonic_ns();wall=time.time_ns()
         with lock:
             events.write(json.dumps({'seq':sequence,'kind':kind,'logged_monotonic_ns':stamp,'logged_utc':utc(wall),**values},allow_nan=False)+'\n');events.flush();sequence+=1
+        if observer is not None:observer({'kind':kind,'wall_ns':wall,**values})
     records=[]
     for a,offset in zip(arrivals,source_offsets):
         planned=anchor_mono+int(Decimal(offset)/scale);wall=anchor_utc+int(Decimal(offset)/scale)

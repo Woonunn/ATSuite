@@ -36,12 +36,14 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
     tasks=json.loads((ROOT/'benchmarks/DataSciBench/tasks/manifest.json').read_text())
     task=next(t for t in tasks['tasks'] if t['task_id']==task_id)
     session_id=uuid.uuid4().hex;request_id=uuid.uuid4().hex
+    if router is not None:request_id=routing_context.get('request_id',request_id)
     tracing=LangGraphTracingAdapter(TraceCollector(request_id,session_id,output))
     recorder=TraceRecorder(output,request_id,session_id,tracing)
     initial={'request_id':request_id,'session_id':session_id,'task_id':task_id,'user_prompt':task['prompt'],
          'messages':[],'workspace_id':'','dataset_refs':[{k:f[k] for k in ('name','sha256','bytes')} for f in task['readiness']['inputs']['files']],
          'execution_plan':[],'tool_results':{},'artifacts':[],'iteration':0,'status':'new','error':None,'completed':[],'snapshot':0}
     arrival_ns=time.time_ns()
+    if router is not None:arrival_ns=routing_context.get('arrival_ns',arrival_ns)
     if workload_model is not None:
         from atsuite.tracing.storage import write_json
         prediction=workload_model.begin(request_id,session_id,arrival_ns)
@@ -55,7 +57,7 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
     tools=model=None;state=initial
     try:
         if router is not None:
-            decision=router.decide(request_id,task_id,routing_context['load_rps'],as_of_ns=arrival_ns,
+            decision=router.decide(request_id,task_id,routing_context['load_rps'],as_of_ns=time.time_ns(),arrival_ns=arrival_ns,
                                    shadow=routing_context.get('shadow',False),
                                    pool_load_rps=routing_context.get('pool_load_rps'))
             from atsuite.tracing.storage import write_json
@@ -82,6 +84,12 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
     finally:
         try:
             if tools:await tools.aclose()
+        except BaseException as exc:
+            state={**state,'status':'failed','error':{'type':type(exc).__name__,'message':str(exc)}}
+            recorder.emit('run_error',error_type=type(exc).__name__,error=str(exc),phase='session_close')
+            if router is not None and hasattr(router,'hold_release'):
+                router.hold_release(request_id)
+            raise
         finally:
             recorder.finish(state)
             from atsuite.tracing.storage import write_json

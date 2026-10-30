@@ -173,6 +173,7 @@ class RoutingTests(unittest.TestCase):
 
 class CaptureRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def test_capture_binds_target_and_shadow_preserves_target(self):
+        from contextlib import nullcontext
         from unittest.mock import AsyncMock, Mock, patch
 
         from experiments.exp1.capture import capture_agent_traces as capture
@@ -184,13 +185,16 @@ class CaptureRoutingTests(unittest.IsolatedAsyncioTestCase):
             async def astream(self, *args, **kwargs):
                 yield {"status": "complete", "iteration": 0}
 
-        for shadow in (False, True):
+        for shadow, close_fails in ((False, False), (True, False), (False, True)):
             router = RoutingTests().router()
+            router.hold_release = Mock()
             for history in router.provider.samples.values():
                 history[0]["task_id"] = "csv_excel_34"
             collector = Mock()
             collector.snapshot.return_value = trace("online")
             tools = Mock(renderings=False, aclose=AsyncMock(), assert_consumed=Mock())
+            if close_fails:
+                tools.aclose.side_effect = RuntimeError("close failed")
             original = {"provider": "aws_lambda", "execution_scope": "original"}
             selected = {"provider": "aws_lambda", "execution_scope": "selected"}
             config = {
@@ -211,6 +215,9 @@ class CaptureRoutingTests(unittest.IsolatedAsyncioTestCase):
                     capture, "ReplayModel", return_value=Mock(assert_consumed=Mock())
                 ),
                 patch.object(capture, "build_graph"),
+                self.assertRaisesRegex(RuntimeError, "close failed")
+                if close_fails
+                else nullcontext(),
             ):
                 await capture.run(
                     "csv_excel_34",
@@ -225,10 +232,15 @@ class CaptureRoutingTests(unittest.IsolatedAsyncioTestCase):
                         "actual_pool": "aws",
                     },
                 )
-                self.assertEqual(client.call_args.args[0], target)
-                self.assertFalse(router.active)
-                self.assertIn("online", router.completed)
-                self.assertEqual(config["tool"], original)
+            self.assertEqual(client.call_args.args[0], target)
+            self.assertFalse(router.active)
+            self.assertIn("online", router.completed)
+            self.assertEqual(config["tool"], original)
+            if close_fails:
+                router.hold_release.assert_called_once_with("online")
+                self.assertEqual(
+                    router.workload.samples["online"]["profile"]["status"], "failed"
+                )
 
     async def test_baseline_diagnostics_do_not_claim_mixed_latency(self):
         from atsuite.routing.shadow import baseline_choices, decision_quality
