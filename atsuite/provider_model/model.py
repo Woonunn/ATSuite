@@ -16,7 +16,9 @@ from atsuite.provider_model.observation import (
     validate_observation,
     validate_pool,
     trace_measurements,
+    execution_context,
 )
+from atsuite.workload.descriptor import distance
 from atsuite.tracing.storage import read_text, write_json
 from atsuite.workload.model import distribution
 from atsuite.workload.profile import number
@@ -93,6 +95,44 @@ def _nearest(rows: list[dict], query: dict, neighbors: int) -> tuple[list[dict],
     }
 
 
+def _target_profiles(
+    profiles: list[dict], pool: dict, rows: list[dict], neighbors: int
+) -> list[dict]:
+    """Use target-native resource peers when a foreign profile has no shared baseline."""
+    context = execution_context(pool)
+    result, substituted = [], set()
+    for profile in profiles:
+        if (
+            profile.get("reference_id")
+            or profile.get("execution_pool") == context
+            or not profile.get("descriptor")
+        ):
+            result.append(profile)
+            continue
+        peers = sorted(
+            (
+                (
+                    distance(profile["descriptor"], r["profile"]["descriptor"]),
+                    -r["available_ns"],
+                    r,
+                )
+                for r in rows
+                if r["profile"].get("execution_pool") == context
+                and not r["profile"].get("reference_id")
+                and r["profile"].get("descriptor")
+            ),
+            key=lambda item: item[:2],
+        )
+        peers = [r for d, _, r in peers if d <= 0.5][:neighbors]
+        if not peers:
+            result.append(profile)
+        for row in peers:
+            if row["id"] not in substituted:
+                result.append(row["profile"])
+                substituted.add(row["id"])
+    return result
+
+
 class ProviderModel:
     """Exact local samples, independent provider pools, no cloud side effects.
 
@@ -119,6 +159,8 @@ class ProviderModel:
         """Ingest a request/window once, or append a later evidence revision."""
         validate_observation(observation)
         row = copy.deepcopy(observation)
+        if not row["profile"].get("reference_id"):
+            row["profile"]["execution_pool"] = execution_context(row["pool"])
         row["_features"] = features(row["profile"], row["pool"], row["load_rps"])
         key = (
             row["pool"]["provider"],
@@ -196,6 +238,11 @@ class ProviderModel:
         from atsuite.workload.profile import extract_profile
 
         profile = extract_profile(trace)
+        profile["execution_pool"] = execution_context(pool)
+        if reference_profile is not None and not reference_profile.get("reference_id"):
+            raise ValueError(
+                "An explicit reference profile requires its shared reference_id"
+            )
         row = {
             "kind": "request",
             "id": profile["request_id"],
@@ -262,7 +309,6 @@ class ProviderModel:
         results = []
         for pool in pools:
             validate_pool(pool)
-            queries = [features(p, pool, load_rps) for p in profiles]
             candidates = [
                 r
                 for r in visible
@@ -270,6 +316,8 @@ class ProviderModel:
             ]
             requests = [r for r in candidates if r["kind"] == "request"]
             successes = [r for r in requests if r["status"] == "success"]
+            cost_profiles = _target_profiles(profiles, pool, successes, self.neighbors)
+            queries = [features(p, pool, load_rps) for p in cost_profiles]
             # Identical resource queries keep their mixture weight without repeating neighbor searches.
             query_keys = [json.dumps(q, sort_keys=True) for q in queries]
             unique_queries = dict(zip(query_keys, queries))
@@ -381,7 +429,7 @@ class ProviderModel:
                 )
             analytical = (
                 predict_cost(
-                    profiles,
+                    cost_profiles,
                     pool,
                     card,
                     sorted(successes, key=lambda r: r["completed_ns"])[
@@ -393,7 +441,15 @@ class ProviderModel:
             )
             if analytical and analytical["complete"]:
                 # Mix complete latency samples; never add component percentiles.
-                queue = metrics["queue_s"]["samples"] or [0.0]
+                # Native Session durations already include their observed waiting time.
+                queue = (
+                    [0.0]
+                    if all(
+                        s["timing_basis"] == "target_native"
+                        for s in analytical["resource_samples"]
+                    )
+                    else metrics["queue_s"]["samples"] or [0.0]
+                )
                 latency = [
                     v + q for v in analytical["latency"]["samples"] for q in queue
                 ]
@@ -413,16 +469,22 @@ class ProviderModel:
                     "sample_count": len(successes),
                     "selected_unique_count": len({r["id"] for r in selected}),
                     "coverage": coverage,
-                    "low_confidence": (len(successes) < 3 or not analytical["complete"])
-                    if analytical
-                    else marginal
+                    "low_confidence": marginal
                     or not coverage
-                    or len({r["id"] for r in selected}) < 20
+                    or len({r["id"] for r in selected}) < (3 if analytical else 20)
                     or any(
-                        c["missing_features"]
+                        set(c["missing_features"]) - {"instances"}
                         or c["extrapolated_features"]
-                        or any(v["coverage"] < 1 for v in c["feature_ranges"].values())
+                        or any(
+                            v["coverage"] < 1
+                            for k, v in c["feature_ranges"].items()
+                            if k != "instances"
+                        )
                         for c in coverage
+                    )
+                    or bool(
+                        analytical
+                        and (not analytical["complete"] or not analytical["calibrated"])
                     ),
                     "latency_scope": "successful requests, observed queue/cold-start mixture; no additive p95",
                     "cost_missing": not analytical["complete"]

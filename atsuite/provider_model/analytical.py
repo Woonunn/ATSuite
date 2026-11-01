@@ -3,7 +3,11 @@
 import math
 from statistics import median
 
-from atsuite.provider_model.observation import BACKENDS, validate_pool
+from atsuite.provider_model.observation import (
+    BACKENDS,
+    execution_context,
+    validate_pool,
+)
 from atsuite.workload.model import distribution
 from atsuite.workload.profile import number
 
@@ -47,23 +51,48 @@ def validate_tariff(card: dict, provider: str) -> None:
     if card["transfer_fraction"] > 1:
         raise ValueError("Transfer fraction must be between zero and one")
     calibration = card.get("calibration", {})
-    if any(not number(v) for k, v in calibration.items() if k != "evidence"):
+    if any(
+        not number(v)
+        for k, v in calibration.items()
+        if k not in {"evidence", "reference_id"}
+    ):
         raise ValueError("Invalid platform calibration")
+    if "tool_scale" in calibration and (
+        not isinstance(calibration.get("reference_id"), str)
+        or not calibration["reference_id"]
+    ):
+        raise ValueError("A speed calibration requires its reference basis")
     if calibration and not calibration.get("evidence"):
         raise ValueError("Platform calibration needs evidence")
 
 
-def calibration(card: dict, rows: list[dict]) -> dict:
+def calibration(card: dict, rows: list[dict], reference_id: str | None = None) -> dict:
     """Fit overheads from visible profiling rows, without fitting historical prices."""
+    configured = card.get("calibration", {})
+    reference_id = reference_id or configured.get("reference_id")
     result = {
         "tool_scale": 1.0,
         "init_s": 0.0,
         "sync_s_per_byte": 0.0,
         "sync_s_per_call": 0.0,
-        **card.get("calibration", {}),
+        **{
+            k: v
+            for k, v in configured.items()
+            if k not in {"tool_scale", "billed_scale", "reference_id"}
+        },
+        "reference_id": reference_id,
     }
+    declared = bool(
+        reference_id
+        and configured.get("reference_id") == reference_id
+        and "tool_scale" in configured
+    )
+    if declared:
+        result["tool_scale"] = configured["tool_scale"]
     ratios, inits, syncs, billed_ratios = [], [], [], []
     for row in rows:
+        if not reference_id or row["profile"].get("reference_id") != reference_id:
+            continue
         m, p = row["measurements"], row["profile"].get("metrics", {})
         if (
             number(m.get("tool_s"))
@@ -71,8 +100,10 @@ def calibration(card: dict, rows: list[dict]) -> dict:
             and p["tool_elapsed_s"] > 0
         ):
             # Runtime execution_elapsed_ms includes restore/persist; price synchronization once.
-            sync = m.get("state_sync_s") if number(m.get("state_sync_s")) else 0
-            ratios.append(max(0, m["tool_s"] - sync) / p["tool_elapsed_s"])
+            if number(m.get("state_sync_s")) and m["state_sync_s"] <= m["tool_s"]:
+                ratios.append(
+                    max(0, m["tool_s"] - m["state_sync_s"]) / p["tool_elapsed_s"]
+                )
         if number(m.get("cold_start_s")):
             inits.append(m["cold_start_s"])
         if (
@@ -93,11 +124,14 @@ def calibration(card: dict, rows: list[dict]) -> dict:
     ):
         if values:
             result[key] = median(values)
-    result["sample_count"] = len(rows)
+    result["sample_count"] = len(ratios)
+    result["calibrated"] = declared or len(ratios) >= 3
     return result
 
 
-def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
+def price_profile(
+    profile: dict, pool: dict, card: dict, fitted: dict, *, measured: bool = False
+) -> dict:
     """Price one joint resource sample; MCP memory persists, FaaS syncs per call.
 
     Logical accesses describe demand, not storage RPCs. Without a transport
@@ -116,6 +150,17 @@ def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
         return m[key]
 
     tool, idle = metric("tool_elapsed_s"), metric("llm_idle_s")
+    same_environment = profile.get("execution_pool") == execution_context(pool)
+    if measured and not same_environment:
+        raise ValueError("Measured pricing requires the actual execution environment")
+    native = same_environment and not profile.get("reference_id")
+    observed = measured or native
+    shared_basis = bool(
+        profile.get("reference_id")
+        and profile["reference_id"] == fitted.get("reference_id")
+    )
+    scale = fitted["tool_scale"] if shared_basis and not observed else 1.0
+    init = fitted["init_s"] if not observed else 0.0
     call_counts = profile.get("workflow", {}).get("tool_calls", {}).values()
     if any(not number(v) or int(v) != v for v in call_counts):
         raise ValueError("Tool invocation counts must be nonnegative integers")
@@ -135,54 +180,80 @@ def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
     state_size = metric("state_max_object_bytes")
     # shortcut: peak object approximates a snapshot; calibrate transport bytes for multi-object state.
     sync_bytes = state_size * calls * 2 if decoupled else 0
-    if decoupled and number(m.get("state_transfer_bytes")):
+    if decoupled and same_environment and number(m.get("state_transfer_bytes")):
         sync_bytes = m["state_transfer_bytes"]
     reads = writes = calls if decoupled else 0
     for field, value in (("state_store_reads", reads), ("state_store_writes", writes)):
-        if number(m.get(field)):
+        if same_environment and number(m.get(field)):
             if field.endswith("reads"):
                 reads = m[field]
             else:
                 writes = m[field]
     sync = (
         (sync_bytes * fitted["sync_s_per_byte"] + calls * fitted["sync_s_per_call"])
-        if decoupled
+        if decoupled and not observed
         else 0
     )
-    active = tool * fitted["tool_scale"] + fitted["init_s"] + sync
+    active = (
+        (
+            m["runtime_tool_s"]
+            if observed and number(m.get("runtime_tool_s"))
+            else tool * scale
+        )
+        + init
+        + sync
+    )
     durations = [
         v for values in profile.get("tool_durations", {}).values() for v in values
     ]
+    if observed and profile.get("runtime_tool_durations"):
+        durations = profile["runtime_tool_durations"]
+    tool_wall, execution_wall = m.get("tool_active_s"), m.get("execution_active_s")
+    if not number(tool_wall) or not number(execution_wall):
+        if profile.get("workflow", {}).get("parallel_peak") == 1:
+            tool_wall, execution_wall = tool, tool + idle
+        elif not observed:
+            missing.append("overlap_timing")
+            tool_wall, execution_wall = tool, tool + idle
+    overlap = min(1.0, tool_wall / tool) if tool and number(tool_wall) else 1.0
+    active_wall = active * overlap
+    wall = (
+        metric("agent_elapsed_s")
+        if observed
+        else active_wall + max(0, execution_wall - tool_wall)
+    )
     quantum = card["quantum_s"]
     if not decoupled:
-        billed = math.ceil(active / quantum) * quantum
+        billed = math.ceil(active_wall / quantum) * quantum
     elif calls and len(durations) == calls and all(number(v) for v in durations):
         billed = sum(
-            math.ceil(
-                (v * fitted["tool_scale"] + (sync + fitted["init_s"]) / calls) / quantum
-            )
-            * quantum
+            math.ceil((v * scale + (sync + init) / calls) / quantum) * quantum
             for v in durations
         )
     else:
         # shortcut: missing call durations use an upper rounding bound, replace with per-call profiles.
         billed = active + quantum * calls
-    if decoupled and "billed_scale" in fitted:
+    if decoupled and shared_basis and not observed and "billed_scale" in fitted:
         billed = tool * fitted["billed_scale"] + quantum * calls
     cpu_seconds = billed * cpu
     if card["cpu_basis"] == "active":
-        cpu_seconds = (
-            metric("tool_cpu_s") * fitted["tool_scale"]
-            + (sync + fitted["init_s"]) * cpu
-        )
-        if active:
-            cpu_seconds *= billed / active
-    session_s = active + idle + card["session_tail_s"]
+        cpu_seconds = metric("tool_cpu_s") * scale + (sync + init) * cpu
+        rounding_base = active if decoupled else active_wall
+        if rounding_base:
+            cpu_seconds *= billed / rounding_base
+    session_s = wall + card["session_tail_s"]
     if card["memory_basis"] == "session":
         session_s = math.ceil(session_s / quantum) * quantum
-    retention_s = max(0, session_s - billed) if card["memory_basis"] == "session" else 0
+    memory_billed = (
+        min(billed, session_s) if card["memory_basis"] == "session" else billed
+    )
+    retention_s = (
+        max(0, session_s - memory_billed) if card["memory_basis"] == "session" else 0
+    )
     memory_gb = memory / 1024
-    execution = cpu_seconds * rates["cpu_s"] + memory_gb * billed * rates["memory_gb_s"]
+    execution = (
+        cpu_seconds * rates["cpu_s"] + memory_gb * memory_billed * rates["memory_gb_s"]
+    )
     retention = memory_gb * retention_s * rates["memory_gb_s"]
     disk_mb = resources.get(
         "disk_mb", resources.get("ephemeral_storage", {}).get("Size")
@@ -192,7 +263,7 @@ def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
             missing.append("disk_mb")
         disk_mb = 0
     disk = max(0, disk_mb / 1024 - card["free_disk_gb"])
-    execution += disk * billed * rates["disk_gb_s"]
+    execution += disk * memory_billed * rates["disk_gb_s"]
     retention += disk * retention_s * rates["disk_gb_s"]
     if card["compute_in_pool_floor"]:
         execution = retention = 0.0
@@ -201,10 +272,10 @@ def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
         "cpu": 0 if card["compute_in_pool_floor"] else cpu_seconds * rates["cpu_s"],
         "memory": 0
         if card["compute_in_pool_floor"]
-        else memory_gb * billed * rates["memory_gb_s"],
+        else memory_gb * memory_billed * rates["memory_gb_s"],
         "disk": 0
         if card["compute_in_pool_floor"]
-        else disk * billed * rates["disk_gb_s"],
+        else disk * memory_billed * rates["disk_gb_s"],
         "request": calls * rates["invocation"],
     }
     storage = reads * rates["read"] + writes * rates["write"]
@@ -232,6 +303,8 @@ def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
                 "cpu",
                 "tool_cpu_s",
                 "disk_mb",
+                "overlap_timing",
+                "agent_elapsed_s",
             }
             | (
                 {"state_max_object_bytes"}
@@ -242,8 +315,18 @@ def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
             )
         ),
         "total": sum(components.values()),
-        "latency_s": active + idle,
+        "latency_s": wall,
         "session_s": session_s,
+        "calibrated": measured
+        or (native and number(m.get("runtime_tool_s")))
+        or (shared_basis and fitted["calibrated"]),
+        "timing_basis": "measured"
+        if measured
+        else "target_native"
+        if native
+        else "shared_reference"
+        if shared_basis
+        else "unverified_reference",
         "usage": {
             "cpu_s": cpu_seconds,
             "billed_s": billed,
@@ -258,21 +341,34 @@ def price_profile(profile: dict, pool: dict, card: dict, fitted: dict) -> dict:
 
 
 def predict_cost(
-    profiles: list[dict], pool: dict, card: dict, rows: list[dict]
+    profiles: list[dict],
+    pool: dict,
+    card: dict,
+    rows: list[dict],
+    *,
+    measured: bool = False,
 ) -> dict:
     """Return empirical demand uncertainty priced by a tariff, never price neighbors."""
     validate_tariff(card, pool["provider"])
-    fitted = calibration(card, rows)
-    samples = [price_profile(p, pool, card, fitted) for p in profiles]
+    fits = {
+        basis: calibration(card, rows, basis)
+        for basis in {p.get("reference_id") for p in profiles}
+    }
+    fitted = next(iter(fits.values()), calibration(card, []))
+    samples = [
+        price_profile(p, pool, card, fits[p.get("reference_id")], measured=measured)
+        for p in profiles
+    ]
     complete = bool(samples) and all(not s["missing"] for s in samples)
     return {
         "kind": "request",
         "scope": "marginal_infrastructure",
-        "basis": "analytical",
+        "basis": "measured_usage_estimate" if measured else "analytical",
         "currency": card["currency"],
         "tariff": card,
         "calibration": fitted,
         "complete": complete,
+        "calibrated": bool(samples) and all(s["calibrated"] for s in samples),
         "total": distribution([s["total"] for s in samples], len(samples)),
         "components": {
             k: distribution([s["components"][k] for s in samples], len(samples))

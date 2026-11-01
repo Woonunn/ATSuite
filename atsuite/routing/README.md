@@ -38,7 +38,9 @@ Workload prediction tries nearby resource descriptors (log-scaled size distance,
 Tool/file-type overlap), then the entire previously observed workload, then an
 explicit independent profiling prior. Historical joint samples preserve compute,
 state and LLM-time correlations. Matching is deliberately simple; it is not a
-semantic predictor. Three samples can improve confidence, but are **not admission
+semantic predictor. Equal-distance neighbors prefer the most recently available
+observations, so feedback continues to update a family after its first 20 samples.
+Three samples can improve confidence, but are **not admission
 requirements**. Low-confidence predictions use the named validated default.
 
 Each `execution_bounds[pool]` has `timeout_s`, `max_cost`, `currency`, `tools` and
@@ -61,7 +63,8 @@ iteration limits, sandbox restrictions and pending-RPC cleanup. Cleanup can outl
 the application deadline; it must finish before capacity is released.
 
 `complete()` attaches the frozen Descriptor to the Workload profile and updates
-platform timing calibration from complete Tool runtime counters. Availability is
+platform timing calibration from complete Tool runtime counters. Native profiles
+retain `execution_pool` (provider, environment and resources). Availability is
 strictly `< decision_ns`, including delayed provider evidence revisions. No result
 from the current request is used before dispatch.
 
@@ -97,10 +100,34 @@ Router nor JointController ranks candidates from historical costs. Missing measu
 visible. Analytical completeness means the configured formula has inputs, **not**
 that its assumptions or rates constitute a complete vendor invoice.
 
-Timing uses predicted Tool/LLM/state/init work calibrated from visible profiling
-and observed queue samples. It mixes sample distributions, never adds component
-p95s. This small model can overestimate parallel workflows and cannot guarantee
-tail latency; out-of-environment predictions require the default executor.
+Timing separates total Tool work from the union of occupied Tool/LLM intervals.
+The former prices FaaS invocations; the latter estimates elapsed time and resident
+memory retention. Historical overlap is an empirical prior, not a predicted DAG.
+Native Session samples already include observed waiting; queue samples are not
+added a second time. It mixes distributions, never adds component p95s.
+
+Speed ratios require an explicit shared `reference_id` on profiling inputs; a
+tariff's declared `tool_scale` must name that same reference. Ordinary completion
+profiles are target-native observations, not common benchmarks. A foreign native
+profile uses descriptor-matched observations from the target pool when available;
+without those or a shared reference, its estimate remains uncalibrated and routing
+falls back. Physical state-transfer counters are reused only for the exact source
+execution environment. Other modes use their own logical-state transport estimate.
+
+Confidence checks both resource/load coverage and usable calibration evidence.
+Three successful rows with missing runtime counters do not establish calibration;
+missing features and extrapolation remain visible and cause fallback. Existing
+snapshots without reference provenance cannot silently become speed benchmarks.
+Callers supplying `reference_profile=` must now include its shared `reference_id`.
+JointController excludes unreliable forecasts from scaling plans too; a fresh,
+validated default remains available for bounded requests when no plan is trusted.
+
+`predict_cost(..., measured=True)` reprices completed usage in its actual
+`execution_pool`; it does not apply prediction speed/init/sync multipliers again.
+This is a tariff-based usage estimate, not an invoice. Simulation accounting and
+native E1-B reference costs use this path. An E1-A reference Capture is not the
+actual target execution, so only separately recorded attributable vendor compute
+charges are used as its cost reference.
 
 Router minimizes `cost_weight * marginal_cost + latency_weight * mean_latency_s`.
 JointController minimizes `cost_weight * pool_horizon_cost / horizon_s +

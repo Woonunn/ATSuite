@@ -19,8 +19,12 @@ from tests.test_workload import trace
 
 def profile(state=8000, idle=2):
     result = extract_profile(trace())
+    result["reference_id"] = "test-reference"
     result["metrics"].update(
-        state_bytes=state, llm_idle_s=idle, rho_kb_s=state / 1000 / idle
+        state_bytes=state,
+        llm_idle_s=idle,
+        execution_active_s=2 + idle,
+        rho_kb_s=state / 1000 / idle,
     )
     return result
 
@@ -72,7 +76,9 @@ class ProviderModelTests(unittest.TestCase):
         result = model.predict(
             profile(), [pool(p) for p in BACKENDS], 0.5, as_of_ns=1000
         )
-        self.assertEqual([p["latency"]["p95"] for p in result["pools"]], [1, 2, 3, 4, 5])
+        self.assertEqual(
+            [p["latency"]["p95"] for p in result["pools"]], [1, 2, 3, 4, 5]
+        )
         self.assertEqual(result["pools"][-1]["label"], "Aliyun FC Session MCP")
         query = pool()
         query["resources"]["memory_mb"] = 4096

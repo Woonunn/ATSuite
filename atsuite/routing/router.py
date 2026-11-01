@@ -7,7 +7,11 @@ import threading
 import time
 from pathlib import Path
 
-from atsuite.provider_model.observation import trace_measurements, validate_pool
+from atsuite.provider_model.observation import (
+    execution_context,
+    trace_measurements,
+    validate_pool,
+)
 from atsuite.workload.profile import number
 from atsuite.workload.descriptor import validate_descriptor
 from atsuite.routing.objective import pareto, validate_weights
@@ -356,6 +360,10 @@ class OnlineRouter:
             if actual_cost is not None and not number(actual_cost):
                 raise ValueError("Invalid attributable cost")
             profile = extract_profile(trace)
+            profile["execution_pool"] = execution_context(
+                decision["pool_snapshot"][selected]
+            )
+            profile["descriptor"] = copy.deepcopy(decision["descriptor"])
             if (
                 profile["request_id"] != request_id
                 or trace["arrival_ns"] != decision["arrival_ns"]

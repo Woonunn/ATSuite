@@ -187,6 +187,8 @@ class Stage6Tests(unittest.TestCase):
         p = profile()
         p["metrics"].update(
             tool_elapsed_s=0.0022,
+            tool_active_s=0.0022,
+            execution_active_s=10.0022,
             tool_cpu_s=0.001,
             llm_idle_s=10,
             state_max_object_bytes=1000,
@@ -252,6 +254,7 @@ class Stage6Tests(unittest.TestCase):
         row = observation()
         row.update(available_ns=100)
         row["measurements"]["tool_s"] = 4
+        row["measurements"]["state_sync_s"] = 0
         model.update(row)
         self.assertEqual(
             before,
@@ -281,6 +284,7 @@ class Stage6Tests(unittest.TestCase):
             configs[key]["billing"]["rates"]["memory_gb_s"] = rate
             configs[key]["billing"]["calibration"] = {
                 "tool_scale": scale,
+                "reference_id": "test-reference",
                 "evidence": ["fixture"],
             }
             for i in range(3):
@@ -299,7 +303,7 @@ class Stage6Tests(unittest.TestCase):
                 {"cheap": 3, "fast": 3},
                 latency_weight=weight,
             )
-            result = router.decide("query", as_of_ns=2000, shadow=True)
+            result = router.decide("query", load_rps=0.5, as_of_ns=2000, shadow=True)
             self.assertEqual(set(result["pareto"]), {"cheap", "fast"})
             results.append(result["selected"])
         self.assertEqual(results, ["cheap", "fast"])

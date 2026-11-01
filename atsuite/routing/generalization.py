@@ -90,7 +90,9 @@ def evaluate(
                 if identity not in training_ids:
                     training_ids.add(identity)
                     counts[backend] += 1
-                provider.update(row)
+                observed = copy.deepcopy(row)
+                observed["profile"]["descriptor"] = descriptors.get(task)
+                provider.update(observed)
                 if identity not in seen_workload and row["status"] == "success":
                     profile = copy.deepcopy(row["profile"])
                     profile["request_id"] = backend + ":" + row["id"]
@@ -124,11 +126,20 @@ def evaluate(
         )
         estimate = pred.get("analytical_cost")
         # The reference is measured held-out demand repriced at a frozen tariff, never an invoice.
-        reference = predict_cost([row["profile"]], row["pool"], tariffs[backend], [])
+        reference = (
+            predict_cost(
+                [row["profile"]], row["pool"], tariffs[backend], [], measured=True
+            )
+            if row["profile"].get("execution_pool")
+            and not row["profile"].get("reference_id")
+            else None
+        )
         predicted_cost = (
             estimate["total"]["mean"] if estimate and estimate["complete"] else None
         )
-        observed_cost = reference["total"]["mean"] if reference["complete"] else None
+        observed_cost = (
+            reference["total"]["mean"] if reference and reference["complete"] else None
+        )
         attributable = latest[identity].get("cost")
         comparable_charge = attributable and attributable["scope"] in {
             "lambda_invocations",
@@ -268,8 +279,13 @@ def plot(reports: list[dict], output: Path) -> None:
     for ax in axes[0, 1:]:
         if not ax.lines:
             ax.text(
-                0.5, 0.5, "Insufficient measured demand for total cost",
-                ha="center", va="center", transform=ax.transAxes, fontsize=9,
+                0.5,
+                0.5,
+                "Insufficient measured demand for total cost",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=9,
             )
             ax.set_xticks([])
             ax.set_yticks([])

@@ -27,6 +27,11 @@ def tariff(provider="aws_lambda", floor=0.0):
         "storage_tail_s": 0,
         "free_disk_gb": 0.5,
         "transfer_fraction": 0,
+        "calibration": {
+            "reference_id": "test-reference",
+            "tool_scale": 1,
+            "evidence": ["synthetic common reference"],
+        },
         "rates": {
             **dict.fromkeys(RATES, 0.0),
             "memory_gb_s": 0.00001,

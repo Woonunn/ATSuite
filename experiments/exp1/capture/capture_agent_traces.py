@@ -32,6 +32,8 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
     if provider_model is not None:
         from atsuite.provider_model.observation import validate_pool,features
         if provider_context is None:raise ValueError('Provider modeling requires pool and load context')
+        if provider_context.get('reference_profile') is not None and not provider_context['reference_profile'].get('reference_id'):
+            raise ValueError('An explicit reference profile requires its shared reference_id')
         validate_pool(provider_context['pool'])
         if provider_context['pool']['provider']!=config['tool']['provider']:raise ValueError('Provider context does not match Tool backend')
         features(provider_context.get('reference_profile',{}),provider_context['pool'],provider_context['load_rps'])

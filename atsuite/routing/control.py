@@ -340,6 +340,8 @@ class JointController:
                     workload["joint_profiles"][-20:], [pool], rates[key], as_of_ns=now
                 )["pools"][0]
                 predictions[(key, family)] = pred
+                if workload["low_confidence"] or pred["low_confidence"]:
+                    flags.append(f"{key}:unreliable_prediction")
                 seconds = pred["latency"]["p95"]
                 mean = pred["latency"]["mean"]
                 if seconds is None:

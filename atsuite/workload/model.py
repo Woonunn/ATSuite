@@ -41,7 +41,7 @@ def distribution(values: list, total: int) -> dict:
 
 
 class WorkloadModel:
-    """One fixed workload/environment, exact samples; thread-safe within one process."""
+    """Resource-family empirical samples; thread-safe within one process."""
 
     def __init__(self, initial_profiles: list[dict] | None = None) -> None:
         # shortcut: retain exact samples in memory; use bounded summaries when volume warrants it.
@@ -149,14 +149,19 @@ class WorkloadModel:
             if descriptor is not None:
                 ranked = sorted(
                     (
-                        (distance(descriptor, p["descriptor"]), i, p)
+                        (
+                            distance(descriptor, p["descriptor"]),
+                            -self.samples[p["request_id"]]["available_ns"],
+                            -i,
+                            p,
+                        )
                         for i, p in enumerate(samples)
                         if p.get("descriptor") is not None
                     ),
-                    key=lambda item: (item[0], item[1]),
+                    key=lambda item: item[:3],
                 )
                 nearest = ranked[0][0] if ranked else None
-                similar = [p for d, _, p in ranked if d <= 0.5][:20]
+                similar = [p for d, _, _, p in ranked if d <= 0.5][:20]
                 if similar:
                     samples, basis = similar, "resource_family"
             if not samples:

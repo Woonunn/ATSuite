@@ -88,8 +88,12 @@ def controller(*, start=1, retention=None, policy="joint", weights=None):
         for i in range(100):
             row = observation(i)
             row.update(id=f"{target}-{i}", task_id="task", pool=config)
+            row["load_rps"] = i / 10
             model.update(row)
-    workload.update(observation()["profile"], 10000)
+    for i in range(3):
+        p = observation()["profile"]
+        p["request_id"] = f"reference-{i}"
+        workload.update(p, 10000)
     router = OnlineRouter(
         workload,
         model,

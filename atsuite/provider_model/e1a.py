@@ -169,6 +169,7 @@ def load_e1a(root: Path) -> tuple[list[dict], dict]:
             ):
                 raise ValueError("Frozen capture checksum mismatch")
             captures[capture] = extract_profile(load_capture(capture))
+            captures[capture]["reference_id"] = "capture:" + identity["capture"]
         profile = captures[capture]
         actual = run["deployment"]["actual"]
         affinity = actual.get("session_affinity_config") or {}

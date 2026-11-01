@@ -5,6 +5,7 @@ import json
 from collections import Counter
 
 from atsuite.workload.profile import number
+from atsuite.workload.descriptor import validate_descriptor
 
 BACKENDS = {
     "local": ("state-decoupled", "Local Docker FaaS validation", "USD"),
@@ -90,6 +91,11 @@ def trace_measurements(trace: dict) -> dict:
     }
 
 
+def execution_context(pool: dict) -> dict:
+    """Identify the runtime/resources that produced physical usage, excluding tariffs."""
+    return copy.deepcopy({k: pool[k] for k in ("provider", "environment", "resources")})
+
+
 def features(profile: dict, pool: dict, load_rps: float) -> dict:
     """Keep logical S_G/D_G distinct from provider synchronization and latency."""
     result = {key: profile.get("metrics", {}).get(key) for key in FEATURES}
@@ -142,6 +148,21 @@ def validate_observation(row: dict) -> None:
     ):
         raise ValueError("Invalid capacity transition marker")
     validate_pool(row["pool"])
+    profile = row["profile"]
+    if profile.get("descriptor") is not None:
+        validate_descriptor(profile["descriptor"])
+    if "reference_id" in profile and (
+        not isinstance(profile["reference_id"], str) or not profile["reference_id"]
+    ):
+        raise ValueError("Reference profiles require an explicit nonempty basis")
+    if profile.get("execution_pool") is not None:
+        validate_pool(profile["execution_pool"])
+        if not profile.get("reference_id") and execution_context(
+            profile["execution_pool"]
+        ) != execution_context(row["pool"]):
+            raise ValueError(
+                "Native observation belongs to another execution environment"
+            )
     for key in ("arrival_ns", "completed_ns", "available_ns", "load_rps"):
         if not number(row.get(key)):
             raise ValueError(f"Invalid {key}")

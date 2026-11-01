@@ -1,4 +1,4 @@
-"""Platform-independent features from canonical causal traces."""
+"""Logical resource demand and source-scoped usage from canonical causal traces."""
 
 import math
 from collections import Counter
@@ -6,6 +6,9 @@ from collections import Counter
 METRICS = (
     "llm_idle_s",
     "tool_elapsed_s",
+    "tool_active_s",
+    "execution_active_s",
+    "runtime_tool_s",
     "tool_cpu_s",
     "state_observation_s",
     "agent_elapsed_s",
@@ -77,6 +80,29 @@ def extract_profile(trace: dict) -> dict:
         tool_elapsed_s=total(tools, "duration_s"),
         agent_elapsed_s=total(sessions, "duration_s"),
     )
+
+    def active_time(items):
+        if not complete or any(
+            not number(s.get("start_ns"))
+            or not number(s.get("end_ns"))
+            or s["end_ns"] < s["start_ns"]
+            for s in items
+        ):
+            return None
+        total, end = 0, 0
+        for start, stop in sorted((s["start_ns"], s["end_ns"]) for s in items):
+            total += max(0, stop - max(start, end))
+            end = max(end, stop)
+        return total / 1e9
+
+    metrics["tool_active_s"] = active_time(tools)
+    metrics["execution_active_s"] = active_time(tools + llms)
+    runtime = [
+        s.get("metadata", {}).get("runtime", {}).get("execution_elapsed_ms")
+        for s in tools
+    ]
+    if complete and runtime and all(number(v) for v in runtime):
+        metrics["runtime_tool_s"] = sum(runtime) / 1000
     overhead = [
         s.get("metadata", {}).get("logical_state", {}).get("observation_s")
         for s in tools
@@ -231,4 +257,7 @@ def extract_profile(trace: dict) -> dict:
             name: [s.get("duration_s") for s in tools if s["name"] == name]
             for name in {s["name"] for s in tools}
         },
+        "runtime_tool_durations": [v / 1000 for v in runtime]
+        if complete and runtime and all(number(v) for v in runtime)
+        else [],
     }

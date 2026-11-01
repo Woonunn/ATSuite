@@ -6,7 +6,9 @@ import json
 from pathlib import Path
 
 from atsuite.provider_model.e1a import _events, _ns, _read
-from atsuite.provider_model.observation import validate_observation
+from atsuite.provider_model.observation import execution_context, validate_observation
+from atsuite.tracing.storage import read_text, trace_path
+from atsuite.workload.profile import extract_profile
 from atsuite.workload.profile import number
 
 
@@ -71,6 +73,21 @@ def load_e1b(root: Path) -> tuple[list[dict], dict]:
                 "status": "failed",
             }
             profile.update(request_id=rid, arrival_ns=arrival, completed_ns=completed)
+            trace_file = path.parent / "requests" / record["arrival_id"] / "trace.json"
+            if trace_path(trace_file).exists():
+                sources[str(trace_path(trace_file))] = hashlib.sha256(
+                    trace_path(trace_file).read_bytes()
+                ).hexdigest()
+                timings = extract_profile(json.loads(read_text(trace_file)))
+                for field in (
+                    "tool_active_s",
+                    "execution_active_s",
+                    "runtime_tool_s",
+                    "state_transfer_bytes",
+                ):
+                    profile["metrics"][field] = timings["metrics"].get(field)
+                profile["runtime_tool_durations"] = timings["runtime_tool_durations"]
+            profile["execution_pool"] = execution_context(pool)
             status = "success" if record["status"] == "succeeded" else "failed"
             profile["status"] = status
             row = {

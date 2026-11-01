@@ -357,7 +357,7 @@ def simulate(
         card = pool.get(
             "billing", controller.router.provider.tariffs.get(pool["provider"])
         )
-        marginal = predict_cost([observation["profile"]], pool, card, [])
+        marginal = predict_cost([observation["profile"]], pool, card, [], measured=True)
         if marginal["complete"]:
             for component, value in marginal["components"].items():
                 costs[component] += (
@@ -521,6 +521,11 @@ def simulate(
                     ],
                 }
             )
+            if node["kind"] == "tool":
+                job["spans"][-1]["metadata"]["runtime"] = {
+                    "execution_elapsed_ms": (now - started) / 1e6,
+                    "provider_metadata": {"state_sync": {"total_ms": 0}},
+                }
             job["failed"] |= not success
             if job["failed"] and not job["running"]:
                 finish(rid, now, "failed")

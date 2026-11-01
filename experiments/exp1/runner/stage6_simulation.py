@@ -57,7 +57,7 @@ def build(latency_weight, policy):
                     "name": "agent",
                     "kind": "session",
                     "start_ns": 0,
-                    "end_ns": 10,
+                    "end_ns": int((tool_s + idle_s) * 1e9),
                     "duration_s": tool_s + idle_s,
                     "status": "ok",
                     "metadata": {},
@@ -67,7 +67,7 @@ def build(latency_weight, policy):
                     "name": "model",
                     "kind": "llm",
                     "start_ns": 0,
-                    "end_ns": 5,
+                    "end_ns": int(idle_s * 1e9),
                     "duration_s": idle_s,
                     "status": "ok",
                     "metadata": {},
@@ -77,8 +77,8 @@ def build(latency_weight, policy):
                     "id": "tool",
                     "name": "python",
                     "kind": "tool",
-                    "start_ns": 5,
-                    "end_ns": 10,
+                    "start_ns": int(idle_s * 1e9),
+                    "end_ns": int((tool_s + idle_s) * 1e9),
                     "duration_s": tool_s,
                     "status": "ok",
                     "metadata": {"state_accesses": access},
@@ -88,6 +88,7 @@ def build(latency_weight, policy):
             ],
         }
         p = extract_profile(trace)
+        p["reference_id"] = "stage6-synthetic-v1"
         workload.update(p, 100, descriptor=descriptor)
         for name, memory, speed in [("cheap", 1024, 1), ("fast", 4096, 0.2)]:
             levels.setdefault(name, {})
@@ -100,6 +101,7 @@ def build(latency_weight, policy):
                 ]
                 card["calibration"] = {
                     "tool_scale": speed,
+                    "reference_id": "stage6-synthetic-v1",
                     "evidence": ["synthetic independent profiling"],
                 }
                 pool = {
@@ -135,7 +137,7 @@ def build(latency_weight, policy):
                             "task_id": "training-" + task,
                             "profile": p,
                             "pool": pool,
-                            "load_rps": 1,
+                            "load_rps": i,
                             "status": "success",
                             "arrival_ns": 1,
                             "completed_ns": 10,
@@ -143,6 +145,7 @@ def build(latency_weight, policy):
                             "measurements": {
                                 "latency_s": idle_s + speed * tool_s,
                                 "tool_s": speed * tool_s,
+                                "state_sync_s": 0,
                                 "cold_start_s": 0,
                                 "queue_s": 0,
                             },
