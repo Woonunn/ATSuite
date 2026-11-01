@@ -1,0 +1,154 @@
+{
+  "aws_lambda": {
+    "currency": "USD",
+    "source": [
+      "https://aws.amazon.com/lambda/pricing/",
+      "https://aws.amazon.com/s3/pricing/"
+    ],
+    "date": "2026-10-30",
+    "region": "us-east-1",
+    "scope": "total_infrastructure",
+    "cpu_basis": "allocated",
+    "memory_basis": "active",
+    "compute_in_pool_floor": false,
+    "quantum_s": 0.001,
+    "session_tail_s": 0,
+    "storage_tail_s": 0,
+    "free_disk_gb": 0.5,
+    "transfer_fraction": 0,
+    "rates": {
+      "cpu_s": 0,
+      "memory_gb_s": 1.66667e-05,
+      "invocation": 2e-07,
+      "read": 4.0000000000000003e-07,
+      "write": 5e-06,
+      "storage_gb_s": 8.873456790123456e-09,
+      "transfer_gb": 0.0,
+      "disk_gb_s": 3.09e-08,
+      "pool_per_s": 0.0,
+      "shared_per_s": 0.0,
+      "scale_event": 0.0
+    },
+    "assumptions": [
+      "On-demand first tier; no free tier, discounts, tax or LLM API charges",
+      "Pool/shared/scaling zeros apply only to this no-reservation scenario; configure for actual deployments",
+      "MCP tail is a declared scenario, not observed release; lifecycle safety uses actual maxLifetime/TTL",
+      "AgentCore v1 rates; no resource allocation is inferred from requested CPU/memory",
+      "State RPC counts and bytes need profiling; logical accesses are not storage operations"
+    ]
+  },
+  "aws_agentcore": {
+    "currency": "USD",
+    "source": [
+      "https://aws.amazon.com/bedrock/agentcore/pricing/",
+      "https://aws.amazon.com/s3/pricing/"
+    ],
+    "date": "2026-10-30",
+    "region": "us-east-1",
+    "scope": "total_infrastructure",
+    "cpu_basis": "active",
+    "memory_basis": "session",
+    "compute_in_pool_floor": false,
+    "quantum_s": 1,
+    "session_tail_s": 300,
+    "storage_tail_s": 0,
+    "free_disk_gb": 0.5,
+    "transfer_fraction": 0,
+    "rates": {
+      "cpu_s": 2.486111111111111e-05,
+      "memory_gb_s": 2.625e-06,
+      "invocation": 0,
+      "read": 4.0000000000000003e-07,
+      "write": 5e-06,
+      "storage_gb_s": 8.873456790123456e-09,
+      "transfer_gb": 0.0,
+      "disk_gb_s": 0,
+      "pool_per_s": 0.0,
+      "shared_per_s": 0.0,
+      "scale_event": 0.0
+    },
+    "assumptions": [
+      "On-demand first tier; no free tier, discounts, tax or LLM API charges",
+      "Pool/shared/scaling zeros apply only to this no-reservation scenario; configure for actual deployments",
+      "MCP tail is a declared scenario, not observed release; lifecycle safety uses actual maxLifetime/TTL",
+      "AgentCore v1 rates; no resource allocation is inferred from requested CPU/memory",
+      "State RPC counts and bytes need profiling; logical accesses are not storage operations"
+    ]
+  },
+  "ali_fc": {
+    "currency": "CNY",
+    "source": [
+      "https://www.alibabacloud.com/help/tc/functioncompute/billing-overview-of-fc",
+      "atsuite/analysis/pricing.py: frozen CNY first-tier FC/OSS rates; not account discount or invoice"
+    ],
+    "date": "2026-10-30",
+    "region": "us-east-1",
+    "scope": "total_infrastructure",
+    "cpu_basis": "allocated",
+    "memory_basis": "active",
+    "compute_in_pool_floor": false,
+    "quantum_s": 0.001,
+    "session_tail_s": 0,
+    "storage_tail_s": 0,
+    "free_disk_gb": 0.5,
+    "transfer_fraction": 0,
+    "rates": {
+      "cpu_s": 8.8e-05,
+      "memory_gb_s": 1.3199999999999999e-05,
+      "invocation": 6.599999999999999e-07,
+      "read": 1e-06,
+      "write": 1e-06,
+      "storage_gb_s": 4.63e-08,
+      "transfer_gb": 0.0,
+      "disk_gb_s": 4.4e-06,
+      "pool_per_s": 0.0,
+      "shared_per_s": 0.0,
+      "scale_event": 0.0
+    },
+    "assumptions": [
+      "On-demand first tier; no free tier, discounts, tax or LLM API charges",
+      "Pool/shared/scaling zeros apply only to this no-reservation scenario; configure for actual deployments",
+      "MCP tail is a declared scenario, not observed release; lifecycle safety uses actual maxLifetime/TTL",
+      "AgentCore v1 rates; no resource allocation is inferred from requested CPU/memory",
+      "State RPC counts and bytes need profiling; logical accesses are not storage operations"
+    ]
+  },
+  "ali_agentrun": {
+    "currency": "CNY",
+    "source": [
+      "https://www.alibabacloud.com/help/tc/functioncompute/billing-overview-of-fc",
+      "atsuite/analysis/pricing.py: frozen CNY first-tier FC/OSS rates; not account discount or invoice"
+    ],
+    "date": "2026-10-30",
+    "region": "us-east-1",
+    "scope": "total_infrastructure",
+    "cpu_basis": "allocated",
+    "memory_basis": "session",
+    "compute_in_pool_floor": false,
+    "quantum_s": 0.001,
+    "session_tail_s": 60,
+    "storage_tail_s": 0,
+    "free_disk_gb": 0.5,
+    "transfer_fraction": 0,
+    "rates": {
+      "cpu_s": 8.8e-05,
+      "memory_gb_s": 1.3199999999999999e-05,
+      "invocation": 6.599999999999999e-07,
+      "read": 1e-06,
+      "write": 1e-06,
+      "storage_gb_s": 4.63e-08,
+      "transfer_gb": 0.0,
+      "disk_gb_s": 4.4e-06,
+      "pool_per_s": 0.0,
+      "shared_per_s": 0.0,
+      "scale_event": 0.0
+    },
+    "assumptions": [
+      "On-demand first tier; no free tier, discounts, tax or LLM API charges",
+      "Pool/shared/scaling zeros apply only to this no-reservation scenario; configure for actual deployments",
+      "MCP tail is a declared scenario, not observed release; lifecycle safety uses actual maxLifetime/TTL",
+      "AgentCore v1 rates; no resource allocation is inferred from requested CPU/memory",
+      "State RPC counts and bytes need profiling; logical accesses are not storage operations"
+    ]
+  }
+}

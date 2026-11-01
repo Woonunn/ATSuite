@@ -13,7 +13,7 @@ from benchmarks.DataSciBench.langgraph_agent.trace_replayer import ReplayModel
 ROOT=Path(__file__).resolve().parents[3]
 
 
-async def run(task_id,config,output,capture=None,workload_model=None,provider_model=None,provider_context=None,*,calibration=False,router=None,routing_context=None):
+async def run(task_id,config,output,capture=None,workload_model=None,provider_model=None,provider_context=None,*,calibration=False,router=None,routing_context=None,prompt=None):
     if router is not None:
         if workload_model is not None or provider_model is not None:
             raise ValueError('Router owns both model completion hooks')
@@ -26,6 +26,8 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
         for key,target in routing_context['targets'].items():
             if target['tool']['provider'] != router.pools[key]['provider']:
                 raise ValueError('Routing target/provider mismatch')
+    if prompt is not None and (not isinstance(prompt,str) or not prompt.strip() or capture):
+        raise ValueError('A new Prompt requires live planning and nonempty text')
     if calibration and not capture:raise ValueError("Calibration requires a frozen Capture")
     if provider_model is not None:
         from atsuite.provider_model.observation import validate_pool,features
@@ -35,6 +37,12 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
         features(provider_context.get('reference_profile',{}),provider_context['pool'],provider_context['load_rps'])
     tasks=json.loads((ROOT/'benchmarks/DataSciBench/tasks/manifest.json').read_text())
     task=next(t for t in tasks['tasks'] if t['task_id']==task_id)
+    if prompt is not None:
+        import hashlib
+        task={**task,'prompt':prompt,'prompt_sha256':hashlib.sha256(prompt.encode()).hexdigest()}
+    from atsuite.workload import describe
+    descriptor=describe(prompt=task['prompt'],files=task['readiness']['inputs']['files'],
+                        tools=['prepare_workspace','execute_analysis','merge_artifacts','validate_result'])
     session_id=uuid.uuid4().hex;request_id=uuid.uuid4().hex
     if router is not None:request_id=routing_context.get('request_id',request_id)
     tracing=LangGraphTracingAdapter(TraceCollector(request_id,session_id,output))
@@ -59,7 +67,7 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
         if router is not None:
             decision=router.decide(request_id,task_id,routing_context['load_rps'],as_of_ns=time.time_ns(),arrival_ns=arrival_ns,
                                    shadow=routing_context.get('shadow',False),
-                                   pool_load_rps=routing_context.get('pool_load_rps'))
+                                   pool_load_rps=routing_context.get('pool_load_rps'),descriptor=descriptor)
             from atsuite.tracing.storage import write_json
             write_json(output/'routing_decision.json',decision)
             if not decision['shadow']:
@@ -72,8 +80,12 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
         tools=await asyncio.to_thread(ToolClient,config['tool'],recorder,capture,calibration)
         model=ReplayModel(capture,recorder,tools.comparable if tools.renderings else None,calibration) if capture else DeepSeekClient(recorder,config['model'])
         graph=build_graph(model,tools,recorder,task['output_files'],config['max_iterations'],config['model']['seed'])
-        async for current in tracing.astream(graph,initial,config={'recursion_limit':150,'max_concurrency':config['max_parallel']}):
-            state=current
+        timeout=config.get('session_timeout_s',900)
+        if router is not None and decision.get('execution_bounds'):
+            timeout=min(timeout,decision['execution_bounds']['timeout_s']-(time.time_ns()-arrival_ns)/1e9)
+        async with asyncio.timeout(max(0,timeout)):
+            async for current in tracing.astream(graph,initial,config={'recursion_limit':150,'max_concurrency':config['max_parallel']}):
+                state=current
         if state['status']!='complete':raise RuntimeError('Agent did not complete: '+state.get('feedback',''))
         if capture:model.assert_consumed();tools.assert_consumed()
         return {'status':'complete','directory':str(output),'task_id':task_id,'iterations':state['iteration']+1}

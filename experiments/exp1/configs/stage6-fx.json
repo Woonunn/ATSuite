@@ -1,0 +1,11 @@
+{
+  "currency": "USD",
+  "rates": {
+    "USD": 1,
+    "CNY": 0.14996715949760733
+  },
+  "date": "2026-10-26",
+  "source": "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml",
+  "raw_sha256": "d9a9303535c3084d4526af8934821c61f086333fd1c9d5889ca290bac4ec97a9",
+  "basis": "ECB daily reference rate; not a bank transaction rate"
+}

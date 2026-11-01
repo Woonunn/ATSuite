@@ -137,8 +137,6 @@ def validate_inputs(
         or simulation.get("policy") != "joint"
         or not simulation.get("scaling_events")
         or simulation.get("admitted", 0) == 0
-        or simulation.get("unsatisfied_rate_offered", 1)
-        > config.get("risk", {}).get("max_risk", 0.05)
         or not simulation.get("validation")
         or not all(r["passed"] for r in simulation["validation"])
     ):
@@ -289,8 +287,7 @@ async def execute(
                 "status": event["status"],
                 "latency_s": elapsed,
                 "error": event.get("error"),
-                "slo_violated": event["status"] != "succeeded"
-                or elapsed > controller.router.slo_s,
+                "failed": event["status"] != "succeeded",
             }
             outcomes.append(row)
             with (output / "request_metrics.jsonl").open("a") as stream:
@@ -437,9 +434,9 @@ async def execute(
             "admission_rate": len(admitted) / len(rows),
             "success_rate": len(success) / len(rows),
             "p95_s": stats([r["latency_s"] for r in success])["p95"],
-            "unsatisfied_rate_offered": sum(r["slo_violated"] for r in outcomes)
+            "unsatisfied_rate_offered": sum(r["failed"] for r in outcomes)
             / len(rows),
-            "slo_violation_rate_admitted": sum(r["slo_violated"] for r in admitted)
+            "failure_rate_admitted": sum(r["failed"] for r in admitted)
             / len(admitted)
             if admitted
             else None,

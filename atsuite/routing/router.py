@@ -1,4 +1,4 @@
-"""Causal empirical risk calibration and whole-session admission."""
+"""Causal cost/latency routing with bounded fallback and whole-session admission."""
 
 import copy
 import json
@@ -7,9 +7,10 @@ import threading
 import time
 from pathlib import Path
 
-from atsuite.provider_model.model import _compatible
-from atsuite.provider_model.observation import validate_pool
+from atsuite.provider_model.observation import trace_measurements, validate_pool
 from atsuite.workload.profile import number
+from atsuite.workload.descriptor import validate_descriptor
+from atsuite.routing.objective import pareto, validate_weights
 
 
 def risk_estimate(rows: list[dict], slo_s: float) -> dict:
@@ -47,27 +48,58 @@ class OnlineRouter:
         pools: dict,
         limits: dict,
         *,
-        slo_s=120.0,
-        max_risk=0.05,
-        min_samples=60,
+        cost_weight=1.0,
+        latency_weight=0.001,
+        default_pool: str | None = None,
+        execution_bounds: dict | None = None,
+        budget: float | None = None,
+        fx: dict | None = None,
         log_path: Path | None = None,
     ):
-        if (
-            not number(slo_s)
-            or slo_s == 0
-            or not number(max_risk)
-            or not 0 < max_risk < 1
+        validate_weights(cost_weight, latency_weight)
+        bounds = copy.deepcopy(execution_bounds or {})
+        if default_pool is not None and (
+            default_pool not in pools or default_pool not in bounds
         ):
-            raise ValueError("Invalid SLO/risk constraint")
-        if (
-            isinstance(min_samples, bool)
-            or not isinstance(min_samples, int)
-            or min_samples < 1
+            raise ValueError("Default pool requires validated execution bounds")
+        for key, value in bounds.items():
+            if (
+                key not in pools
+                or not value.get("evidence")
+                or not value.get("currency")
+                or any(
+                    not number(value.get(k)) or value[k] == 0
+                    for k in ("timeout_s", "max_cost")
+                )
+                or not isinstance(value.get("tools"), list)
+                or any(not isinstance(t, str) for t in value["tools"])
+            ):
+                raise ValueError(
+                    "Bounds require validation evidence, supported tools, timeout and cost cap"
+                )
+        if budget is not None and (not number(budget) or set(bounds) != set(pools)):
+            raise ValueError("A budget requires execution cost bounds for every pool")
+        if fx is not None and (
+            not fx.get("date")
+            or not fx.get("source")
+            or fx.get("rates", {}).get(fx.get("currency")) != 1
+            or any(not number(v) or v == 0 for v in fx.get("rates", {}).values())
         ):
-            raise ValueError("Invalid minimum sample count")
+            raise ValueError("Invalid dated currency conversion reference")
+        currencies = {b["currency"] for b in bounds.values()}
+        if budget is not None and len(currencies) > 1 and fx is None:
+            raise ValueError(
+                "Budget caps need one currency or an explicit FX reference"
+            )
+        if fx and not currencies <= fx["rates"].keys():
+            raise ValueError("Missing budget currency conversion")
         for pool in pools.values():
             validate_pool(pool)
-        if len({json.dumps(p, sort_keys=True) for p in pools.values()}) != len(pools):
+        identities = {
+            json.dumps({k: v for k, v in p.items() if k != "billing"}, sort_keys=True)
+            for p in pools.values()
+        }
+        if len(identities) != len(pools):
             raise ValueError("Duplicate execution pools")
         for key, limit in limits.items():
             if key not in pools or (
@@ -77,7 +109,9 @@ class OnlineRouter:
                 raise ValueError("Invalid session admission limit")
         self.workload, self.provider = workload, provider
         self.pools, self.limits = copy.deepcopy(pools), dict(limits)
-        self.slo_s, self.max_risk, self.min_samples = slo_s, max_risk, min_samples
+        self.cost_weight, self.latency_weight = cost_weight, latency_weight
+        self.default_pool, self.execution_bounds = default_pool, bounds
+        self.budget, self.fx, self.spent = budget, copy.deepcopy(fx), 0.0
         self.log_path = Path(log_path) if log_path else None
         # shortcut: retain decisions in memory; bound retention for longer-running studies.
         self.active, self.decisions, self.completed = {}, {}, set()
@@ -109,23 +143,23 @@ class OnlineRouter:
     def decide(
         self,
         request_id: str,
-        task: str,
-        load_rps: float,
+        task: str | None = None,
+        load_rps: float = 0.0,
         *,
         as_of_ns=None,
         shadow=False,
         pool_load_rps: dict | None = None,
         allowed_pools: set | None = None,
         arrival_ns: int | None = None,
+        descriptor: dict | None = None,
     ) -> dict:
-        """Freeze pre-dispatch predictions and reserve a Session within its remaining SLO."""
+        """Freeze arrival features; reserve capacity and a conservative execution cost cap."""
         now = time.time_ns() if as_of_ns is None else as_of_ns
         arrival = now if arrival_ns is None else arrival_ns
         if (
             not isinstance(request_id, str)
             or not request_id
-            or not isinstance(task, str)
-            or not task
+            or (task is not None and (not isinstance(task, str) or not task))
             or not isinstance(shadow, bool)
             or not number(load_rps)
             or not number(now)
@@ -133,6 +167,8 @@ class OnlineRouter:
             or arrival > now
         ):
             raise ValueError("Invalid routing input")
+        if descriptor is not None:
+            validate_descriptor(descriptor)
         rates = (
             dict(pool_load_rps)
             if pool_load_rps is not None
@@ -148,7 +184,7 @@ class OnlineRouter:
             with self.provider.lock:
                 if any(key[3] == request_id for key in self.provider.samples):
                     raise ValueError("Request ID already exists in provider history")
-            workload = self.workload.predict(now)
+            workload = self.workload.predict(now, descriptor=descriptor)
             profiles = workload["joint_profiles"][-20:]
             predictions = [
                 self.provider.predict(profiles, [pool], rates[key], as_of_ns=now)[
@@ -156,94 +192,99 @@ class OnlineRouter:
                 ][0]
                 for key, pool in self.pools.items()
             ]
-            with self.provider.lock:
-                visible = [
-                    eligible[-1]
-                    for history in self.provider.samples.values()
-                    if (eligible := [r for r in history if r["available_ns"] < now])
-                ]
             candidates = []
+            reserved = sum(d.get("reserved_cost", 0) for d in self.active.values())
             for (key, pool), pred in zip(self.pools.items(), predictions):
-                rate = rates[key]
-                # shortcut: exact task and load envelope; broaden only after independent validation.
-                rows = [
-                    r
-                    for r in visible
-                    if r["kind"] == "request"
-                    and not r.get("capacity_transition")
-                    and _compatible(r["pool"], pool)
-                    and r["pool"].get("instances") == pool.get("instances")
-                    and r.get("task_id") == task
-                    and r["load_rps"] >= rate
-                    and r["load_rps"] <= max(rate * 1.25, rate + 0.01)
-                ]
-                remaining_slo_s = max(0, self.slo_s - (now - arrival) / 1e9)
-                risk = risk_estimate(rows, remaining_slo_s)
                 limit = self.limits.get(key)
                 occupied = sum(v["selected"] == key for v in self.active.values())
                 flags = []
-                if remaining_slo_s == 0:
-                    flags.append("slo_budget_exhausted")
                 if allowed_pools is not None and key not in allowed_pools:
                     flags.append("excluded_by_control_policy")
                 if limit is None:
                     flags.append("capacity_unknown")
                 elif occupied >= limit:
                     flags.append("capacity_exhausted")
-                if risk["n"] < self.min_samples:
-                    flags.append("insufficient_task_load_evidence")
-                if risk["upper"] > self.max_risk:
-                    flags.append("risk_upper_exceeds_limit")
-                costs = [
-                    c
-                    for c in pred["cost"]
-                    if c["kind"] == "request"
-                    and c["complete"]
-                    and c["total"]["mean"] is not None
-                ]
+                bound = self.execution_bounds.get(key)
+                if descriptor and (
+                    not bound or not set(descriptor["tools"]) <= set(bound["tools"])
+                ):
+                    flags.append("unsupported_tool_environment")
+                cap = bound["max_cost"] if bound else 0
+                if self.fx and bound:
+                    cap *= self.fx["rates"][bound["currency"]]
+                if (
+                    self.budget is not None
+                    and self.spent + reserved + cap > self.budget
+                ):
+                    flags.append("budget_exhausted")
+                if bound and (now - arrival) / 1e9 >= bound["timeout_s"]:
+                    flags.append("execution_deadline_elapsed")
+                cost = pred.get("analytical_cost")
+                if cost and not cost["complete"]:
+                    cost = None
+                amount = cost["total"]["mean"] if cost else None
+                currency = cost["currency"] if cost else None
+                if cost and self.fx:
+                    conversion = self.fx["rates"].get(currency)
+                    amount = amount * conversion if conversion is not None else None
+                    currency = (
+                        self.fx["currency"] if conversion is not None else currency
+                    )
+                latency = pred["latency"]["mean"]
+                # Occupancy is a snapshot, not a fabricated queue measurement.
+                if latency is not None:
+                    latency += (now - arrival) / 1e9
                 candidates.append(
                     {
                         "key": key,
                         "prediction": pred,
-                        "risk": risk,
                         "flags": flags,
                         "available_sessions": None
                         if limit is None
                         else max(0, limit - occupied),
-                        "cost": costs[0] if len(costs) == 1 else None,
+                        "cost": cost,
+                        "currency": currency,
+                        "objective_cost": amount,
+                        "objective_latency": latency,
+                        "reserved_cost": cap,
+                        "execution_bounds": bound,
                     }
                 )
             feasible = [c for c in candidates if not c["flags"]]
-            reliable = [c for c in feasible if not c["prediction"]["low_confidence"]]
-            choices = reliable or feasible
-            comparable = (
-                bool(choices)
-                and all(c["cost"] for c in choices)
-                and len(
-                    {
-                        (c["cost"]["currency"], c["cost"]["scope"])
-                        for c in choices
-                        if c["cost"]
-                    }
-                )
-                == 1
+            priced = [
+                c
+                for c in feasible
+                if c["objective_cost"] is not None
+                and c["objective_latency"] is not None
+            ]
+            comparable = bool(priced) and len({c["currency"] for c in priced}) == 1
+            reliable = (
+                [
+                    c
+                    for c in priced
+                    if not workload["low_confidence"]
+                    and not c["prediction"]["low_confidence"]
+                ]
+                if comparable
+                else []
             )
+            frontier = pareto(priced) if comparable else []
             selected = (
                 min(
-                    choices,
+                    reliable,
                     key=lambda c: (
-                        c["cost"]["total"]["mean"]
-                        if comparable
-                        else c["risk"]["upper"],
+                        self.cost_weight * c["objective_cost"]
+                        + self.latency_weight * c["objective_latency"],
                         c["key"],
                     ),
                 )
-                if choices
-                else None
+                if reliable
+                else next((c for c in feasible if c["key"] == self.default_pool), None)
             )
             result = {
                 "request_id": request_id,
                 "task_id": task,
+                "descriptor": copy.deepcopy(descriptor),
                 "arrival_ns": arrival,
                 "decision_ns": now,
                 "load_rps": load_rps,
@@ -251,23 +292,30 @@ class OnlineRouter:
                 "load_basis": "per_pool_snapshot"
                 if pool_load_rps is not None
                 else "offered_load_per_candidate",
-                "slo_s": self.slo_s,
-                "remaining_slo_s": max(0, self.slo_s - (now - arrival) / 1e9),
-                "max_risk": self.max_risk,
                 "shadow": shadow,
                 "selected": selected["key"] if selected else None,
                 "pool_snapshot": copy.deepcopy(self.pools),
                 "mode": selected["prediction"]["mode"] if selected else None,
-                "reason": (
-                    "cost_within_risk_constraint" if comparable else "lowest_risk"
-                )
-                if reliable
-                else "empirical_fallback"
-                if choices
-                else "no_trusted_feasible_pool",
+                "reason": "cost_latency_objective"
+                if selected and reliable
+                else "validated_default"
+                if selected
+                else "no_feasible_pool",
                 "cost_comparable": comparable,
-                "ranking": "predicted_scoped_cost" if comparable else "risk_upper",
-                "slo_guarantee": False,
+                "ranking": "weighted_cost_latency",
+                "objective": {
+                    "cost_weight": self.cost_weight,
+                    "latency_weight": self.latency_weight,
+                    "cost_unit": next(iter({c["currency"] for c in priced}), None)
+                    if comparable
+                    else None,
+                    "latency_unit": "seconds",
+                },
+                "pareto": [c["key"] for c in frontier],
+                "reserved_cost": selected["reserved_cost"] if selected else 0,
+                "execution_bounds": copy.deepcopy(selected["execution_bounds"])
+                if selected
+                else None,
                 "workload": workload,
                 "provider_workload_profiles": len(profiles),
                 "candidates": candidates,
@@ -279,7 +327,13 @@ class OnlineRouter:
             return result
 
     def complete(
-        self, request_id: str, trace: dict, *, available_ns=None, actual_pool=None
+        self,
+        request_id: str,
+        trace: dict,
+        *,
+        available_ns=None,
+        actual_pool=None,
+        actual_cost=None,
     ) -> dict:
         """Feedback goes only to the bound pool; failed traces also release admission."""
         from atsuite.workload.profile import extract_profile
@@ -299,6 +353,8 @@ class OnlineRouter:
                 selected = self.active[request_id]["selected"]
                 if actual_pool is not None and actual_pool != selected:
                     raise ValueError("Session migration is forbidden")
+            if actual_cost is not None and not number(actual_cost):
+                raise ValueError("Invalid attributable cost")
             profile = extract_profile(trace)
             if (
                 profile["request_id"] != request_id
@@ -320,12 +376,16 @@ class OnlineRouter:
                 "completed_ns": trace["completed_ns"],
                 "available_ns": now,
                 "cost": None,
-                "measurements": {
-                    "latency_s": (trace["completed_ns"] - trace["arrival_ns"]) / 1e9
-                },
+                "measurements": trace_measurements(trace),
             }
             self.provider.update(row)
-            self.workload.update(profile, now)
+            self.workload.update(profile, now, descriptor=decision["descriptor"])
+            if not decision["shadow"]:
+                self.spent += (
+                    actual_cost
+                    if actual_cost is not None
+                    else decision["reserved_cost"]
+                )
             self._log(
                 {
                     "event": "completion",

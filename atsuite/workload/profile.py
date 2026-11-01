@@ -13,6 +13,7 @@ METRICS = (
     "state_reads",
     "state_writes",
     "state_max_object_bytes",
+    "state_transfer_bytes",
     "rho_kb_s",
 )
 
@@ -114,6 +115,40 @@ def extract_profile(trace: dict) -> dict:
         )
         if metrics["llm_idle_s"] is not None and metrics["llm_idle_s"] > 0:
             metrics["rho_kb_s"] = metrics["state_bytes"] / 1000 / metrics["llm_idle_s"]
+    transports = [
+        s.get("metadata", {})
+        .get("runtime", {})
+        .get("provider_metadata", {})
+        .get("state_sync")
+        for s in tools
+    ]
+    if (
+        complete
+        and transports
+        and all(
+            isinstance(t, dict)
+            and all(
+                number(t.get(k))
+                for k in (
+                    "load_bytes",
+                    "save_bytes",
+                    "branch_read_bytes",
+                    "branch_write_bytes",
+                )
+            )
+            for t in transports
+        )
+    ):
+        metrics["state_transfer_bytes"] = sum(
+            t[k]
+            for t in transports
+            for k in (
+                "load_bytes",
+                "save_bytes",
+                "branch_read_bytes",
+                "branch_write_bytes",
+            )
+        )
     nodes = workflow or tools + llms
     node_ids = {s["id"] for s in nodes}
     edges = [

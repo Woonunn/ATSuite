@@ -7,6 +7,7 @@ from collections import Counter
 from atsuite.workload.profile import number
 
 BACKENDS = {
+    "local": ("state-decoupled", "Local Docker FaaS validation", "USD"),
     "aws_lambda": ("state-decoupled", "AWS Lambda", "USD"),
     "aws_agentcore": ("state-coupled", "AWS AgentCore", "USD"),
     "ali_fc": ("state-decoupled", "Aliyun FC", "CNY"),
@@ -34,6 +35,7 @@ MEASUREMENTS = (
     "throughput_rps",
     "concurrent_sessions",
     "observed_instances",
+    "billed_compute_s",
 )
 
 
@@ -66,6 +68,26 @@ def validate_pool(pool: dict) -> None:
             or (value < 1 and key != "instances")
         ):
             raise ValueError(f"Invalid capacity: {key}")
+
+
+def trace_measurements(trace: dict) -> dict:
+    """Extract platform timing only when every Tool exposes the corresponding counter."""
+    tools = [s for s in trace["spans"] if s["kind"] == "tool"]
+    runtimes = [s.get("metadata", {}).get("runtime", {}) for s in tools]
+    values = {
+        "tool_s": [r.get("execution_elapsed_ms") for r in runtimes],
+        "state_sync_s": [
+            r.get("provider_metadata", {}).get("state_sync", {}).get("total_ms")
+            for r in runtimes
+        ],
+    }
+    return {
+        "latency_s": (trace["completed_ns"] - trace["arrival_ns"]) / 1e9,
+        **{
+            k: sum(v) / 1000 if v and all(number(x) for x in v) else None
+            for k, v in values.items()
+        },
+    }
 
 
 def features(profile: dict, pool: dict, load_rps: float) -> dict:

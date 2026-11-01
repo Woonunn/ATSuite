@@ -28,7 +28,7 @@ def profiling_plan() -> dict:
             )
     return {
         "status": "plan_only_no_cloud_actions",
-        "providers": list(BACKENDS),
+        "providers": [p for p in BACKENDS if p != "local"],
         "cases": cases,
         "pairing": "Seal one equivalent Capture per state/idle variant; replay it on all four backends",
         "controls": [

@@ -72,7 +72,7 @@ class ProviderModelTests(unittest.TestCase):
         result = model.predict(
             profile(), [pool(p) for p in BACKENDS], 0.5, as_of_ns=1000
         )
-        self.assertEqual([p["latency"]["p95"] for p in result["pools"]], [1, 2, 3, 4])
+        self.assertEqual([p["latency"]["p95"] for p in result["pools"]], [1, 2, 3, 4, 5])
         self.assertEqual(result["pools"][-1]["label"], "Aliyun FC Session MCP")
         query = pool()
         query["resources"]["memory_mb"] = 4096
@@ -421,7 +421,7 @@ class ProfilingTests(unittest.TestCase):
 
         plan = profiling_plan()
         self.assertEqual(len(plan["cases"]), 9)
-        self.assertEqual(set(plan["providers"]), set(BACKENDS))
+        self.assertEqual(set(plan["providers"]), set(BACKENDS) - {"local"})
         model = ProviderModel(neighbors=1)
         for provider, amounts in [("aws_lambda", (1, 5)), ("aws_agentcore", (3, 3))]:
             for i, amount in enumerate(amounts):

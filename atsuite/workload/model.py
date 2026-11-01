@@ -9,6 +9,7 @@ from pathlib import Path
 
 from atsuite.tracing.storage import read_text, write_json
 from atsuite.workload.profile import METRICS, extract_profile, number
+from atsuite.workload.descriptor import distance, validate_descriptor
 
 
 def distribution(values: list, total: int) -> dict:
@@ -33,6 +34,8 @@ def distribution(values: list, total: int) -> dict:
         "p10": quantile(0.1),
         "p50": quantile(0.5),
         "p90": quantile(0.9),
+        "p95": quantile(0.95),
+        "p99": quantile(0.99),
         "low_confidence": len(values) < 10 or len(values) < total,
     }
 
@@ -40,8 +43,9 @@ def distribution(values: list, total: int) -> dict:
 class WorkloadModel:
     """One fixed workload/environment, exact samples; thread-safe within one process."""
 
-    def __init__(self) -> None:
+    def __init__(self, initial_profiles: list[dict] | None = None) -> None:
         # shortcut: retain exact samples in memory; use bounded summaries when volume warrants it.
+        self.initial_profiles = copy.deepcopy(initial_profiles or [])
         self.samples = {}
         self.active = {}
         self.lock = threading.RLock()
@@ -71,9 +75,16 @@ class WorkloadModel:
         """Extract and ingest a completed trace; retain failed/incomplete audits separately."""
         return self.update(extract_profile(trace), available_ns)
 
-    def update(self, profile: dict, available_ns: int | None = None) -> dict:
+    def update(
+        self, profile: dict, available_ns: int | None = None, *, descriptor=None
+    ) -> dict:
         """Ingest once, allowing an incomplete checkpoint to later become complete."""
         available_ns = time.time_ns() if available_ns is None else available_ns
+        profile = copy.deepcopy(profile)
+        if descriptor is not None:
+            profile["descriptor"] = copy.deepcopy(descriptor)
+        if profile.get("descriptor") is not None:
+            validate_descriptor(profile["descriptor"])
         if not number(available_ns):
             raise ValueError("Invalid availability timestamp")
         if profile.get("status") not in {"success", "failed", "incomplete"}:
@@ -116,9 +127,11 @@ class WorkloadModel:
             self.samples[key] = {"available_ns": available_ns, "profile": profile}
             return copy.deepcopy(profile)
 
-    def predict(self, as_of_ns: int | None = None) -> dict:
+    def predict(self, as_of_ns: int | None = None, *, descriptor=None) -> dict:
         """Use only observations available strictly before arrival, never the new ATG."""
         as_of_ns = time.time_ns() if as_of_ns is None else as_of_ns
+        if descriptor is not None:
+            validate_descriptor(descriptor)
         if not number(as_of_ns):
             raise ValueError("Invalid prediction timestamp")
         with self.lock:
@@ -132,6 +145,22 @@ class WorkloadModel:
                 )
             ]
             samples = [p for p in eligible if p["status"] == "success"]
+            basis, nearest = "global", None
+            if descriptor is not None:
+                ranked = sorted(
+                    (
+                        (distance(descriptor, p["descriptor"]), i, p)
+                        for i, p in enumerate(samples)
+                        if p.get("descriptor") is not None
+                    ),
+                    key=lambda item: (item[0], item[1]),
+                )
+                nearest = ranked[0][0] if ranked else None
+                similar = [p for d, _, p in ranked if d <= 0.5][:20]
+                if similar:
+                    samples, basis = similar, "resource_family"
+            if not samples:
+                samples, basis = copy.deepcopy(self.initial_profiles), "initial_prior"
             n = len(samples)
             metrics = {
                 k: distribution(
@@ -152,9 +181,14 @@ class WorkloadModel:
             return {
                 "as_of_ns": as_of_ns,
                 "sample_count": n,
+                "match_basis": basis,
+                "nearest_distance": nearest,
+                "descriptor": copy.deepcopy(descriptor),
                 "joint_profiles": copy.deepcopy(samples),
                 "status_counts": dict(Counter(p["status"] for p in eligible)),
-                "low_confidence": n < 10
+                "low_confidence": n < 3
+                or basis == "initial_prior"
+                or (descriptor is not None and basis == "global")
                 or any(p["source"] == "capture" for p in samples),
                 "metrics": metrics,
                 "workflow": {
@@ -237,7 +271,11 @@ class WorkloadModel:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
             write_json(
                 Path(path),
-                {"schema_version": 1, "samples": list(self.samples.values())},
+                {
+                    "schema_version": 1,
+                    "samples": list(self.samples.values()),
+                    "initial_profiles": self.initial_profiles,
+                },
             )
 
     @classmethod
@@ -246,7 +284,7 @@ class WorkloadModel:
         payload = json.loads(read_text(Path(path)))
         if payload.get("schema_version") != 1:
             raise ValueError("Unsupported workload model schema")
-        model = cls()
+        model = cls(payload.get("initial_profiles"))
         for sample in payload["samples"]:
             model.update(sample["profile"], sample["available_ns"])
         return model

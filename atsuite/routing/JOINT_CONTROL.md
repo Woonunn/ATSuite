@@ -1,3 +1,6 @@
+> Historical Stage 5 contract. Stage 6 removes SLO admission and per-task price tables;
+> see [the current routing contract](README.md). Capacity/lifecycle/cloud safety controls below still apply.
+
 # Stage 5: joint online routing and capacity control
 
 This implementation is a process-local experimental controller. It adds real SDK

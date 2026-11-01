@@ -11,7 +11,7 @@ from pathlib import Path
 from atsuite.provider_model.model import _distribution
 from atsuite.provider_model.observation import validate_pool
 from atsuite.routing.capacity import Capacity, count
-from atsuite.routing.cost import forecast_cost
+from atsuite.provider_model.analytical import pool_cost, predict_cost
 from atsuite.tracing.storage import read_text
 from atsuite.workload.profile import number
 
@@ -262,7 +262,8 @@ def simulate(
     rng, sequence, events = random.Random(seed), itertools.count(), []
     records, jobs, waiting, busy = {}, {}, defaultdict(deque), Counter()
     costs, occupied_seconds, capacity_seconds = Counter(), Counter(), Counter()
-    unsupported, scaling_events = [], []
+    unsupported, scaling_events, cost_missing = [], [], []
+    cost_timeline, capacity_timeline = [], []
     end_ns = start_ns + int(end_s * 1e9)
 
     def schedule(when, kind, value):
@@ -293,29 +294,33 @@ def simulate(
             if level is None:
                 raise ValueError("Unknown simulated capacity cost")
             active = controller._occupied(key)
-            cost = forecast_cost(
-                level["cost"],
-                requests={},
-                horizon_s=seconds,
-                retained_s=active * seconds,
-                changes=0,
-                fx=controller.fx,
+            card = level["pool"].get(
+                "billing",
+                controller.router.provider.tariffs.get(level["pool"]["provider"]),
             )
+            cost = pool_cost(card, requests=0, marginal=None, horizon_s=seconds)
+            conversion = controller.fx["rates"][card["currency"]]
             for component, amount in cost["components"].items():
-                costs[component] += amount
+                costs[component] += amount * conversion
             if key in controller.pending:
                 requested = controller.levels[key][controller.pending[key]["target"]]
-                overlap = forecast_cost(
-                    requested["cost"],
-                    requests={},
-                    horizon_s=seconds,
-                    retained_s=0,
-                    changes=0,
-                    fx=controller.fx,
+                requested_card = requested["pool"].get("billing", card)
+                costs["scaling"] += (
+                    seconds * requested_card["rates"]["pool_per_s"] * conversion
                 )
-                costs["retention"] += overlap["components"]["retention"]
+            capacity_timeline.append(
+                {
+                    "at_s": (until - start_ns) / 1e9,
+                    "pool": key,
+                    "target": target,
+                    "session_limit": level["session_limit"],
+                }
+            )
             occupied_seconds[key] += active * seconds
             capacity_seconds[key] += level["session_limit"] * seconds
+        cost_timeline.append(
+            {"at_s": (until - start_ns) / 1e9, "total": sum(costs.values())}
+        )
         previous = until
 
     def finish(rid, now, status):
@@ -347,7 +352,19 @@ def simulate(
             "source": "simulation",
         }
         trace["spans"] = [session, *job["spans"]]
-        controller.complete(rid, trace, available_ns=now)
+        observation = controller.complete(rid, trace, available_ns=now)
+        pool = observation["pool"]
+        card = pool.get(
+            "billing", controller.router.provider.tariffs.get(pool["provider"])
+        )
+        marginal = predict_cost([observation["profile"]], pool, card, [])
+        if marginal["complete"]:
+            for component, value in marginal["components"].items():
+                costs[component] += (
+                    value["mean"] * controller.fx["rates"][card["currency"]]
+                )
+        else:
+            cost_missing.append({"request_id": rid, "missing": marginal["missing"]})
         job["finished"] = True
 
     def ready_nodes(rid, now):
@@ -434,15 +451,16 @@ def simulate(
                         }
                     )
                     level = controller.levels[key][adapter.target]
-                    charge = forecast_cost(
-                        level["cost"],
-                        requests={},
-                        horizon_s=0,
-                        retained_s=0,
-                        changes=1,
-                        fx=controller.fx,
+                    card = level["pool"].get(
+                        "billing",
+                        controller.router.provider.tariffs.get(
+                            level["pool"]["provider"]
+                        ),
                     )
-                    costs["scaling"] += charge["total"]
+                    costs["scaling"] += (
+                        card["rates"]["scale_event"]
+                        * controller.fx["rates"][card["currency"]]
+                    )
             tick_count += 1
             schedule(now + int(controller.period_s * 1e9), "tick", None)
         elif kind == "arrival":
@@ -451,7 +469,9 @@ def simulate(
                 sum(controller.observed_rates(now_ns=now).values())
                 + 1 / controller.observation_s
             )
-            decision = controller.decide(rid, task, load, as_of_ns=now)
+            decision = controller.decide(
+                rid, task, load, as_of_ns=now, descriptor=value.get("descriptor")
+            )
             key = decision["selected"]
             records[rid] = {
                 "id": rid,
@@ -463,15 +483,6 @@ def simulate(
             }
             if key:
                 level = controller.levels[key][controller.snapshots[key].effective]
-                charge = forecast_cost(
-                    level["cost"],
-                    requests={task: 1},
-                    horizon_s=0,
-                    retained_s=0,
-                    changes=0,
-                    fx=controller.fx,
-                )
-                costs["execution"] += charge["total"]
                 jobs[rid] = {
                     "task": task,
                     "pool": key,
@@ -503,8 +514,8 @@ def simulate(
                     "end_ns": now,
                     "duration_s": (now - started) / 1e9,
                     "status": "ok" if success else "error",
-                    "metadata": {},
-                    "resources": {},
+                    "metadata": copy.deepcopy(node.get("metadata", {})),
+                    "resources": copy.deepcopy(node.get("resources", {})),
                     "dependencies": [
                         a for a, b in workflows[job["task"]]["edges"] if b == node["id"]
                     ],
@@ -534,11 +545,7 @@ def simulate(
     rows = list(records.values())
     successful = [r for r in rows if r["status"] == "success"]
     admitted = [r for r in rows if r["pool"]]
-    violations = [
-        r
-        for r in admitted
-        if r["status"] != "success" or r["latency_s"] > controller.router.slo_s
-    ]
+    violations = [r for r in admitted if r["status"] != "success"]
     return {
         "basis": "simulation",
         "synthetic": surface.synthetic,
@@ -550,9 +557,7 @@ def simulate(
         "success": len(successful),
         "admission_rate": len(admitted) / len(rows),
         "success_rate": len(successful) / len(rows),
-        "slo_violation_rate_admitted": len(violations) / len(admitted)
-        if admitted
-        else None,
+        "failure_rate_admitted": len(violations) / len(admitted) if admitted else None,
         "unsatisfied_rate_offered": (len(rows) - len(admitted) + len(violations))
         / len(rows),
         "p95_s": _distribution([r["latency_s"] for r in successful], len(successful))[
@@ -563,7 +568,9 @@ def simulate(
             "currency": controller.fx["currency"],
             "fx": controller.fx,
             "components": dict(costs),
-            "total": sum(costs.values()),
+            "total": sum(costs.values()) if not cost_missing else None,
+            "subtotal": sum(costs.values()),
+            "missing": cost_missing,
             "actual": None,
         },
         "session_utilization": {
@@ -573,6 +580,9 @@ def simulate(
             for k in controller.pools
         },
         "scaling_events": scaling_events,
+        "cost_timeline": cost_timeline,
+        "capacity_timeline": capacity_timeline,
+        "latency": _distribution([r["latency_s"] for r in successful], len(successful)),
         "control_cycles": tick_count,
         "unsupported": unsupported,
         "valid": bool(admitted) and not unsupported,

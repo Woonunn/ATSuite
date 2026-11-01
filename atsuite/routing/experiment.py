@@ -9,7 +9,7 @@ from atsuite.provider_model import ProviderModel
 from atsuite.provider_model.e1a import load_e1a
 from atsuite.provider_model.e1b import load_e1b
 from atsuite.routing import JointController, OnlineRouter, candidate_plans
-from atsuite.routing.router import risk_estimate
+from atsuite.workload.model import distribution
 from atsuite.routing.simulation import (
     ServiceSurface,
     SimulatedAdapter,
@@ -24,6 +24,8 @@ def implementation_hashes() -> dict:
     """Seal controller/model sources as well as experimental data."""
     root = Path(__file__).resolve().parents[2]
     paths = list((root / "atsuite/routing").glob("*.py"))
+    paths += list((root / "atsuite/provider_model").glob("*.py"))
+    paths += list((root / "atsuite/workload").glob("*.py"))
     paths += [
         root / p
         for p in (
@@ -46,7 +48,7 @@ def implementation_hashes() -> dict:
 
 def control_identity(config: dict) -> str:
     """Bind simulation and cloud admission to the same model, rates and controller."""
-    keys = ("pools", "weights", "fx", "risk", "control", "initial_task_rates")
+    keys = ("pools", "weights", "fx", "routing", "control", "initial_task_rates")
     value = {k: config.get(k) for k in keys}
     value["implementation_sha256"] = implementation_hashes()
     value["models"] = {
@@ -72,7 +74,7 @@ def build_controller(config: dict, adapters: dict, *, policy="joint", log_path=N
         ProviderModel.load(Path(config["provider_model"])),
         pools,
         {},
-        **config.get("risk", {}),
+        **{**config.get("routing", {}), "fx": config["fx"]},
         log_path=log_path,
     )
     return JointController(
@@ -87,7 +89,7 @@ def build_controller(config: dict, adapters: dict, *, policy="joint", log_path=N
 
 
 def plot_comparison(reports: list[dict], output: Path) -> None:
-    """Write a standalone figure with admission and cost provenance alongside SLO."""
+    """Write a standalone figure with admission, latency and cost provenance."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -125,9 +127,7 @@ def plot_comparison(reports: list[dict], output: Path) -> None:
     plt.close(fig)
 
 
-def audit_evidence(
-    rows: list[dict], provenance: dict, *, slo_s=120, max_risk=0.05, min_samples=60
-) -> dict:
+def audit_evidence(rows: list[dict], provenance: dict) -> dict:
     """Report missing Stage 5 evidence without fabricating queues/capacity/prices."""
     groups = {}
     for row in rows:
@@ -143,10 +143,12 @@ def audit_evidence(
     strata = []
     for (provider, task, _, rate), values in sorted(groups.items()):
         pool = values[0]["pool"]
-        risk = risk_estimate(values, slo_s)
+        latencies = [
+            r["measurements"]["latency_s"]
+            for r in values
+            if r["measurements"].get("latency_s") is not None
+        ]
         flags = []
-        if risk["n"] < min_samples or risk["upper"] > max_risk:
-            flags.append("insufficient_slo_risk_evidence")
         if "capacity_control" not in pool["resources"]:
             flags.append("no_calibrated_capacity_control_identity")
         for field in ("queue_s", "cold_start_s", "service_slot_s"):
@@ -159,7 +161,7 @@ def audit_evidence(
                 "provider": provider,
                 "task": task,
                 "load_rps": rate,
-                "risk": risk,
+                "latency": distribution(latencies, len(values)),
                 "flags": flags,
             }
         )
@@ -247,15 +249,13 @@ def main() -> None:
         fig, ax = plt.subplots(figsize=(12, 5))
         ax.bar(
             [s["provider"] + "\n" + s["task"] for s in report["strata"]],
-            [s["risk"]["upper"] for s in report["strata"]],
+            [s["latency"]["p95"] or 0 for s in report["strata"]],
         )
-        ax.axhline(0.05, color="red", linestyle="--", label="5% risk ceiling")
         ax.tick_params(axis="x", labelsize=6, rotation=70)
-        ax.set_ylabel("Wilson upper risk bound")
+        ax.set_ylabel("Observed p95 latency (s)")
         ax.set_title("Existing independent-pool evidence; not joint-run outcomes")
-        ax.legend()
         fig.tight_layout()
-        fig.savefig(args.output / "risk_coverage.png", dpi=160)
+        fig.savefig(args.output / "latency_coverage.png", dpi=160)
         plt.close(fig)
     else:
         config = json.loads(args.simulation.read_text())

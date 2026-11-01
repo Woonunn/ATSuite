@@ -15,6 +15,7 @@ from atsuite.routing.cost import forecast_cost, total_cost
 from atsuite.workload import WorkloadModel
 from tests.test_provider_model import observation, pool
 from tests.test_workload import trace
+from tests.stage6_fixtures import tariff, bounds
 
 FX = {
     "currency": "USD",
@@ -71,6 +72,7 @@ def controller(*, start=1, retention=None, policy="joint", weights=None):
     levels = {}
     for target in (1, 2):
         config = pool(instances=None)
+        config["billing"] = tariff(floor=(retention or {}).get(target, 0.01 * target))
         config["resources"]["capacity_control"] = {
             "control": "reserved_concurrency",
             "target": target,
@@ -89,7 +91,12 @@ def controller(*, start=1, retention=None, policy="joint", weights=None):
             model.update(row)
     workload.update(observation()["profile"], 10000)
     router = OnlineRouter(
-        workload, model, {"aws": levels[start]["pool"]}, {"aws": start * 3}
+        workload,
+        model,
+        {"aws": levels[start]["pool"]},
+        {"aws": start * 3},
+        default_pool="aws",
+        execution_bounds={"aws": bounds()},
     )
     adapter = DelayedAdapter(start)
     control = JointController(
@@ -150,11 +157,11 @@ class JointControlTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "capacity_transition"):
             control.router.provider.update(revision)
         decision = control.router.decide("new", "task", 0.5, as_of_ns=40000)
-        self.assertEqual(decision["candidates"][0]["risk"]["n"], 100)
+        self.assertEqual(decision["candidates"][0]["prediction"]["sample_count"], 100)
 
     def test_missing_cost_unknown_task_read_failure_and_stale_policy(self):
         control, adapter = controller()
-        self.assertIsNone(control.tick({"unknown": 0.5}, now_ns=20000)["selected"])
+        self.assertIsNotNone(control.tick({"unknown": 0.5}, now_ns=20000)["selected"])
         result = control.tick({"task": 0.5}, now_ns=2_000_020_000)
         self.assertIsNotNone(result["selected"])
         self.assertIsNone(
@@ -168,7 +175,7 @@ class JointControlTests(unittest.TestCase):
         self.assertIsNone(control.router.limits["aws"])
         fresh, _ = controller()
         for level in fresh.levels["aws"].values():
-            level["cost"]["complete"] = False
+            level["pool"].pop("billing")
         self.assertIsNone(fresh.tick({"task": 0.5}, now_ns=20000)["selected"])
 
     def test_failed_teardown_retains_occupancy(self):
@@ -216,6 +223,7 @@ class AdapterTests(unittest.TestCase):
         base, _ = controller()
         level = copy.deepcopy(base.levels["aws"][1])
         level["pool"]["provider"] = "ali_agentrun"
+        level["pool"]["billing"] = tariff("ali_agentrun")
         level["pool"]["resources"]["session_affinity_config"] = (
             '{"sessionTTLInSeconds":3}'
         )
@@ -226,7 +234,12 @@ class AdapterTests(unittest.TestCase):
             row.update(pool=level["pool"], task_id="task")
             model.update(row)
         router = OnlineRouter(
-            base.router.workload, model, {"ali": level["pool"]}, {"ali": 3}
+            base.router.workload,
+            model,
+            {"ali": level["pool"]},
+            {"ali": 3},
+            default_pool="ali",
+            execution_bounds={"ali": bounds()},
         )
         adapter = DelayedAdapter()
         adapter.control = "min_instances"
@@ -465,12 +478,12 @@ class IntegrationBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(row["measurements"]["latency_s"], 0.00002)
         control.observe_arrival("rejected-in-harness", "task", 50000)
-        self.assertGreater(control.observed_rates(now_ns=50001)["task"], 0)
+        self.assertGreater(control.observed_rates(now_ns=50001)["global"], 0)
         late = control.router.decide(
             "expired", "task", 0.5, as_of_ns=121_000_000_001, arrival_ns=1
         )
-        self.assertIsNone(late["selected"])
-        self.assertIn("slo_budget_exhausted", late["candidates"][0]["flags"])
+        self.assertEqual(late["selected"], "aws")
+        self.assertNotIn("slo_budget_exhausted", late["candidates"][0]["flags"])
 
     def test_joint_plan_can_disable_an_idle_pool_and_change_routing(self):
         import copy
@@ -480,11 +493,13 @@ class IntegrationBoundaryTests(unittest.TestCase):
         off = copy.deepcopy(levels["aws"][1])
         off.update(target=0, session_limit=0, cost=price(0))
         off["pool"]["resources"]["capacity_control"]["target"] = 0
+        off["pool"]["billing"] = tariff()
         levels["aws"][0] = off
         levels["ali"] = {}
         for target in (1, 2):
             level = copy.deepcopy(levels["aws"][target])
             level["pool"]["provider"] = "ali_fc"
+            level["pool"]["billing"] = tariff("ali_fc", floor=0.001)
             level["cost"].update(currency="CNY", retention_per_s=0.001)
             levels["ali"][target] = level
             for i in range(100):

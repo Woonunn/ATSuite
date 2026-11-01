@@ -308,6 +308,10 @@ def load_e1a(root: Path) -> tuple[list[dict], dict]:
                     row["completed_ns"], int(vendor["collected_epoch"] * 1e9)
                 )
                 if calls and len(matched) == len(calls):
+                    billed = _sum(fields, "billed_duration_ms")
+                    enriched["measurements"]["billed_compute_s"] = (
+                        billed / 1000 if billed is not None else None
+                    )
                     for key, source in {
                         "queue_s": "queue_delay_ms",
                         "schedule_s": "schedule_latency_ms",

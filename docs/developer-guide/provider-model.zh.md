@@ -1,3 +1,5 @@
+> Stage 6 更新：通用 Descriptor、解析成本与无 SLO 路由已接入现有模块。当前接口与复现方法见 [routing/README](../../atsuite/routing/README.md)。下文保留早期阶段的设计与历史实验口径。
+
 # Provider Performance & Cost Model（PoC）
 
 `atsuite.provider_model` 在 `main` 的 Workload Model、Analyzer、PricingPolicy 和 E1-A 记录上增加离线/在线统计模型。无新增运行依赖，无云端副作用；请求路由由独立的 [atsuite.routing](../../atsuite/routing/README.md) 提供，尚无 Scaling Controller。`ali_agentrun` 的名称仅为现有 Adapter ID，模型显示名称为 **Aliyun FC Session MCP**。

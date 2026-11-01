@@ -1,3 +1,5 @@
+> Stage 6 更新：通用 Descriptor、解析成本与无 SLO 路由已接入现有模块。当前接口与复现方法见 [routing/README](../../atsuite/routing/README.md)。下文保留早期阶段的设计与历史实验口径。
+
 # Online Workload Characterization
 
 本模块固定使用 DataSciBench + LangGraph，单进程共享一个 `WorkloadModel`。

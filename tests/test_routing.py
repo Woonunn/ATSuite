@@ -13,6 +13,7 @@ from atsuite.routing.router import risk_estimate
 from atsuite.workload import WorkloadModel
 from tests.test_provider_model import observation, pool
 from tests.test_workload import trace
+from tests.stage6_fixtures import tariff, bounds
 
 
 class RoutingTests(unittest.TestCase):
@@ -22,14 +23,19 @@ class RoutingTests(unittest.TestCase):
             row = observation(i)
             row["task_id"] = "task"
             model.update(row)
-        return OnlineRouter(WorkloadModel(), model, {"aws": pool()}, {"aws": limit})
+        return OnlineRouter(
+            WorkloadModel(),
+            model,
+            {"aws": pool()},
+            {"aws": limit},
+            default_pool="aws",
+            execution_bounds={"aws": bounds()},
+        )
 
     def test_unknown_ood_and_capacity_fail_closed(self):
         for limit, task, load in [
             (None, "task", 0.5),
             (0, "task", 0.5),
-            (1, "new", 0.5),
-            (1, "task", 2),
         ]:
             router = self.router(limit)
             self.assertIsNone(
@@ -61,7 +67,10 @@ class RoutingTests(unittest.TestCase):
 
     def test_cutoff_no_revision_multiplication_and_shadow(self):
         router = self.router()
-        self.assertIsNone(router.decide("early", "task", 0.5, as_of_ns=10)["selected"])
+        self.assertEqual(
+            router.decide("early", "task", 0.5, as_of_ns=10, shadow=True)["selected"],
+            "aws",
+        )
         shadow = router.decide("s", "task", 0.5, as_of_ns=20000, shadow=True)
         self.assertEqual(shadow["selected"], "aws")
         self.assertFalse(router.active)
@@ -70,15 +79,15 @@ class RoutingTests(unittest.TestCase):
         row["measurements"]["latency_s"] = 999
         router.provider.update(row)
         self.assertEqual(
-            router.decide("x", "task", 0.5, as_of_ns=21000)["candidates"][0]["risk"][
-                "violations"
-            ],
-            0,
+            router.decide("x", "task", 0.5, as_of_ns=21000, shadow=True)["candidates"][
+                0
+            ]["prediction"]["sample_count"],
+            100,
         )
         self.assertEqual(
-            router.decide("y", "task", 0.5, as_of_ns=21001)["candidates"][0]["risk"][
-                "n"
-            ],
+            router.decide("y", "task", 0.5, as_of_ns=21001, shadow=True)["candidates"][
+                0
+            ]["prediction"]["sample_count"],
             100,
         )
 
@@ -108,7 +117,7 @@ class RoutingTests(unittest.TestCase):
         self.assertFalse(router.active)
         self.assertIn(rid, router.workload.samples)
         next_decision = router.decide("next", "task", 0.5, as_of_ns=40000)
-        self.assertIsNone(next_decision["selected"])
+        self.assertEqual(next_decision["selected"], "aws")
         self.assertEqual(next_decision["candidates"][0]["available_sessions"], 1)
 
     def test_logging_and_defensive_copies(self):
@@ -118,12 +127,15 @@ class RoutingTests(unittest.TestCase):
             result = router.decide("r", "task", 0.5, as_of_ns=20000)
             result["selected"] = "tampered"
             self.assertEqual(router.active["r"]["selected"], "aws")
-            self.assertIn("empirical_fallback", router.log_path.read_text())
+            self.assertIn("validated_default", router.log_path.read_text())
 
     def test_cost_ranking_requires_comparable_complete_forecasts(self):
         from tests.test_provider_model import cost
 
-        provider = ProviderModel()
+        provider = ProviderModel(
+            tariffs={p: tariff(p) for p in ("aws_lambda", "aws_agentcore")}
+        )
+        provider.tariffs["aws_lambda"]["rates"]["memory_gb_s"] = 0.001
         workload = WorkloadModel()
         for backend, amount in [("aws_lambda", 5), ("aws_agentcore", 1)]:
             for i in range(100):
@@ -135,13 +147,15 @@ class RoutingTests(unittest.TestCase):
             provider,
             {"lambda": pool(), "agent": pool("aws_agentcore")},
             {"lambda": 1, "agent": 1},
+            default_pool="agent",
+            execution_bounds={"agent": bounds()},
         )
         # A prior profile supplies joint workload input; empty history cannot price it.
         workload.update(observation()["profile"], 10000)
         result = router.decide("priced", "task", 0.5, as_of_ns=20000, shadow=True)
         self.assertTrue(result["cost_comparable"])
         self.assertEqual(result["selected"], "agent")
-        self.assertFalse(result["slo_guarantee"])
+        self.assertNotIn("slo_s", result)
 
     def test_late_measurements_preserve_task_identity(self):
         router = self.router()
@@ -151,7 +165,7 @@ class RoutingTests(unittest.TestCase):
         router.provider.update(revision)
         router.provider.update(revision)
         result = router.decide("later", "task", 0.5, as_of_ns=30000, shadow=True)
-        self.assertEqual(result["candidates"][0]["risk"]["n"], 100)
+        self.assertEqual(result["candidates"][0]["prediction"]["sample_count"], 100)
         revision.update(available_ns=25000, task_id="different")
         with self.assertRaisesRegex(ValueError, "request context"):
             router.provider.update(revision)
@@ -253,5 +267,5 @@ class CaptureRoutingTests(unittest.IsolatedAsyncioTestCase):
         report = decision_quality(
             [decision], {"shadow": {"aws": observation()}}, rho_threshold=1000
         )
-        self.assertEqual(report["paired_best_fraction"]["risk_aware"], 1)
+        self.assertEqual(report["paired_best_fraction"]["cost_latency"], 1)
         self.assertIn("not mixed-routing", report["scope"])

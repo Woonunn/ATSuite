@@ -8,12 +8,14 @@ import time
 from collections import Counter
 from pathlib import Path
 
+from atsuite.provider_model.analytical import predict_cost, validate_tariff
 from atsuite.provider_model.observation import (
     BACKENDS,
     MEASUREMENTS,
     features,
     validate_observation,
     validate_pool,
+    trace_measurements,
 )
 from atsuite.tracing.storage import read_text, write_json
 from atsuite.workload.model import distribution
@@ -98,7 +100,7 @@ class ProviderModel:
     without becoming visible to predictions made before that evidence arrived.
     """
 
-    def __init__(self, neighbors: int = 20) -> None:
+    def __init__(self, neighbors: int = 20, *, tariffs: dict | None = None) -> None:
         if (
             isinstance(neighbors, bool)
             or not isinstance(neighbors, int)
@@ -106,6 +108,9 @@ class ProviderModel:
         ):
             raise ValueError("neighbors must be a positive integer")
         self.neighbors = neighbors
+        self.tariffs = copy.deepcopy(tariffs or {})
+        for provider, card in self.tariffs.items():
+            validate_tariff(card, provider)
         # shortcut: keep exact revision history; bound retention when online volume warrants it.
         self.samples = {}
         self.lock = threading.RLock()
@@ -201,9 +206,7 @@ class ProviderModel:
             "arrival_ns": trace["arrival_ns"],
             "completed_ns": trace["completed_ns"],
             "available_ns": time.time_ns() if available_ns is None else available_ns,
-            "measurements": {
-                "latency_s": (trace["completed_ns"] - trace["arrival_ns"]) / 1e9
-            },
+            "measurements": trace_measurements(trace),
             "cost": None,
         }
         self.update(row)
@@ -267,9 +270,16 @@ class ProviderModel:
             ]
             requests = [r for r in candidates if r["kind"] == "request"]
             successes = [r for r in requests if r["status"] == "success"]
+            # Identical resource queries keep their mixture weight without repeating neighbor searches.
+            query_keys = [json.dumps(q, sort_keys=True) for q in queries]
+            unique_queries = dict(zip(query_keys, queries))
+            neighbors = {
+                k: _nearest(successes, q, self.neighbors)
+                for k, q in unique_queries.items()
+            }
             selected, coverage = [], []
-            for query in queries:
-                rows, info = _nearest(successes, query, self.neighbors)
+            for key in query_keys:
+                rows, info = neighbors[key]
                 selected.extend(rows)
                 coverage.append(info)
             metrics = {
@@ -285,11 +295,11 @@ class ProviderModel:
             }
             capacity = self._capacity(pool, load_rps, metrics["service_slot_s"])
             windows = [r for r in candidates if r["kind"] == "window"]
-            window_samples = [
-                r
-                for query in queries
-                for r in _nearest(windows, query, self.neighbors)[0]
-            ]
+            window_neighbors = {
+                k: _nearest(windows, q, self.neighbors)[0]
+                for k, q in unique_queries.items()
+            }
+            window_samples = [r for key in query_keys for r in window_neighbors[key]]
             capacity["observed_goodput_rps"] = _distribution(
                 [
                     r["measurements"]["throughput_rps"]
@@ -298,19 +308,24 @@ class ProviderModel:
                 ],
                 len(window_samples),
             )
+            card = pool.get("billing", self.tariffs.get(pool["provider"]))
             costs = []
             # Each scope is separate: partial subtotals never masquerade as a full bill.
-            groups = sorted(
-                {
-                    (
-                        r["kind"],
-                        r["cost"]["scope"],
-                        r["cost"]["basis"],
-                        r["cost"]["complete"],
-                    )
-                    for r in candidates
-                    if r.get("cost")
-                }
+            groups = (
+                []
+                if card
+                else sorted(
+                    {
+                        (
+                            r["kind"],
+                            r["cost"]["scope"],
+                            r["cost"]["basis"],
+                            r["cost"]["complete"],
+                        )
+                        for r in candidates
+                        if r.get("cost")
+                    }
+                )
             )
             for kind, scope, basis, complete in groups:
                 source = [
@@ -321,9 +336,13 @@ class ProviderModel:
                     and (r["cost"]["scope"], r["cost"]["basis"], r["cost"]["complete"])
                     == (scope, basis, complete)
                 ]
+                cost_neighbors = {
+                    k: _nearest(source, q, self.neighbors)
+                    for k, q in unique_queries.items()
+                }
                 chosen, cost_coverage = [], []
-                for query in queries:
-                    rows, info = _nearest(source, query, self.neighbors)
+                for key in query_keys:
+                    rows, info = cost_neighbors[key]
                     chosen.extend(rows)
                     cost_coverage.append(info)
                 values = []
@@ -360,6 +379,25 @@ class ProviderModel:
                         else "Per attempted request within the named scope",
                     }
                 )
+            analytical = (
+                predict_cost(
+                    profiles,
+                    pool,
+                    card,
+                    sorted(successes, key=lambda r: r["completed_ns"])[
+                        -self.neighbors :
+                    ],
+                )
+                if card
+                else None
+            )
+            if analytical and analytical["complete"]:
+                # Mix complete latency samples; never add component percentiles.
+                queue = metrics["queue_s"]["samples"] or [0.0]
+                latency = [
+                    v + q for v in analytical["latency"]["samples"] for q in queue
+                ]
+                metrics["latency_s"] = _distribution(latency, len(latency))
             results.append(
                 {
                     "pool": copy.deepcopy(pool),
@@ -368,12 +406,16 @@ class ProviderModel:
                     "latency": metrics.pop("latency_s"),
                     "measurements": metrics,
                     "capacity": capacity,
-                    "cost": costs,
+                    "cost": [analytical] if analytical else costs,
+                    "historical_cost": costs,
+                    "analytical_cost": analytical,
                     "status_counts": dict(Counter(r["status"] for r in requests)),
                     "sample_count": len(successes),
                     "selected_unique_count": len({r["id"] for r in selected}),
                     "coverage": coverage,
-                    "low_confidence": marginal
+                    "low_confidence": (len(successes) < 3 or not analytical["complete"])
+                    if analytical
+                    else marginal
                     or not coverage
                     or len({r["id"] for r in selected}) < 20
                     or any(
@@ -383,7 +425,9 @@ class ProviderModel:
                         for c in coverage
                     ),
                     "latency_scope": "successful requests, observed queue/cold-start mixture; no additive p95",
-                    "cost_missing": not costs,
+                    "cost_missing": not analytical["complete"]
+                    if analytical
+                    else not costs,
                 }
             )
         return {
@@ -453,6 +497,7 @@ class ProviderModel:
                 {
                     "schema_version": 1,
                     "neighbors": self.neighbors,
+                    "tariffs": self.tariffs,
                     "observations": [
                         r for history in self.samples.values() for r in history
                     ],
@@ -465,7 +510,7 @@ class ProviderModel:
         payload = json.loads(read_text(Path(path)))
         if payload.get("schema_version") != 1:
             raise ValueError("Unsupported provider model schema")
-        model = cls(payload["neighbors"])
+        model = cls(payload["neighbors"], tariffs=payload.get("tariffs"))
         for row in payload["observations"]:
             model.update(row)
         return model

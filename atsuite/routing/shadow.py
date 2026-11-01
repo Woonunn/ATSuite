@@ -46,7 +46,7 @@ def decision_quality(
             rho,
             rho_threshold=rho_threshold,
         )
-        choices["risk_aware"] = decision["selected"]
+        choices["cost_latency"] = decision["selected"]
         outcomes = paired_outcomes.get(decision["request_id"], {})
         # Incomplete provider matrices cannot establish an oracle winner.
         complete = set(outcomes) == {c["key"] for c in decision["candidates"]}

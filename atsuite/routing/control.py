@@ -1,4 +1,4 @@
-"""Finite joint routing/capacity search with causal risk and drain protection."""
+"""Finite joint routing/capacity search with causal cost/latency and drain protection."""
 
 import copy
 import itertools
@@ -8,7 +8,9 @@ from collections import Counter, deque
 
 from atsuite.provider_model.observation import validate_pool
 from atsuite.routing.capacity import count, session_retention_s
-from atsuite.routing.cost import forecast_cost
+from atsuite.provider_model.analytical import pool_cost
+from atsuite.routing.objective import pareto
+from atsuite.workload.descriptor import family_key
 from atsuite.routing.router import OnlineRouter
 from atsuite.workload.profile import number
 
@@ -32,7 +34,7 @@ class JointController:
     Levels map each pool and target to a measured pool configuration, Session
     limit, scaling-delay upper bound and complete disjoint infrastructure rates.
     A None target denotes a platform-managed pool. Plans specify traffic shares;
-    current requests use only a successfully read-back, risk-checked level.
+    current requests use only a successfully read-back, capacity-checked level.
     """
 
     def __init__(
@@ -68,6 +70,13 @@ class JointController:
             raise ValueError("Invalid control interval")
         if not number(target_utilization) or not 0 < target_utilization <= 1:
             raise ValueError("Invalid utilization target")
+        if (
+            not fx.get("date")
+            or not fx.get("source")
+            or fx.get("rates", {}).get(fx.get("currency")) != 1
+            or any(not number(v) or v == 0 for v in fx.get("rates", {}).values())
+        ):
+            raise ValueError("A dated positive FX reference is required")
         self.router, self.adapters = router, adapters
         self.levels, self.plans, self.fx = (
             copy.deepcopy(levels),
@@ -130,11 +139,13 @@ class JointController:
         self.arrivals, self.routed = deque(), deque()
         # shortcut: deduplicate for one experiment; bound retention before operating as a long-lived service.
         self.offered_ids = set()
+        self.offered_families = {}
         self.last_tick, self.plan, self.initial = None, None, None
         self.deficit = Counter()
         self.release_holds = set()
         self.retained_until = {}
         self.last_report = None
+        self.descriptors = {}
 
     @property
     def pools(self):
@@ -313,41 +324,33 @@ class JointController:
         limits = {
             k: self.levels[k][v]["session_limit"] for k, v in plan["targets"].items()
         }
-        probe = OnlineRouter(
-            self.router.workload,
-            self.router.provider,
-            pools,
-            limits,
-            slo_s=self.router.slo_s,
-            max_risk=self.router.max_risk,
-            min_samples=self.router.min_samples,
-        )
         offered = sum(task_rates.values())
         rates = {k: offered * w for k, w in plan["weights"].items()}
-        flags, risks, duration = [], {}, {}
-        for task, rate in task_rates.items():
+        flags, duration, predictions, latencies = [], {}, {}, []
+        for family, rate in task_rates.items():
             if rate == 0:
                 continue
-            prediction = probe.decide(
-                "control-probe:" + task,
-                task,
-                offered,
-                as_of_ns=now,
-                pool_load_rps=rates,
-                shadow=True,
+            workload = self.router.workload.predict(
+                now, descriptor=self.descriptors.get(family)
             )
-            for item in prediction["candidates"]:
-                key = item["key"]
+            for key, pool in pools.items():
                 if not plan["weights"][key]:
                     continue
-                flags.extend(f"{key}:{task}:{flag}" for flag in item["flags"])
-                risks[f"{key}:{task}"] = item["risk"]
-                # Whole-Session occupancy includes LLM waits, Tool/state work and queues.
-                seconds = item["prediction"]["latency"]["p95"]
+                pred = self.router.provider.predict(
+                    workload["joint_profiles"][-20:], [pool], rates[key], as_of_ns=now
+                )["pools"][0]
+                predictions[(key, family)] = pred
+                seconds = pred["latency"]["p95"]
+                mean = pred["latency"]["mean"]
                 if seconds is None:
-                    flags.append(f"{key}:{task}:unknown_session_duration")
+                    bound = self.router.execution_bounds.get(key)
+                    seconds = bound["timeout_s"] if bound else None
+                    mean = seconds
+                if seconds is None:
+                    flags.append(f"{key}:unknown_session_duration")
                 else:
                     duration[key] = max(duration.get(key, 0), seconds)
+                    latencies.append(rate / offered * plan["weights"][key] * mean)
         costs, demand = {}, {}
         for key, target in plan["targets"].items():
             level, state = self.levels[key][target], self.snapshots.get(key)
@@ -365,71 +368,103 @@ class JointController:
             if demand[key] > limits[key]:
                 flags.append(f"{key}:forecast_capacity_exceeded")
             changed = state is None or target != state.target
+            if offered and plan["weights"][key]:
+                wait = (
+                    queued
+                    * plan["weights"][key]
+                    * duration.get(key, 0)
+                    / max(1, limits[key])
+                )
+                if changed:
+                    wait += min(level["scale_delay_s"], self.horizon_s)
+                latencies.append(plan["weights"][key] * wait)
             if changed and self.adapters[key].control != "managed":
                 if level["scale_delay_s"] >= self.horizon_s:
                     flags.append(f"{key}:scaling_outside_horizon")
                 if now - self.last_change.get(key, -(10**30)) < self.cooldown_s * 1e9:
                     flags.append(f"{key}:cooldown")
             try:
-                # Hold existing Sessions for the whole horizon, including idle tails.
-                costs[key] = forecast_cost(
-                    level["cost"],
-                    requests={
-                        t: r * plan["weights"][key] * self.horizon_s
-                        for t, r in task_rates.items()
-                    },
-                    horizon_s=self.horizon_s,
-                    retained_s=occupied * self.horizon_s
-                    + rates[key]
-                    * self.horizon_s
-                    * (duration.get(key, 0) + session_retention_s(level["pool"])),
-                    changes=int(changed),
-                    fx=self.fx,
+                card = level["pool"].get(
+                    "billing",
+                    self.router.provider.tariffs.get(level["pool"]["provider"]),
                 )
-                if changed and state is not None and state.target in self.levels[key]:
-                    old = self.levels[key][state.target]
-                    # Unknown drain duration retains the old floor for the whole horizon.
-                    overlap_s = level["scale_delay_s"]
-                    if target < state.target and occupied:
-                        overlap_s = self.horizon_s
-                    overlap = forecast_cost(
-                        old["cost"],
-                        requests={},
-                        horizon_s=overlap_s,
-                        retained_s=0,
-                        changes=0,
-                        fx=self.fx,
+                if card is None:
+                    raise ValueError(
+                        "An analytical tariff is required for capacity optimization"
                     )
-                    costs[key]["transition_overlap"] = overlap["components"][
-                        "retention"
-                    ]
-                    costs[key]["total"] += overlap["components"]["retention"]
-                if key in self.pending:
-                    old = self.levels[key][self.pending[key]["from_target"]]
-                    retained = forecast_cost(
-                        old["cost"],
-                        requests={},
-                        horizon_s=self.horizon_s,
-                        retained_s=0,
-                        changes=0,
-                        fx=self.fx,
+                costs[key] = pool_cost(
+                    card,
+                    requests=0,
+                    marginal=None,
+                    horizon_s=self.horizon_s,
+                    retained_s=occupied * self.horizon_s,
+                    memory_mb=level["pool"]["resources"].get("memory_mb", 0),
+                    changes=int(changed),
+                )
+                for family, rate in task_rates.items():
+                    count_requests = rate * plan["weights"][key] * self.horizon_s
+                    if not count_requests:
+                        continue
+                    marginal = predictions[(key, family)].get("analytical_cost")
+                    increment = pool_cost(
+                        card, requests=count_requests, marginal=marginal, horizon_s=0
                     )
-                    costs[key]["pending_retention"] = retained["components"][
-                        "retention"
-                    ]
-                    costs[key]["total"] += retained["components"]["retention"]
+                    for component, amount in increment["components"].items():
+                        costs[key]["components"][component] += amount
+                    costs[key]["total"] += increment["total"]
+                old_target = (
+                    self.pending[key]["from_target"]
+                    if key in self.pending
+                    else state.target
+                    if state
+                    else None
+                )
+                if (changed or key in self.pending) and old_target in self.levels[key]:
+                    old = self.levels[key][old_target]["pool"]
+                    old_card = old.get(
+                        "billing", self.router.provider.tariffs.get(old["provider"])
+                    )
+                    overlap_s = (
+                        self.horizon_s
+                        if occupied or key in self.pending
+                        else level["scale_delay_s"]
+                    )
+                    overlap = pool_cost(
+                        old_card,
+                        requests=0,
+                        marginal=None,
+                        horizon_s=0,
+                        overlap_s=overlap_s,
+                    )
+                    costs[key]["components"]["scaling"] += overlap["total"]
+                    costs[key]["total"] += overlap["total"]
+                conversion = self.fx["rates"][card["currency"]]
+                if not number(conversion) or conversion == 0:
+                    raise ValueError("Invalid currency conversion")
+                costs[key]["components"] = {
+                    k: v * conversion for k, v in costs[key]["components"].items()
+                }
+                costs[key]["total"] *= conversion
+                costs[key]["currency"] = self.fx["currency"]
             except (ValueError, KeyError):
+                costs.pop(key, None)
                 flags.append(f"{key}:incomplete_cost")
         return {
             "plan": plan,
             "flags": sorted(set(flags)),
-            "risk": risks,
+            "predicted_latency_s": sum(latencies) if latencies else 0.0,
             "demand": demand,
             "costs": costs,
             "predicted_total": sum(c["total"] for c in costs.values())
             if len(costs) == len(pools)
             else None,
         }
+
+    def _score(self, candidate):
+        return (
+            self.router.cost_weight * candidate["predicted_total"] / self.horizon_s
+            + self.router.latency_weight * candidate["predicted_latency_s"]
+        )
 
     def tick(
         self, task_rates: dict, *, now_ns=None, queued=0, utilization=None, apply=True
@@ -480,9 +515,7 @@ class JointController:
             if self.policy == "joint":
                 feasible = [c for c in candidates if not c["flags"]]
                 selected = (
-                    min(feasible, key=lambda c: c["predicted_total"])
-                    if feasible
-                    else None
+                    min(feasible, key=lambda c: self._score(c)) if feasible else None
                 )
             else:
                 # Baselines keep the first declared routing split; routing-only freezes capacity.
@@ -522,11 +555,9 @@ class JointController:
                         min(
                             feasible,
                             key=lambda c: (
-                                c["predicted_total"]
+                                self._score(c)
                                 if comparable
-                                else max(
-                                    (r["upper"] for r in c["risk"].values()), default=1
-                                )
+                                else c["predicted_latency_s"]
                             ),
                         )
                         if feasible
@@ -570,7 +601,20 @@ class JointController:
                 "candidates": candidates,
                 "reason": "selected" if selected else "no_trusted_feasible_plan",
                 "cost_basis": "predicted",
-                "slo_guarantee": False,
+                "objective": {
+                    "cost_weight": self.router.cost_weight,
+                    "latency_weight": self.router.latency_weight,
+                    "cost_unit": self.fx["currency"] + "/second",
+                    "latency_unit": "seconds/request",
+                },
+                "pareto": [
+                    c["plan"]
+                    for c in pareto(
+                        [c for c in candidates if not c["flags"]],
+                        "predicted_total",
+                        "predicted_latency_s",
+                    )
+                ],
             }
             self._log("control_decision", **self.last_report)
             if selected and apply:
@@ -578,34 +622,45 @@ class JointController:
                     self._submit(key, target, now)
             return copy.deepcopy(self.last_report)
 
-    def observe_arrival(self, request_id: str, task: str, now_ns: int) -> None:
+    def observe_arrival(
+        self, request_id: str, task: str | None, now_ns: int, *, descriptor=None
+    ) -> None:
         """Count offered traffic before harness admission, including queue rejection."""
         count(now_ns)
-        if not request_id or not task:
-            raise ValueError("Arrival identity and task are required")
+        if not request_id:
+            raise ValueError("Arrival identity is required")
+        family = family_key(descriptor)
+        if descriptor is not None:
+            self.descriptors[family] = copy.deepcopy(descriptor)
         with self.router.lock:
+            if descriptor is not None or request_id not in self.offered_families:
+                self.offered_families[request_id] = family
             if request_id not in self.offered_ids:
-                self.arrivals.append((now_ns, task))
+                self.arrivals.append((now_ns, request_id))
                 self.offered_ids.add(request_id)
 
     def decide(
         self,
         request_id: str,
-        task: str,
-        load_rps: float,
+        task: str | None = None,
+        load_rps: float = 0.0,
         *,
         as_of_ns=None,
         shadow=False,
         pool_load_rps=None,
         arrival_ns=None,
+        descriptor=None,
     ) -> dict:
-        """Apply the current split, then recheck Stage 4 risk at actual capacity/load."""
+        """Apply the current split; default execution still requires fresh capacity readback."""
         now = time.time_ns() if as_of_ns is None else as_of_ns
         with self.router.lock:
             if request_id in self.decisions:
                 return copy.deepcopy(self.decisions[request_id])
             self.observe_arrival(
-                request_id, task, now if arrival_ns is None else arrival_ns
+                request_id,
+                task,
+                now if arrival_ns is None else arrival_ns,
+                descriptor=descriptor,
             )
             cutoff = now - self.observation_s * 1e9
             while self.arrivals and self.arrivals[0][0] < cutoff:
@@ -648,6 +703,34 @@ class JointController:
                     and state.effective == self.plan["targets"][key]
                 ):
                     allowed.add(key)
+            if self.router.default_pool:
+                key = self.router.default_pool
+                state = self.snapshots.get(key)
+                if (
+                    state is not None
+                    and state.status == "READY"
+                    and now - state.observed_ns <= self.period_s * 2e9
+                    and key not in self.draining
+                    and key not in self.pending
+                ):
+                    workload = self.router.workload.predict(now, descriptor=descriptor)
+                    predictions = self.router.provider.predict(
+                        workload["joint_profiles"][-20:],
+                        [self.pools[k] for k in allowed],
+                        load_rps,
+                        as_of_ns=now,
+                    )["pools"]
+                    if (
+                        not allowed
+                        or workload["low_confidence"]
+                        or not any(
+                            not p["low_confidence"]
+                            and p.get("analytical_cost")
+                            and p["analytical_cost"]["complete"]
+                            for p in predictions
+                        )
+                    ):
+                        allowed = {key}
             decision = self.router.decide(
                 request_id,
                 task,
@@ -657,6 +740,7 @@ class JointController:
                 pool_load_rps=rates,
                 allowed_pools=allowed,
                 arrival_ns=arrival_ns,
+                descriptor=descriptor,
             )
             if decision["selected"] and not shadow:
                 self.routed.append((now, decision["selected"]))
@@ -669,8 +753,8 @@ class JointController:
             return {
                 t: n / self.observation_s
                 for t, n in Counter(
-                    t
-                    for stamp, t in self.arrivals
+                    self.offered_families[rid]
+                    for stamp, rid in self.arrivals
                     if now - self.observation_s * 1e9 <= stamp <= now
                 ).items()
             }
