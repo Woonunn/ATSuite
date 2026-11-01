@@ -75,7 +75,7 @@ def forecast_cost(
     }
 
 
-def total_cost(lines: list[dict], fx: dict) -> dict:
+def total_cost(lines: list[dict], fx: dict, *, components=COMPONENTS) -> dict:
     """Deduplicate attributable charge IDs; inclusive windows replace their children.
 
     Input scopes are resource + billing interval + component. Mixing invoice and
@@ -104,7 +104,7 @@ def total_cost(lines: list[dict], fx: dict) -> dict:
             row["end_ns"],
             row["component"],
         )
-        if scope in scopes or row["component"] not in COMPONENTS:
+        if scope in scopes or row["component"] not in components:
             raise ValueError("Overlapping or unknown charge component")
         for previous in seen.values():
             if (
@@ -150,7 +150,7 @@ def total_cost(lines: list[dict], fx: dict) -> dict:
     complete = (
         bool(seen)
         and all(
-            set(c) == COMPONENTS and len({coverage(v) for v in c.values()}) == 1
+            set(c) == set(components) and len({coverage(v) for v in c.values()}) == 1
             for c in resource_components.values()
         )
         and all(r.get("complete") is True for r in seen.values())

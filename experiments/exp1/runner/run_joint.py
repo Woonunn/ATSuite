@@ -1,6 +1,7 @@
 """Audited, budget-reserved mixed-cloud Replay with joint capacity control."""
 
 import argparse
+import copy
 import asyncio
 import hashlib
 import json
@@ -12,7 +13,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from atsuite.routing import ScalingAdapter
-from atsuite.routing.experiment import build_controller, control_identity
+from atsuite.routing.experiment import (
+    STRATEGIES,
+    build_controller,
+    control_identity,
+    strategy_config,
+)
 from experiments.exp1.capture.capture_agent_traces import run as replay
 from experiments.exp1.data.prepare_e1b import PROVIDERS, ROOT, load, sha, write_csv
 from experiments.exp1.runner.arrival_scheduler import Arrival, run_open_loop, stats
@@ -33,6 +39,17 @@ def experiment_identity(config: dict) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, allow_nan=False).encode()
     ).hexdigest()
+
+
+def comparison_identity(config: dict) -> str:
+    """Seal shared experimental inputs while allowing only the declared policy to vary."""
+    common = copy.deepcopy(config)
+    common.pop("strategy", None)
+    common.pop("weights", None)
+    for key in ("exploration", "default_pool"):
+        common.get("routing", {}).pop(key, None)
+    common.get("control", {}).pop("capacity_exploration", None)
+    return experiment_identity(common)
 
 
 def cloud_adapters(entries: list[dict], config: dict) -> dict:
@@ -75,6 +92,7 @@ def validate_inputs(
     references: Path,
     *,
     pilot: bool,
+    policy="joint",
 ) -> tuple:
     """Verify existing sealed workload, deployments, Pilot and Stage 5 evidence hashes."""
     manifest, rows = load(workload)
@@ -134,8 +152,8 @@ def validate_inputs(
         .get("manifest_sha256")
         != sha(workload / "manifest.json")
         or simulation.get("synthetic") is not False
-        or simulation.get("policy") != "joint"
-        or not simulation.get("scaling_events")
+        or simulation.get("policy") != policy
+        or (policy == "joint" and not simulation.get("scaling_events"))
         or simulation.get("admitted", 0) == 0
         or not simulation.get("validation")
         or not all(r["passed"] for r in simulation["validation"])
@@ -150,7 +168,7 @@ def validate_inputs(
             or mixed.get("deployment_sha256") != sha(deployment)
             or mixed.get("workload_sha256") != sha(workload / "manifest.json")
             or mixed.get("all_successful") is not True
-            or mixed.get("scaling_effective", 0) < 1
+            or (policy == "joint" and mixed.get("scaling_effective", 0) < 1)
         ):
             raise ValueError(
                 "Formal joint run requires a successful matching mixed Pilot"
@@ -171,8 +189,10 @@ async def execute(
     policy="joint",
 ) -> dict:
     """Run one declared policy; restore the initial target after confirmed Session drain."""
+    if policy in STRATEGIES or config.get("strategy"):
+        config, policy = strategy_config(config, config.get("strategy", policy))
     manifest, rows, entries, refs, evidence = validate_inputs(
-        config, workload, deployment, pilots, references, pilot=pilot
+        config, workload, deployment, pilots, references, pilot=pilot, policy=policy
     )
     output.mkdir(parents=True, exist_ok=False)
     adapters = cloud_adapters(entries, config)
@@ -191,13 +211,18 @@ async def execute(
         "status": "preflight",
         "pilot": pilot,
         "policy": policy,
+        "strategy": config.get("strategy", policy),
         "config_sha256": experiment_identity(config),
+        "comparison_sha256": comparison_identity(config),
         "deployment_sha256": sha(deployment),
         "workload_sha256": sha(workload / "manifest.json"),
         "pilot_evidence": evidence,
         "initial_capacity": initial,
         "preview": preview,
         "actual_cost": None,
+        "cost_resources": [
+            {"provider": k, "resource": a.resource} for k, a in adapters.items()
+        ],
         "started_ns": time.time_ns(),
     }
     report_path = output / "run.json"
@@ -434,14 +459,13 @@ async def execute(
             "admission_rate": len(admitted) / len(rows),
             "success_rate": len(success) / len(rows),
             "p95_s": stats([r["latency_s"] for r in success])["p95"],
-            "unsatisfied_rate_offered": sum(r["failed"] for r in outcomes)
-            / len(rows),
-            "failure_rate_admitted": sum(r["failed"] for r in admitted)
-            / len(admitted)
+            "unsatisfied_rate_offered": sum(r["failed"] for r in outcomes) / len(rows),
+            "failure_rate_admitted": sum(r["failed"] for r in admitted) / len(admitted)
             if admitted
             else None,
             "actual_total_cost": None,
         }
+        report["exploration"] = controller.router.exploration_report()
         report["finished_ns"] = time.time_ns()
         controller.router.provider.save(output / "provider_model.json")
         controller.router.workload.save(output / "workload_model.json")
@@ -457,7 +481,7 @@ def main() -> None:
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument(
         "--policy",
-        choices=("static", "routing", "independent", "joint"),
+        choices=("static", "routing", "independent", "joint", *STRATEGIES),
         default="joint",
     )
     args = parser.parse_args()

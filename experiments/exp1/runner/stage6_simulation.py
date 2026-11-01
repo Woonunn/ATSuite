@@ -37,7 +37,11 @@ def build(latency_weight, policy):
             "edges": [["llm", "tool"]],
         }
         descriptor = describe(
-            prompt="A new " + task + " request",
+            prompt={
+                "compute": "Train a classifier",
+                "state": "Sort and retain shared data",
+                "idle": "Calculate the mean",
+            }[task],
             files=[{"name": "input.csv", "bytes": max(1, state)}],
             tools=["python"],
             category=task,
@@ -89,6 +93,7 @@ def build(latency_weight, policy):
         }
         p = extract_profile(trace)
         p["reference_id"] = "stage6-synthetic-v1"
+        p["descriptor"] = descriptor
         workload.update(p, 100, descriptor=descriptor)
         for name, memory, speed in [("cheap", 1024, 1), ("fast", 4096, 0.2)]:
             levels.setdefault(name, {})

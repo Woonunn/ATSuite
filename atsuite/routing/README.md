@@ -1,4 +1,4 @@
-# Wabber Stage 6: resource-aware routing
+# Wabber Stage 7: semantic workloads and exploration
 
 `OnlineRouter` predicts from information available at admission and binds the whole
 Agent Session to one execution pool. It has no SLO, p95, risk-bound or same-task
@@ -28,20 +28,46 @@ decision = router.decide(request_id, load_rps=current_load, descriptor=descripto
 router.complete(request_id, trace)
 ```
 
+Stage 7 configuration, validation and fair comparison commands are documented in
+[STAGE7_VALIDATION](../../experiments/exp1/STAGE7_VALIDATION.md).
+
 `task` remains an optional second argument for experiment bookkeeping. It never
 selects training samples or determines admission. `files` contains `{name, bytes}`;
-`hints` optionally contains declared `cpu_s`, `memory_mb`, `state_bytes`.
-Descriptors contain lengths, file types/sizes, available Tool names and optional
-category/hints, never prompt identity, target results or the arriving request's DAG.
+`hints` optionally contains declared `cpu_s`, `memory_mb`, `state_bytes`, `rows`,
+`columns`, and `features`.
+Descriptors retain lengths, file types/sizes and Tool capabilities, and add a
+versioned computational intent signature extracted from the Prompt. Known-family
+matching requires the observed combination of intent tags, compatible resource
+scale, and the same Tools/encoding. A priority-selected `primary` label cannot hide
+a new secondary operation. Legacy snapshots remain readable.
 
-Workload prediction tries nearby resource descriptors (log-scaled size distance,
-Tool/file-type overlap), then the entire previously observed workload, then an
-explicit independent profiling prior. Historical joint samples preserve compute,
-state and LLM-time correlations. Matching is deliberately simple; it is not a
-semantic predictor. Equal-distance neighbors prefer the most recently available
-observations, so feedback continues to update a family after its first 20 samples.
-Three samples can improve confidence, but are **not admission
-requirements**. Low-confidence predictions use the named validated default.
+An unseen intent can use a `resource_prior` drawn from nearby declared sizes and
+hints with the same Tools, even across file encodings. This prior remains
+`unknown_request=true` and low confidence. Missing file sizes are not zero-byte
+inputs. Without comparable resource evidence, only an explicitly supplied initial
+prior is available; otherwise prediction metrics are missing. No file-format or
+benchmark-specific memory/state estimator is used.
+
+Every prediction retains at most 20 joint profiles, including global/initial
+priors; equal-distance peers prefer recent available observations. Router and
+JointController consume this same sample without truncating it again. Compute,
+state, LLM time and call-structure correlations are preserved; state access volume
+is not renamed or imputed as peak memory. Missing input sizes keep confidence low.
+
+Optional budgeted contextual epsilon-greedy explores feasible, analytically
+promising pools and records the full probability distribution. Only chosen-pool
+feedback trains the online model. Unknown resource priors do not bypass validated
+default execution, capacity, timeout or budget constraints.
+
+The `stage7 holdout` evaluator also accepts a configuration containing `descriptors`
+and independent `family_labels` for any workload, without loading the DataSciBench
+panel. Its default seeded reservoir retains at most `history_limit` already-visible
+attempts per provider, instead of freezing the first arrivals. Legacy/semantic
+variants use identical selected attempts; selected IDs are recorded. For historical
+reproduction, set `history_sampling` to `first`. The `evaluate()` API keeps `first`
+as its backward-compatible default. Reservoir evaluation keeps held-out families
+frozen (`adaptive=False`); normal online routing is unaffected. Derived-label
+holdouts are explicitly labeled diagnostics, not semantic accuracy measurements.
 
 Each `execution_bounds[pool]` has `timeout_s`, `max_cost`, `currency`, `tools` and
 `evidence`. Evidence must cover the actual supported execution environment and the

@@ -103,7 +103,9 @@ class Stage6RegressionTests(unittest.TestCase):
 
     def test_recent_same_descriptor_feedback_replaces_old_neighbors_causally(self):
         model = WorkloadModel()
-        descriptor = describe(prompt="same shape", tools=["python"])
+        descriptor = describe(
+            prompt="Calculate the mean with the same shape", tools=["python"]
+        )
         for i in range(40):
             p = profile()
             p["request_id"] = str(i)

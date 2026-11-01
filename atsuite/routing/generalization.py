@@ -25,11 +25,16 @@ def evaluate(
     tariffs: dict,
     *,
     held_task=None,
+    held_family=None,
+    descriptor_mode="semantic",
     history_limit=20,
     adaptive=False,
     latency_weight=0.001,
     fx=None,
     prediction_stride=1,
+    family_labels=None,
+    history_sampling="first",
+    sampling_seed=7,
 ) -> dict:
     """Separate task identities, freeze every prediction, ingest only after availability.
 
@@ -38,6 +43,45 @@ def evaluate(
     """
     if not isinstance(prediction_stride, int) or prediction_stride < 1:
         raise ValueError("Prediction stride must be positive")
+    if descriptor_mode not in {"semantic", "legacy"} or (
+        held_family is not None and (held_task is not None or adaptive)
+    ):
+        raise ValueError(
+            "Family holdout excludes the whole family, including adaptive feedback"
+        )
+    if (
+        history_sampling not in {"first", "reservoir"}
+        or type(sampling_seed) is not int
+        or type(history_limit) is not int
+        or history_limit < 0
+        or (history_sampling == "reservoir" and adaptive)
+    ):
+        raise ValueError(
+            "Reservoir evaluation needs a fixed history budget and frozen holdout"
+        )
+    if family_labels is not None and (
+        not isinstance(family_labels, dict)
+        or not {r.get("task_id", "e1a-fixed") for r in rows} <= family_labels.keys()
+        or not set(family_labels) <= descriptors.keys()
+        or any(not isinstance(v, str) or not v for v in family_labels.values())
+    ):
+        raise ValueError("Invalid independent family labels")
+    labels = (
+        family_labels
+        if family_labels is not None
+        else {t: d.get("semantic", {}).get("primary") for t, d in descriptors.items()}
+    )
+    held_tasks = (
+        {t for t, label in labels.items() if label == held_family}
+        if held_family
+        else {held_task}
+    )
+    if held_family and not held_tasks:
+        raise ValueError("No prompts in held-out computational family")
+    descriptors = copy.deepcopy(descriptors)
+    if descriptor_mode == "legacy":
+        for d in descriptors.values():
+            d.pop("semantic", None)
     provider, workload = ProviderModel(tariffs=tariffs), WorkloadModel()
     pools = {r["pool"]["provider"]: r["pool"] for r in rows if r["kind"] == "request"}
     first, latest = {}, {}
@@ -45,6 +89,7 @@ def evaluate(
         if row["kind"] == "request":
             first.setdefault((row["pool"]["provider"], row["id"]), row)
             latest[(row["pool"]["provider"], row["id"])] = row
+    declared_tools = sorted({tool for d in descriptors.values() for tool in d["tools"]})
     fallback = "aws_lambda" if "aws_lambda" in pools else next(iter(pools))
     router = OnlineRouter(
         workload,
@@ -59,7 +104,7 @@ def evaluate(
                 "timeout_s": 3600,
                 "max_cost": 1,
                 "currency": tariffs[k]["currency"],
-                "tools": TOOLS,
+                "tools": declared_tools,
                 "evidence": [
                     "virtual shadow executor only; not cloud capacity evidence"
                 ],
@@ -79,11 +124,64 @@ def evaluate(
     training_ids, counts, predictions = set(), Counter(), []
     seen_workload = set()
     seen_fixed_profiles = set()
+    retained = {}
+
+    def priority(identity):
+        # Hash priorities sample only already-visible attempts, independently of their outcomes.
+        return hashlib.sha256(
+            json.dumps([sampling_seed, *identity]).encode()
+        ).digest(), identity
+
     for stamp, action, index, row in sorted(events, key=lambda e: e[:3]):
         task, backend = row.get("task_id", "e1a-fixed"), row["pool"]["provider"]
         identity = (backend, row["id"])
         if action:
-            allowed = task != held_task and (
+            if history_sampling == "reservoir":
+                if task in held_tasks or history_limit == 0:
+                    continue
+                peers = [k for k in retained if k[0] == backend]
+                if identity not in retained and len(peers) >= history_limit:
+                    worst = max(peers, key=priority)
+                    if priority(identity) >= priority(worst):
+                        continue
+                    del retained[worst]
+                if identity in retained and row["pool"] != retained[identity]["pool"]:
+                    raise ValueError("Revision changes the sampled execution pool")
+                observed = copy.deepcopy(row)
+                observed["profile"]["descriptor"] = descriptors.get(task)
+                provider.update(observed)
+                retained[identity] = copy.deepcopy(row)
+                training_ids = set(retained)
+                # Rebuild the small bounded sample so evicted revisions and duplicate references cannot linger.
+                provider, workload = ProviderModel(tariffs=tariffs), WorkloadModel()
+                fixed_profiles = set()
+                for rid, sample in sorted(retained.items()):
+                    sample = copy.deepcopy(sample)
+                    sample["profile"]["descriptor"] = descriptors.get(
+                        sample.get("task_id", "e1a-fixed")
+                    )
+                    provider.update(sample)
+                    if sample["status"] != "success":
+                        continue
+                    profile = copy.deepcopy(sample["profile"])
+                    profile["request_id"] = rid[0] + ":" + rid[1]
+                    signature = json.dumps(
+                        {
+                            k: profile[k]
+                            for k in ("metrics", "workflow", "tool_durations")
+                        },
+                        sort_keys=True,
+                    )
+                    if (
+                        held_task is not None
+                        or held_family is not None
+                        or signature not in fixed_profiles
+                    ):
+                        workload.update(profile, sample["available_ns"])
+                        fixed_profiles.add(signature)
+                router.provider, router.workload = provider, workload
+                continue
+            allowed = task not in held_tasks and (
                 identity in training_ids or counts[backend] < history_limit
             )
             if allowed or (adaptive and (held_task is None or task == held_task)):
@@ -103,14 +201,21 @@ def evaluate(
                         },
                         sort_keys=True,
                     )
-                    if held_task is not None or signature not in seen_fixed_profiles:
+                    if (
+                        held_task is not None
+                        or held_family is not None
+                        or signature not in seen_fixed_profiles
+                    ):
                         workload.update(
                             profile, stamp, descriptor=descriptors.get(task)
                         )
                         seen_fixed_profiles.add(signature)
                     seen_workload.add(identity)
             continue
-        if (held_task is not None and task != held_task) or index % prediction_stride:
+        if (
+            (held_task is not None or held_family is not None)
+            and task not in held_tasks
+        ) or index % prediction_stride:
             continue
         prediction = workload.predict(stamp, descriptor=descriptors.get(task))
         # Predict the actual historical pool separately; deployments may differ across E1-A windows.
@@ -166,8 +271,20 @@ def evaluate(
                 "selected": decision["selected"],
                 "reason": decision["reason"],
                 "training_count": len(training_ids),
+                "training_request_ids": sorted(
+                    [list(identity) for identity in training_ids]
+                ),
+                "workload_request_ids": [
+                    p["request_id"] for p in prediction["joint_profiles"]
+                ],
                 "workload_count": prediction["sample_count"],
                 "match_basis": prediction["match_basis"],
+                "unknown_request": prediction["unknown_request"],
+                "resource_absolute_errors": {
+                    k: abs(v["mean"] - row["profile"]["metrics"][k])
+                    for k, v in prediction["metrics"].items()
+                    if number(v["mean"]) and number(row["profile"]["metrics"].get(k))
+                },
                 "latency": pred["latency"],
                 "observed_latency_s": row["measurements"].get("latency_s"),
                 "cost": predicted_cost,
@@ -197,7 +314,15 @@ def evaluate(
 
     return {
         "held_task": held_task,
+        "held_family": held_family,
+        "held_tasks": sorted(t for t in held_tasks if t is not None),
+        "descriptor_mode": descriptor_mode,
         "history_limit": history_limit,
+        "history_sampling": history_sampling,
+        "sampling_seed": sampling_seed if history_sampling == "reservoir" else None,
+        "family_label_basis": "independent"
+        if family_labels is not None
+        else "descriptor_derived_diagnostic",
         "prediction_stride": prediction_stride,
         "adaptive": adaptive,
         "latency_weight": latency_weight,

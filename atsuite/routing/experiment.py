@@ -1,6 +1,7 @@
 """Reproducible joint-control configuration, comparison plots and evidence preflight."""
 
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -20,6 +21,59 @@ from atsuite.tracing.storage import read_text
 from atsuite.workload import WorkloadModel
 
 
+STRATEGIES = (
+    "fixed_aws_lambda",
+    "fixed_aws_agentcore",
+    "fixed_ali_fc",
+    "fixed_ali_agentrun",
+    "cost_aware",
+    "random_exploration",
+    "exploration_aware",
+    "full_wabber",
+)
+
+
+def strategy_config(config: dict, strategy: str) -> tuple[dict, str]:
+    """Keep sealed workload/deployments unchanged and construct one comparison policy."""
+    if strategy not in STRATEGIES:
+        raise ValueError("Unknown Stage 7 strategy")
+    config = copy.deepcopy(config)
+    config["strategy"] = strategy
+    routing = config.setdefault("routing", {})
+    control = config.setdefault("control", {})
+    if strategy != "full_wabber":
+        control.pop("capacity_exploration", None)
+    if strategy.startswith("fixed_"):
+        provider = strategy.removeprefix("fixed_")
+        keys = [
+            k
+            for k, p in config["pools"].items()
+            if p["levels"][0]["pool"]["provider"] == provider
+        ]
+        if len(keys) != 1:
+            raise ValueError(
+                "Fixed strategy requires exactly one validated provider pool"
+            )
+        key = keys[0]
+        routing["default_pool"] = key
+        routing.pop("exploration", None)
+        config["weights"] = [{k: float(k == key) for k in config["pools"]}]
+        policy = "static"
+    elif strategy == "cost_aware":
+        routing.pop("exploration", None)
+        policy = "routing"
+    else:
+        if not routing.get("exploration"):
+            raise ValueError(
+                "Exploration strategy requires explicit epsilon, budget and bounded executors"
+            )
+        routing["exploration"]["strategy"] = (
+            "random" if strategy == "random_exploration" else "contextual"
+        )
+        policy = "joint" if strategy == "full_wabber" else "routing"
+    return config, policy
+
+
 def implementation_hashes() -> dict:
     """Seal controller/model sources as well as experimental data."""
     root = Path(__file__).resolve().parents[2]
@@ -34,9 +88,14 @@ def implementation_hashes() -> dict:
             "atsuite/workload/model.py",
             "atsuite/workload/profile.py",
             "experiments/exp1/runner/run_joint.py",
+            "experiments/exp1/runner/stage7.py",
             "experiments/exp1/runner/arrival_scheduler.py",
             "experiments/exp1/capture/capture_agent_traces.py",
             "benchmarks/DataSciBench/langgraph_agent/graph.py",
+            "benchmarks/DataSciBench/langgraph_agent/validators.py",
+            "benchmarks/DataSciBench/langgraph_agent/trace_replayer.py",
+            "benchmarks/DataSciBench/nodes/AgentTools/implementation.py",
+            "benchmarks/DataSciBench/nodes/DataSci/implementation.py",
             "benchmarks/DataSciBench/langgraph_agent/tool_client.py",
         )
     ]
@@ -48,7 +107,15 @@ def implementation_hashes() -> dict:
 
 def control_identity(config: dict) -> str:
     """Bind simulation and cloud admission to the same model, rates and controller."""
-    keys = ("pools", "weights", "fx", "routing", "control", "initial_task_rates")
+    keys = (
+        "pools",
+        "weights",
+        "fx",
+        "routing",
+        "control",
+        "initial_task_rates",
+        "strategy",
+    )
     value = {k: config.get(k) for k in keys}
     value["implementation_sha256"] = implementation_hashes()
     value["models"] = {
@@ -62,6 +129,8 @@ def control_identity(config: dict) -> str:
 
 def build_controller(config: dict, adapters: dict, *, policy="joint", log_path=None):
     """Build independent model/controller instances for each comparison strategy."""
+    if config.get("strategy"):
+        config, policy = strategy_config(config, config["strategy"])
     levels = {
         key: {level["target"]: level for level in value["levels"]}
         for key, value in config["pools"].items()
@@ -290,7 +359,12 @@ def main() -> None:
             workflows = json.loads(read_text(Path(config["workflows"])))
             arrivals = json.loads(read_text(Path(config["arrivals"])))
         reports = []
-        for policy in ("static", "routing", "independent", "joint"):
+        policies = (
+            [strategy_config(config, config["strategy"])[1]]
+            if config.get("strategy")
+            else ("static", "routing", "independent", "joint")
+        )
+        for policy in policies:
             adapters = {
                 k: SimulatedAdapter(
                     v["control"],

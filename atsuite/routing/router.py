@@ -1,6 +1,7 @@
 """Causal cost/latency routing with bounded fallback and whole-session admission."""
 
 import copy
+from collections import Counter
 import json
 import math
 import threading
@@ -15,6 +16,7 @@ from atsuite.provider_model.observation import (
 from atsuite.workload.profile import number
 from atsuite.workload.descriptor import validate_descriptor
 from atsuite.routing.objective import pareto, validate_weights
+from atsuite.routing.exploration import Exploration, model_revision
 
 
 def risk_estimate(rows: list[dict], slo_s: float) -> dict:
@@ -59,6 +61,7 @@ class OnlineRouter:
         budget: float | None = None,
         fx: dict | None = None,
         log_path: Path | None = None,
+        exploration: dict | None = None,
     ):
         validate_weights(cost_weight, latency_weight)
         bounds = copy.deepcopy(execution_bounds or {})
@@ -116,6 +119,17 @@ class OnlineRouter:
         self.cost_weight, self.latency_weight = cost_weight, latency_weight
         self.default_pool, self.execution_bounds = default_pool, bounds
         self.budget, self.fx, self.spent = budget, copy.deepcopy(fx), 0.0
+        self.exploration = Exploration(exploration) if exploration is not None else None
+        if self.exploration and (
+            budget is None or self.exploration.config["budget"] > budget
+        ):
+            raise ValueError(
+                "Exploration requires a bounded total budget covering its budget"
+            )
+        self.exploration_revision = model_revision(provider, pools)
+        self.exploration_spent = 0.0
+        self.capacity_reserved = {}
+        self.feedback = {}
         self.log_path = Path(log_path) if log_path else None
         # shortcut: retain decisions in memory; bound retention for longer-running studies.
         self.active, self.decisions, self.completed = {}, {}, set()
@@ -154,6 +168,7 @@ class OnlineRouter:
         shadow=False,
         pool_load_rps: dict | None = None,
         allowed_pools: set | None = None,
+        exploration_pools: set | None = None,
         arrival_ns: int | None = None,
         descriptor: dict | None = None,
     ) -> dict:
@@ -182,14 +197,36 @@ class OnlineRouter:
             raise ValueError("Every pool needs a finite nonnegative load")
         if allowed_pools is not None and not set(allowed_pools) <= self.pools.keys():
             raise ValueError("Unknown routing policy pool")
+        if (
+            exploration_pools is not None
+            and not set(exploration_pools) <= self.pools.keys()
+        ):
+            raise ValueError("Unknown exploration pool")
         with self.lock:
             if request_id in self.decisions:
                 return copy.deepcopy(self.decisions[request_id])
             with self.provider.lock:
                 if any(key[3] == request_id for key in self.provider.samples):
                     raise ValueError("Request ID already exists in provider history")
+            revision = model_revision(self.provider, self.pools)
+            if (
+                self.exploration
+                and revision != self.exploration_revision
+                and not shadow
+            ):
+                self.exploration.config["epoch_ns"] = max(
+                    now, self.exploration.config["epoch_ns"]
+                )
+                self.exploration_revision = revision
+                self._log(
+                    {
+                        "event": "exploration_epoch",
+                        "observed_ns": now,
+                        "model_revision": revision,
+                    }
+                )
             workload = self.workload.predict(now, descriptor=descriptor)
-            profiles = workload["joint_profiles"][-20:]
+            profiles = workload["joint_profiles"]
             predictions = [
                 self.provider.predict(profiles, [pool], rates[key], as_of_ns=now)[
                     "pools"
@@ -197,12 +234,20 @@ class OnlineRouter:
                 for key, pool in self.pools.items()
             ]
             candidates = []
-            reserved = sum(d.get("reserved_cost", 0) for d in self.active.values())
+            reserved = sum(
+                d.get("reserved_cost", 0)
+                for rid, d in self.active.items()
+                if rid not in self.completed
+            ) + sum(self.capacity_reserved.values())
             for (key, pool), pred in zip(self.pools.items(), predictions):
                 limit = self.limits.get(key)
                 occupied = sum(v["selected"] == key for v in self.active.values())
                 flags = []
-                if allowed_pools is not None and key not in allowed_pools:
+                if (
+                    allowed_pools is not None
+                    and key not in allowed_pools
+                    and key not in (exploration_pools or set())
+                ):
                     flags.append("excluded_by_control_policy")
                 if limit is None:
                     flags.append("capacity_unknown")
@@ -213,6 +258,16 @@ class OnlineRouter:
                     not bound or not set(descriptor["tools"]) <= set(bound["tools"])
                 ):
                     flags.append("unsupported_tool_environment")
+                if (
+                    descriptor
+                    and descriptor["hints"].get("memory_mb", 0)
+                    and (
+                        not number(pool["resources"].get("memory_mb"))
+                        or descriptor["hints"]["memory_mb"]
+                        > pool["resources"]["memory_mb"]
+                    )
+                ):
+                    flags.append("insufficient_memory")
                 cap = bound["max_cost"] if bound else 0
                 if self.fx and bound:
                     cap *= self.fx["rates"][bound["currency"]]
@@ -252,9 +307,19 @@ class OnlineRouter:
                         "objective_latency": latency,
                         "reserved_cost": cap,
                         "execution_bounds": bound,
+                        "evidence": self.exploration.evidence(
+                            self.provider, pool, descriptor, now
+                        )
+                        if self.exploration
+                        else None,
                     }
                 )
-            feasible = [c for c in candidates if not c["flags"]]
+            feasible = [
+                c
+                for c in candidates
+                if not c["flags"]
+                and (allowed_pools is None or c["key"] in allowed_pools)
+            ]
             priced = [
                 c
                 for c in feasible
@@ -285,7 +350,37 @@ class OnlineRouter:
                 if reliable
                 else next((c for c in feasible if c["key"] == self.default_pool), None)
             )
+            exploration = {
+                "strategy": "none",
+                "explored": False,
+                "probabilities": {c["key"]: float(c is selected) for c in candidates},
+                "selection_probability": 1.0 if selected else 0.0,
+            }
+            if self.exploration:
+                exploration_reserved = sum(
+                    d["reserved_cost"]
+                    for rid, d in self.active.items()
+                    if rid not in self.completed and d["exploration"]["explored"]
+                )
+                remaining = max(
+                    0,
+                    self.exploration.config["budget"]
+                    - self.exploration_spent
+                    - exploration_reserved
+                    - sum(self.capacity_reserved.values()),
+                )
+                selected, exploration = self.exploration.choose(
+                    request_id,
+                    descriptor,
+                    candidates,
+                    selected,
+                    remaining,
+                    cost_weight=self.cost_weight,
+                    latency_weight=self.latency_weight,
+                )
             result = {
+                "exploration": exploration,
+                "model_revision": revision,
                 "request_id": request_id,
                 "task_id": task,
                 "descriptor": copy.deepcopy(descriptor),
@@ -300,7 +395,9 @@ class OnlineRouter:
                 "selected": selected["key"] if selected else None,
                 "pool_snapshot": copy.deepcopy(self.pools),
                 "mode": selected["prediction"]["mode"] if selected else None,
-                "reason": "cost_latency_objective"
+                "reason": "provider_exploration"
+                if exploration["explored"]
+                else "cost_latency_objective"
                 if selected and reliable
                 else "validated_default"
                 if selected
@@ -338,6 +435,7 @@ class OnlineRouter:
         available_ns=None,
         actual_pool=None,
         actual_cost=None,
+        cost_basis="attributable_execution_cost",
     ) -> dict:
         """Feedback goes only to the bound pool; failed traces also release admission."""
         from atsuite.workload.profile import extract_profile
@@ -357,6 +455,12 @@ class OnlineRouter:
                 selected = self.active[request_id]["selected"]
                 if actual_pool is not None and actual_pool != selected:
                     raise ValueError("Session migration is forbidden")
+            if cost_basis not in {
+                "attributable_execution_cost",
+                "simulated_usage_estimate",
+                "synthetic_usage_estimate",
+            }:
+                raise ValueError("Unknown execution cost basis")
             if actual_cost is not None and not number(actual_cost):
                 raise ValueError("Invalid attributable cost")
             profile = extract_profile(trace)
@@ -388,20 +492,77 @@ class OnlineRouter:
             }
             self.provider.update(row)
             self.workload.update(profile, now, descriptor=decision["descriptor"])
+            charge = (
+                actual_cost if actual_cost is not None else decision["reserved_cost"]
+            )
+            accounting = {
+                "amount": charge,
+                "actual_cost": actual_cost
+                if cost_basis == "attributable_execution_cost"
+                else None,
+                "basis": cost_basis if actual_cost is not None else "execution_cap",
+                "selected": selected,
+                "available_ns": now,
+                "shadow": decision["shadow"],
+                "explored": decision["exploration"]["explored"],
+                "selection_probability": decision["exploration"][
+                    "selection_probability"
+                ],
+                "cap_exceeded": charge > decision["reserved_cost"],
+                "latency_s": row["measurements"].get("latency_s"),
+                "status": row["status"],
+                "realized_counterfactual_gain": None,
+            }
+            self.feedback[request_id] = accounting
             if not decision["shadow"]:
-                self.spent += (
-                    actual_cost
-                    if actual_cost is not None
-                    else decision["reserved_cost"]
-                )
+                self.spent += charge
+                if accounting["explored"]:
+                    self.exploration_spent += charge
             self._log(
                 {
                     "event": "completion",
                     "request_id": request_id,
                     "selected": selected,
                     "observation": row,
+                    "accounting": accounting,
                 }
             )
             self.active.pop(request_id, None)
             self.completed.add(request_id)
             return row
+
+    def exploration_report(self) -> dict:
+        """Summarize observed choices and accounting without inventing counterfactual gains."""
+        with self.lock:
+            decisions = [
+                d for d in self.decisions.values() if not d["shadow"] and d["selected"]
+            ]
+            counts = Counter(d["selected"] for d in decisions)
+            feedback = [
+                v for v in self.feedback.values() if not v["shadow"] and v["explored"]
+            ]
+            return {
+                "admitted": len(decisions),
+                "selection_counts": {k: counts[k] for k in self.pools},
+                "selection_proportions": {
+                    k: counts[k] / len(decisions) if decisions else 0
+                    for k in self.pools
+                },
+                "exploration_attempts": sum(
+                    d["exploration"]["explored"] for d in decisions
+                ),
+                "exploration_completed": len(feedback),
+                "exploration_successes": sum(
+                    v["status"] == "success" for v in feedback
+                ),
+                "exploration_accounted_cost": self.exploration_spent,
+                "exploration_execution_cost_by_basis": {
+                    basis: sum(v["amount"] for v in feedback if v["basis"] == basis)
+                    for basis in sorted({v["basis"] for v in feedback})
+                },
+                "capacity_reserved": dict(self.capacity_reserved),
+                "budget_spent_or_capped": self.spent,
+                "total_infrastructure_actual_cost": None,
+                "realized_counterfactual_gain": None,
+                "scope": "Decision/feedback evidence; capacity caps are not bills; benefit requires matched policy runs",
+            }

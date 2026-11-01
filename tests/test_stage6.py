@@ -109,7 +109,7 @@ class Stage6Tests(unittest.TestCase):
         self.assertEqual(predicted, model.predict(102, descriptor=small))
         self.assertEqual(
             model.predict(102, descriptor=describe(tools=["other"]))["match_basis"],
-            "global",
+            "initial_prior",
         )
         with self.assertRaises(ValueError):
             model.predict(102, descriptor={**small, "task_id": "leak"})

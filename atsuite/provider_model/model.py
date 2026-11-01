@@ -314,6 +314,21 @@ class ProviderModel:
                 for r in visible
                 if _compatible(r["pool"], pool) and not r.get("capacity_transition")
             ]
+            descriptors = [
+                p["descriptor"]
+                for p in profiles
+                if (p.get("descriptor") or {}).get("semantic")
+            ]
+            if descriptors:
+                candidates = [
+                    r
+                    for r in candidates
+                    if r["profile"].get("descriptor")
+                    and any(
+                        distance(d, r["profile"]["descriptor"]) <= 0.5
+                        for d in descriptors
+                    )
+                ]
             requests = [r for r in candidates if r["kind"] == "request"]
             successes = [r for r in requests if r["status"] == "success"]
             cost_profiles = _target_profiles(profiles, pool, successes, self.neighbors)

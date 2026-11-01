@@ -41,6 +41,7 @@ def price(retention=0.01):
 
 
 class DelayedAdapter:
+    resource = "synthetic-test-resource"
     control = "reserved_concurrency"
 
     def __init__(self, target=1):

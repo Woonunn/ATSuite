@@ -352,12 +352,28 @@ def simulate(
             "source": "simulation",
         }
         trace["spans"] = [session, *job["spans"]]
-        observation = controller.complete(rid, trace, available_ns=now)
-        pool = observation["pool"]
+        from atsuite.workload import extract_profile
+        from atsuite.provider_model.observation import execution_context
+
+        pool = controller.decisions[rid]["pool_snapshot"][job["pool"]]
         card = pool.get(
             "billing", controller.router.provider.tariffs.get(pool["provider"])
         )
-        marginal = predict_cost([observation["profile"]], pool, card, [], measured=True)
+        measured = extract_profile(trace)
+        measured["execution_pool"] = execution_context(pool)
+        marginal = predict_cost([measured], pool, card, [], measured=True)
+        controller.complete(
+            rid,
+            trace,
+            available_ns=now,
+            actual_cost=marginal["total"]["mean"]
+            * controller.fx["rates"][card["currency"]]
+            if marginal["complete"]
+            else None,
+            cost_basis="synthetic_usage_estimate"
+            if surface.synthetic
+            else "simulated_usage_estimate",
+        )
         if marginal["complete"]:
             for component, value in marginal["components"].items():
                 costs[component] += (
@@ -585,6 +601,7 @@ def simulate(
             for k in controller.pools
         },
         "scaling_events": scaling_events,
+        "exploration": controller.router.exploration_report(),
         "cost_timeline": cost_timeline,
         "capacity_timeline": capacity_timeline,
         "latency": _distribution([r["latency_s"] for r in successful], len(successful)),

@@ -51,6 +51,7 @@ class JointController:
         observation_s=30.0,
         target_utilization=0.7,
         policy="joint",
+        capacity_exploration: dict | None = None,
     ):
         keys = set(router.pools)
         if (
@@ -146,6 +147,25 @@ class JointController:
         self.retained_until = {}
         self.last_report = None
         self.descriptors = {}
+        self.probe = None
+        self.probed_until = {}
+        self.capacity_exploration = copy.deepcopy(capacity_exploration)
+        if capacity_exploration is not None:
+            c = capacity_exploration
+            if (
+                not router.exploration
+                or policy != "joint"
+                or set(c) != {"lease_s", "max_cost", "evidence"}
+                or not number(c["lease_s"])
+                or c["lease_s"] < period_s
+                or not c["evidence"]
+                or not isinstance(c["max_cost"], dict)
+                or not set(c["max_cost"]) <= keys
+                or any(not number(v) or v == 0 for v in c["max_cost"].values())
+            ):
+                raise ValueError(
+                    "Exploration capacity needs an audited lease and full lifecycle cost caps"
+                )
 
     @property
     def pools(self):
@@ -337,7 +357,7 @@ class JointController:
                 if not plan["weights"][key]:
                     continue
                 pred = self.router.provider.predict(
-                    workload["joint_profiles"][-20:], [pool], rates[key], as_of_ns=now
+                    workload["joint_profiles"], [pool], rates[key], as_of_ns=now
                 )["pools"][0]
                 predictions[(key, family)] = pred
                 if workload["low_confidence"] or pred["low_confidence"]:
@@ -577,7 +597,9 @@ class JointController:
                         if feasible
                         else None
                     )
-            self.plan = copy.deepcopy(selected["plan"]) if selected else None
+            self.plan = self._probe_plan(
+                selected["plan"] if selected else None, task_rates, now, apply=apply
+            )
             for key, target in list(self.draining.items()):
                 if self.plan is None or self.plan["targets"][key] != target:
                     self.draining.pop(key)
@@ -600,6 +622,8 @@ class JointController:
                 "queued": queued,
                 "utilization": utilization,
                 "selected": self.plan,
+                "exploration_capacity": copy.deepcopy(self.probe),
+                "exploration_capacity_reserved": dict(self.router.capacity_reserved),
                 "candidates": candidates,
                 "reason": "selected" if selected else "no_trusted_feasible_plan",
                 "cost_basis": "predicted",
@@ -619,10 +643,157 @@ class JointController:
                 ],
             }
             self._log("control_decision", **self.last_report)
-            if selected and apply:
+            if self.plan and apply:
                 for key, target in self.plan["targets"].items():
                     self._submit(key, target, now)
             return copy.deepcopy(self.last_report)
+
+    def _probe_plan(self, plan, task_rates, now, *, apply):
+        """Lease one promising idle pool; retain its cap until restoration is read back."""
+        if not self.capacity_exploration:
+            return plan
+        if plan is None:
+            if not self.probe:
+                return None
+            plan = {
+                "targets": {k: s.target for k, s in self.snapshots.items()},
+                "weights": self.probe["restore_weights"],
+            }
+        plan = copy.deepcopy(plan)
+        router = self.router
+        if self.probe:
+            p = self.probe
+            state = self.snapshots.get(p["key"])
+            if now >= p["expires_ns"]:
+                if (
+                    state
+                    and state.status == "READY"
+                    and state.effective == p["restore_target"]
+                    and p["key"] not in self.pending
+                    and not self._occupied(p["key"])
+                ):
+                    if apply:
+                        cap = router.capacity_reserved.pop(p["key"])
+                        router.spent += cap
+                        router.exploration_spent += cap
+                        self._log(
+                            "exploration_capacity_settled",
+                            **p,
+                            amount=cap,
+                            basis="lifecycle_cap_not_actual_bill",
+                            observed_ns=now,
+                        )
+                        self.probe = None
+                else:
+                    plan["targets"][p["key"]] = p["restore_target"]
+                    plan["weights"][p["key"]] = 0
+                    total = sum(plan["weights"].values())
+                    if total:
+                        plan["weights"] = {
+                            k: w / total for k, w in plan["weights"].items()
+                        }
+                    else:
+                        plan["weights"] = p["restore_weights"]
+                    return plan
+            else:
+                plan["targets"][p["key"]] = p["target"]
+                return plan
+        if not apply or self.probe or not any(task_rates.values()):
+            return plan
+        family = max(task_rates, key=task_rates.get)
+        descriptor = self.descriptors.get(family)
+        if descriptor is None:
+            return plan
+        options = {}
+        for key, cap in self.capacity_exploration["max_cost"].items():
+            if (
+                plan["weights"][key]
+                or self.levels[key][plan["targets"][key]]["session_limit"] > 0
+                or now - self.last_change.get(key, -(10**30)) < self.cooldown_s * 1e9
+                or key in self.pending
+                or key in self.draining
+                or self.probed_until.get(key, 0) > now
+                or self._occupied(key)
+            ):
+                continue
+            levels = [
+                v
+                for v in self.levels[key].values()
+                if v["session_limit"] > 0
+                and v["scale_delay_s"] < self.capacity_exploration["lease_s"]
+            ]
+            if levels:
+                options[key] = min(levels, key=lambda v: v["session_limit"])
+        if not options:
+            return plan
+        pools = {
+            k: options[k]["pool"] if k in options else self.levels[k][t]["pool"]
+            for k, t in plan["targets"].items()
+        }
+        # Preview uses proposed capacity only to price opportunities; live admission still needs readback.
+        preview = OnlineRouter(
+            router.workload,
+            router.provider,
+            pools,
+            {
+                k: options[k]["session_limit"] if k in options else router.limits.get(k)
+                for k in pools
+            },
+            cost_weight=router.cost_weight,
+            latency_weight=router.latency_weight,
+            default_pool=router.default_pool,
+            execution_bounds=router.execution_bounds,
+            budget=router.budget,
+            fx=router.fx,
+            exploration=router.exploration.config,
+        )
+        preview.spent = router.spent + sum(
+            d["reserved_cost"]
+            for rid, d in router.active.items()
+            if rid not in router.completed
+        )
+        preview.exploration_spent = router.exploration_spent + sum(
+            d["reserved_cost"]
+            for rid, d in router.active.items()
+            if rid not in router.completed and d["exploration"]["explored"]
+        )
+        decision = preview.decide(
+            f"capacity:{now}",
+            descriptor=descriptor,
+            as_of_ns=now,
+            shadow=True,
+            allowed_pools=set(options) | {k for k, w in plan["weights"].items() if w},
+        )
+        key = decision["selected"]
+        if key not in options or not decision["exploration"]["explored"]:
+            return plan
+        cap = self.capacity_exploration["max_cost"][key]
+        execution = decision["reserved_cost"]
+        if (
+            preview.spent + cap + execution > router.budget
+            or preview.exploration_spent + cap + execution
+            > router.exploration.config["budget"]
+        ):
+            return plan
+        self.probe = {
+            "key": key,
+            "target": options[key]["target"],
+            "restore_target": self.snapshots[key].target,
+            "restore_weights": dict(plan["weights"]),
+            "started_ns": now,
+            "expires_ns": now + int(self.capacity_exploration["lease_s"] * 1e9),
+        }
+        self.probed_until[key] = now + int(router.exploration.config["window_s"] * 1e9)
+        router.capacity_reserved[key] = cap
+        plan["targets"][key] = options[key]["target"]
+        self._log(
+            "exploration_capacity_reserved",
+            **self.probe,
+            amount=cap,
+            evidence=self.capacity_exploration["evidence"],
+            decision=decision,
+        )
+        return plan
 
     def observe_arrival(
         self, request_id: str, task: str | None, now_ns: int, *, descriptor=None
@@ -705,6 +876,21 @@ class JointController:
                     and state.effective == self.plan["targets"][key]
                 ):
                     allowed.add(key)
+            if (
+                self.policy == "routing"
+                and self.plan
+                and self.last_tick is not None
+                and now - self.last_tick <= self.period_s * 2e9
+            ):
+                allowed = {
+                    k
+                    for k, state in self.snapshots.items()
+                    if state.status == "READY"
+                    and now - state.observed_ns <= self.period_s * 2e9
+                    and k not in self.draining
+                    and k not in self.pending
+                    and state.effective == self.plan["targets"][k]
+                }
             if self.router.default_pool:
                 key = self.router.default_pool
                 state = self.snapshots.get(key)
@@ -717,7 +903,7 @@ class JointController:
                 ):
                     workload = self.router.workload.predict(now, descriptor=descriptor)
                     predictions = self.router.provider.predict(
-                        workload["joint_profiles"][-20:],
+                        workload["joint_profiles"],
                         [self.pools[k] for k in allowed],
                         load_rps,
                         as_of_ns=now,
@@ -732,7 +918,23 @@ class JointController:
                             for p in predictions
                         )
                     ):
-                        allowed = {key}
+                        allowed = allowed | {key} if self.policy == "routing" else {key}
+            exploration_allowed = set()
+            if self.router.exploration:
+                for key, state in self.snapshots.items():
+                    if (
+                        state.status == "READY"
+                        and now - state.observed_ns <= self.period_s * 2e9
+                        and key not in self.draining
+                        and key not in self.pending
+                        and self.router.limits.get(key)
+                        and (
+                            not self.probe
+                            or key != self.probe["key"]
+                            or now < self.probe["expires_ns"]
+                        )
+                    ):
+                        exploration_allowed.add(key)
             decision = self.router.decide(
                 request_id,
                 task,
@@ -741,6 +943,7 @@ class JointController:
                 shadow=shadow,
                 pool_load_rps=rates,
                 allowed_pools=allowed,
+                exploration_pools=exploration_allowed,
                 arrival_ns=arrival_ns,
                 descriptor=descriptor,
             )

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from atsuite.tracing.storage import read_text, write_json
 from atsuite.workload.profile import METRICS, extract_profile, number
-from atsuite.workload.descriptor import distance, validate_descriptor
+from atsuite.workload.descriptor import distance, resource_distance, validate_descriptor
 
 
 def distribution(values: list, total: int) -> dict:
@@ -51,7 +51,12 @@ class WorkloadModel:
         self.lock = threading.RLock()
 
     def begin(
-        self, request_id: str, session_id: str, arrival_ns: int | None = None
+        self,
+        request_id: str,
+        session_id: str,
+        arrival_ns: int | None = None,
+        *,
+        descriptor=None,
     ) -> dict:
         """Freeze a prediction before executing a request; count distinct active sessions."""
         arrival_ns = time.time_ns() if arrival_ns is None else arrival_ns
@@ -60,7 +65,7 @@ class WorkloadModel:
         with self.lock:
             if request_id in self.active or request_id in self.samples:
                 raise ValueError("Request ID already registered")
-            prediction = self.predict(arrival_ns)
+            prediction = self.predict(arrival_ns, descriptor=descriptor)
             self.active[request_id] = {
                 "session_id": session_id,
                 "arrival_ns": arrival_ns,
@@ -71,9 +76,11 @@ class WorkloadModel:
             prediction["request_id"] = request_id
             return prediction
 
-    def observe(self, trace: dict, available_ns: int | None = None) -> dict:
+    def observe(
+        self, trace: dict, available_ns: int | None = None, *, descriptor=None
+    ) -> dict:
         """Extract and ingest a completed trace; retain failed/incomplete audits separately."""
-        return self.update(extract_profile(trace), available_ns)
+        return self.update(extract_profile(trace), available_ns, descriptor=descriptor)
 
     def update(
         self, profile: dict, available_ns: int | None = None, *, descriptor=None
@@ -144,8 +151,14 @@ class WorkloadModel:
                     or s["profile"]["completed_ns"] < as_of_ns
                 )
             ]
-            samples = [p for p in eligible if p["status"] == "success"]
-            basis, nearest = "global", None
+            samples = sorted(
+                (p for p in eligible if p["status"] == "success"),
+                key=lambda p: (
+                    -self.samples[p["request_id"]]["available_ns"],
+                    p["request_id"],
+                ),
+            )
+            basis, nearest, resource_nearest = "global", None, None
             if descriptor is not None:
                 ranked = sorted(
                     (
@@ -164,8 +177,24 @@ class WorkloadModel:
                 similar = [p for d, _, _, p in ranked if d <= 0.5][:20]
                 if similar:
                     samples, basis = similar, "resource_family"
+                elif descriptor.get("semantic"):
+                    # A resource prior never establishes that an unseen intent is known.
+                    peers = sorted(
+                        (
+                            (resource_distance(descriptor, p["descriptor"]), i, p)
+                            for i, p in enumerate(samples)
+                            if p.get("descriptor")
+                            and set(p["descriptor"]["tools"])
+                            == set(descriptor["tools"])
+                        ),
+                        key=lambda item: item[:2],
+                    )
+                    resource_nearest = peers[0][0] if peers else None
+                    samples = [p for d, _, p in peers if d <= 0.5][:20]
+                    basis = "resource_prior"
             if not samples:
                 samples, basis = copy.deepcopy(self.initial_profiles), "initial_prior"
+            samples = samples[:20]
             n = len(samples)
             metrics = {
                 k: distribution(
@@ -188,12 +217,24 @@ class WorkloadModel:
                 "sample_count": n,
                 "match_basis": basis,
                 "nearest_distance": nearest,
+                "resource_nearest_distance": resource_nearest,
+                "eligible_success_count": sum(
+                    p["status"] == "success" for p in eligible
+                ),
+                "unknown_request": descriptor is not None
+                and basis != "resource_family",
                 "descriptor": copy.deepcopy(descriptor),
                 "joint_profiles": copy.deepcopy(samples),
                 "status_counts": dict(Counter(p["status"] for p in eligible)),
                 "low_confidence": n < 3
                 or basis == "initial_prior"
-                or (descriptor is not None and basis == "global")
+                or (
+                    descriptor is not None
+                    and (
+                        basis != "resource_family"
+                        or descriptor["unknown_file_sizes"] > 0
+                    )
+                )
                 or any(p["source"] == "capture" for p in samples),
                 "metrics": metrics,
                 "workflow": {

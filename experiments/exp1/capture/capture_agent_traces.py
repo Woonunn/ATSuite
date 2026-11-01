@@ -56,7 +56,7 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
     if router is not None:arrival_ns=routing_context.get('arrival_ns',arrival_ns)
     if workload_model is not None:
         from atsuite.tracing.storage import write_json
-        prediction=workload_model.begin(request_id,session_id,arrival_ns)
+        prediction=workload_model.begin(request_id,session_id,arrival_ns,descriptor=descriptor)
         write_json(output/'workload_prediction.json',prediction)
     if provider_model is not None:
         from atsuite.tracing.storage import write_json
@@ -111,7 +111,7 @@ async def run(task_id,config,output,capture=None,workload_model=None,provider_mo
             trace=tracing.collector.snapshot()
             trace.update(arrival_ns=arrival_ns,completed_ns=time.time_ns(),
                          request_status='success' if state['status']=='complete' else 'failed')
-            profile=workload_model.observe(trace) if workload_model is not None else extract_profile(trace)
+            profile=workload_model.observe(trace,descriptor=descriptor) if workload_model is not None else extract_profile(trace)
             write_json(output/'workload_profile.json',profile)
             if provider_model is not None:
                 observation=provider_model.complete(trace,provider_context['pool'],provider_context['load_rps'],
